@@ -1,7 +1,7 @@
 {
   "name": "qakit-repo",
   "version": "1.0.0",
-  "description": "> All-in-one browser toolkit for QA engineers and web developers.",
+  "description": "All-in-one browser toolkit for QA engineers and web developers.",
   "main": "playwright.config.js",
   "directories": {
     "doc": "docs",
