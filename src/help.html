@@ -1,0 +1,754 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>QAKit v1.0.0 — Help &amp; User Guide</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{font-family:-apple-system,"Segoe UI",Roboto,sans-serif;background:#f4f6f9;color:#12161c;line-height:1.65;font-size:14px}
+
+/* Hero */
+.hero{background:linear-gradient(135deg,#0f141d 0%,#0a4d37 100%);color:#fff;padding:40px 32px}
+.hero-inner{max-width:900px;margin:0 auto}
+.hero h1{font-size:30px;font-weight:900;letter-spacing:-.02em;display:flex;align-items:center;gap:14px;margin-bottom:8px}
+.hero-badge{background:#00e5a0;color:#0f141d;border-radius:8px;padding:5px 12px;font-size:14px;font-weight:800;letter-spacing:.02em}
+.hero-sub{font-size:15px;opacity:.85;margin-bottom:4px}
+.hero-meta{font-size:12px;opacity:.55}
+.hero-chips{display:flex;gap:8px;flex-wrap:wrap;margin-top:16px}
+.chip{background:rgba(0,229,160,.15);border:1px solid rgba(0,229,160,.35);border-radius:20px;padding:3px 12px;font-size:12px;color:#00e5a0;font-weight:600}
+
+/* Nav */
+nav{position:sticky;top:0;z-index:100;background:#fff;border-bottom:2px solid #d1d9e0;padding:0 16px;overflow-x:auto;white-space:nowrap;display:flex;gap:0;scrollbar-width:none}
+nav::-webkit-scrollbar{display:none}
+nav a{display:inline-block;padding:10px 14px;font-size:12px;font-weight:600;color:#596270;text-decoration:none;border-bottom:2px solid transparent;margin-bottom:-2px;transition:all .15s}
+nav a:hover{color:#0a6e51;border-bottom-color:#0a6e51}
+
+/* Content */
+.content{max-width:900px;margin:0 auto;padding:0 24px 80px}
+.section{padding:40px 0 0;border-top:2px solid #d1fae5;margin-top:44px}
+.section:first-child{margin-top:32px;border-top:none}
+h2{font-size:22px;font-weight:800;color:#0a6e51;margin-bottom:6px;display:flex;align-items:center;gap:10px}
+.h2-icon{font-size:20px}
+.h2-sub{font-size:13px;font-weight:400;color:#6b7280;margin-bottom:18px}
+h3{font-size:15px;font-weight:700;color:#12161c;margin:24px 0 8px;padding-bottom:4px;border-bottom:1px solid #e5e7eb}
+h4{font-size:13px;font-weight:700;color:#374151;margin:16px 0 6px}
+p{font-size:14px;color:#374151;margin-bottom:10px;line-height:1.75}
+ul,ol{padding-left:22px;margin-bottom:12px}
+li{font-size:14px;color:#374151;margin-bottom:6px;line-height:1.65}
+
+/* Cards */
+.card{background:#fff;border:1px solid #d1d9e0;border-radius:10px;padding:16px 20px;margin-bottom:12px;transition:box-shadow .15s}
+.card:hover{box-shadow:0 2px 12px rgba(0,0,0,.07)}
+.card-title{font-size:14px;font-weight:700;color:#0a6e51;margin-bottom:6px;display:flex;align-items:center;gap:8px}
+.card-icon{font-size:18px}
+.card p{margin-bottom:6px;font-size:13px}
+.card ul{margin-bottom:0}
+.card li{font-size:13px}
+
+/* Feature grid */
+.feat-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px;margin-bottom:24px}
+
+/* Inline elements */
+kbd{display:inline-block;background:#f0f4f8;border:1px solid #c5cdd8;border-radius:4px;padding:1px 8px;font-family:monospace;font-size:12px;color:#374151;font-weight:700}
+code{background:#f0f4f8;border-radius:3px;padding:2px 6px;font-family:monospace;font-size:12px;color:#0a4d37;font-weight:600}
+
+/* Callouts */
+.tip{background:#f0fdf4;border-left:4px solid #0a6e51;padding:11px 15px;border-radius:0 8px 8px 0;margin:14px 0;font-size:13px;color:#065f46;line-height:1.6}
+.tip strong{color:#047857}
+.warn{background:#fff7ed;border-left:4px solid #f59e0b;padding:11px 15px;border-radius:0 8px 8px 0;margin:14px 0;font-size:13px;color:#92400e;line-height:1.6}
+.info{background:#eff6ff;border-left:4px solid #3b82f6;padding:11px 15px;border-radius:0 8px 8px 0;margin:14px 0;font-size:13px;color:#1e40af;line-height:1.6}
+
+/* Table */
+table{width:100%;border-collapse:collapse;margin-bottom:16px;font-size:13px}
+th{background:#f0f4f8;text-align:left;padding:9px 13px;border:1px solid #d1d9e0;font-weight:700;color:#374151}
+td{padding:9px 13px;border:1px solid #d1d9e0;vertical-align:top;color:#374151}
+tr:nth-child(even) td{background:#fafbfc}
+
+/* Steps */
+.steps{counter-reset:step;list-style:none;padding:0}
+.steps li{counter-increment:step;padding:9px 0 9px 48px;position:relative;border-bottom:1px solid #f0f4f8;font-size:14px;color:#374151}
+.steps li:last-child{border-bottom:none}
+.steps li::before{content:counter(step);position:absolute;left:0;top:8px;width:30px;height:30px;background:#0a6e51;color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:12px}
+
+/* Screenshot badge */
+.badge{display:inline-block;background:#00e5a0;color:#0f141d;border-radius:4px;padding:2px 8px;font-size:11px;font-weight:700;vertical-align:middle}
+.badge-red{background:#fee2e2;color:#991b1b}
+.badge-blue{background:#dbeafe;color:#1e40af}
+.badge-amber{background:#fef3c7;color:#92400e}
+
+/* Footer */
+.footer{margin-top:60px;padding:28px 0;border-top:2px solid #d1d9e0;text-align:center;font-size:12px;color:#9ca3af}
+.footer strong{color:#374151}
+
+@media(max-width:600px){
+  .feat-grid{grid-template-columns:1fr}
+  .hero{padding:28px 20px}
+  .content{padding:0 16px 60px}
+  h2{font-size:18px}
+}
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════════════════════════════════ HERO -->
+<div class="hero">
+  <div class="hero-inner">
+    <h1><span class="hero-badge">QK</span> QAKit User Guide</h1>
+    <div class="hero-sub">Your complete QA &amp; developer toolkit for testing web applications</div>
+    <div class="hero-meta">Version 1.0.0 · Built by Prem Nepak · QAKit Extension</div>
+    <div class="hero-chips">
+      <span class="chip">Inspect &amp; Measure</span>
+      <span class="chip">Screenshots</span>
+      <span class="chip">Analytics</span>
+      <span class="chip">Network Mock</span>
+      <span class="chip">Page Audit</span>
+      <span class="chip">Session Tools</span>
+      <span class="chip">Developer Utilities</span>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════ NAV -->
+<nav>
+  <a href="#overview">Overview</a>
+  <a href="#navigation">Navigation</a>
+  <a href="#inspect">Inspect &amp; Measure</a>
+  <a href="#capture">Capture</a>
+  <a href="#analytics">Analytics</a>
+  <a href="#netmock">Network Mock</a>
+  <a href="#headers">Headers</a>
+  <a href="#audit">Page Audit</a>
+  <a href="#session">Session &amp; Env</a>
+  <a href="#utilities">Utilities</a>
+  <a href="#tools">Developer Tools</a>
+  <a href="#settings">Settings</a>
+  <a href="#shortcuts">Shortcuts</a>
+</nav>
+
+<div class="content">
+
+<!-- ═══════════════════════════════════════════════════════════════════════ OVERVIEW -->
+<div class="section" id="overview">
+  <h2><span class="h2-icon">🧭</span> Overview</h2>
+  <p class="h2-sub">What QAKit does and how it works</p>
+
+  <p>QAKit is a Chrome extension built specifically for QA engineers and developers who test web applications. It sits inside your browser and gives you instant access to inspection tools, screenshot capture, analytics monitoring, network request mocking, accessibility auditing, and much more — all without leaving the page you're testing.</p>
+
+  <p>QAKit works on any web application. Configure the allowed domains in Settings to restrict it to specific sites, or leave blank to enable it everywhere.</p>
+
+  <div class="tip"><strong>Pure launcher design:</strong> QAKit opens on the Home screen every time. Every tool is a tile on the Home grid — tap a tile to slide that tool in as a full-screen overlay. Tap <strong>← Home</strong> in the top-left of any tool to return.</div>
+
+  <div class="info"><strong>Support &amp; feedback:</strong> Questions, bug reports, or feature requests? Email <a href="mailto:qakit.extension@gmail.com" style="color:#1e40af;font-weight:600">qakit.extension@gmail.com</a></div>
+
+  <h3>Home screen groups</h3>
+  <table>
+    <tr><th>Group</th><th>Tools</th></tr>
+    <tr><td><strong>Inspect &amp; Measure</strong></td><td>Element Inspector, Spacing Inspector, Ruler, Viewports</td></tr>
+    <tr><td><strong>Capture</strong></td><td>Annotate, Region Screenshot, Full Page Screenshot, Element Screenshot</td></tr>
+    <tr><td><strong>Data &amp; Network</strong></td><td>Analytics, Network Mock, Headers Modifier, Page Audit</td></tr>
+    <tr><td><strong>Session &amp; Environment</strong></td><td>Environment Marker, Cookie Manager, Local Storage, Console Errors</td></tr>
+    <tr><td><strong>Utilities</strong></td><td>Time &amp; Epoch, Encode &amp; Decode, Override Geolocation, Page Metadata</td></tr>
+    <tr><td><strong>Tools</strong></td><td>JSON Viewer ↗, Text Compare ↗, Help ↗</td></tr>
+  </table>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════ NAVIGATION -->
+<div class="section" id="navigation">
+  <h2><span class="h2-icon">🗺</span> Navigation</h2>
+  <p class="h2-sub">How to move around QAKit</p>
+
+  <h3>Opening a tool</h3>
+  <p>Tap any tile on the Home grid. The corresponding tool panel slides in from the right, covering the Home grid. The QAKit header and footer remain visible at all times.</p>
+
+  <h3>Going back to Home</h3>
+  <p>Every tool panel has a green <strong>← Home</strong> button in the top-left corner of the panel header. Clicking it slides the tool away and returns you to the Home grid.</p>
+
+  <h3>Opening Settings</h3>
+  <p>Click the <strong>⚙ Settings</strong> button in the QAKit header bar. Settings slides in as a panel. Use ← Home to close it.</p>
+
+  <h3>Tools that open in a new tab</h3>
+  <p>JSON Viewer, Text Compare, and Help open in a new browser tab rather than inside the popup. This gives them more screen space for editing-style work.</p>
+
+  <h3>Active tool highlights</h3>
+  <p>When Inspect, Spacing, or Ruler is currently active on the page, its Home tile shows a green highlight border so you can see at a glance which tool is running.</p>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════ INSPECT -->
+<div class="section" id="inspect">
+  <h2><span class="h2-icon">🔍</span> Inspect &amp; Measure</h2>
+  <p class="h2-sub">DOM inspection, spacing measurement, ruler and responsive preview</p>
+
+  <div class="feat-grid">
+    <div class="card">
+      <div class="card-title"><span class="card-icon">🔍</span> Element Inspector</div>
+      <p>Hover over any element on the page to see its CSS properties, dimensions, computed styles, test attributes, and accessibility role in a live tooltip. Click to pin the inspection to one element.</p>
+      <ul>
+        <li>Displays element tag, ID, classes, test ID attribute</li>
+        <li>Shows box model: width, height, margin, padding, border</li>
+        <li>Highlights the element with a blue overlay</li>
+        <li>Keyboard shortcut: <kbd>⌘⇧Q</kbd> / <kbd>Ctrl⇧Q</kbd></li>
+      </ul>
+    </div>
+    <div class="card">
+      <div class="card-title"><span class="card-icon">📐</span> Spacing Inspector</div>
+      <p>Measures the exact spacing between elements. Hover to see margin and padding guides drawn on screen as coloured overlays (orange = margin, blue = padding).</p>
+      <ul>
+        <li>Shows pixel values for all four sides</li>
+        <li>Hold <kbd>Alt</kbd> to measure distance between two elements</li>
+        <li>Keyboard shortcut: <kbd>⌘⇧Y</kbd> / <kbd>Ctrl⇧Y</kbd></li>
+      </ul>
+    </div>
+    <div class="card">
+      <div class="card-title"><span class="card-icon">📏</span> Ruler</div>
+      <p>Draws a measurement ruler on screen. Click and drag to measure the pixel distance between any two points on the page. Useful for verifying layout precision.</p>
+      <ul>
+        <li>Shows horizontal and vertical pixel dimensions</li>
+        <li>Drag handles to resize the measured area</li>
+        <li>Click outside to dismiss</li>
+      </ul>
+    </div>
+    <div class="card">
+      <div class="card-title"><span class="card-icon">📱</span> Responsive Preview</div>
+      <p>Preview the current page at common device widths without leaving the browser. Choose from preset device sizes or enter a custom width.</p>
+      <ul>
+        <li>Presets: Mobile (375), Tablet (768), Laptop (1280), Desktop (1440), Wide (1920)</li>
+        <li>Custom width input</li>
+        <li>Resizes the browser viewport in real time</li>
+        <li>QAKit remembers if you had this open and returns you to it next time</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="tip"><strong>Mutually exclusive:</strong> Only one inspection tool can be active at a time. Opening Spacing automatically closes Inspect and Ruler, and vice versa.</div>
+
+  <div class="tip"><strong>Returns to Home:</strong> After triggering Inspect, Spacing, or Ruler from the Home tile, QAKit closes and the tool runs on the page. The next time you open QAKit you land on Home, not inside Page Kit.</div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════ CAPTURE -->
+<div class="section" id="capture">
+  <h2><span class="h2-icon">📸</span> Capture</h2>
+  <p class="h2-sub">Screenshot and annotation tools</p>
+
+  <div class="feat-grid">
+    <div class="card">
+      <div class="card-title"><span class="card-icon">✏</span> Annotate</div>
+      <p>Draw on the current page before capturing. Add arrows, rectangles, text labels, and highlights to mark up what you're testing, then save as a PNG.</p>
+      <ul>
+        <li>Freehand draw, shapes, text, arrows</li>
+        <li>Choose stroke colour and thickness</li>
+        <li>Undo / redo support</li>
+        <li>Save annotated screenshot as PNG</li>
+      </ul>
+    </div>
+    <div class="card">
+      <div class="card-title"><span class="card-icon">⬚</span> Region Screenshot</div>
+      <p>Capture a selected area of the page. Click and drag a rectangle over the area you want, release to capture. Result is copied to clipboard and a download toast appears.</p>
+      <ul>
+        <li>Click and drag to select area</li>
+        <li>Auto-copied to clipboard as PNG</li>
+        <li>Toast notification with ⬇ Download button</li>
+        <li>Keyboard shortcut: <kbd>⌘⇧U</kbd> / <kbd>Ctrl⇧U</kbd></li>
+      </ul>
+    </div>
+    <div class="card">
+      <div class="card-title"><span class="card-icon">📄</span> Full Page Screenshot</div>
+      <p>Captures the entire page — not just the visible viewport — by auto-scrolling and stitching strips together. The final image is copied to clipboard and a download toast appears.</p>
+      <ul>
+        <li>Auto-scrolls the page silently</li>
+        <li>Stitches all strips into one PNG</li>
+        <li>Copied to clipboard automatically</li>
+        <li>Toast with ⬇ Download button showing final dimensions</li>
+        <li>Keyboard shortcut: <kbd>⌘⇧K</kbd> / <kbd>Ctrl⇧K</kbd></li>
+      </ul>
+    </div>
+    <div class="card">
+      <div class="card-title"><span class="card-icon">🖼</span> Element Screenshot</div>
+      <p>Click any element on the page to capture just that element as a PNG — no background, exact bounds. Useful for capturing components in isolation.</p>
+      <ul>
+        <li>Click to activate picker, then click any element</li>
+        <li>Captures element bounds precisely</li>
+        <li>Auto-copied to clipboard</li>
+        <li>Toast notification with ⬇ Download button</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="tip"><strong>Screenshot toast:</strong> All screenshot actions show a dark toast at the bottom of the popup with a <strong>⬇ Download</strong> button. The toast auto-dismisses after 10 seconds. The image is also copied to your clipboard so you can paste it directly into documents or bug trackers.</div>
+  <div class="info"><strong>After a screenshot:</strong> QAKit closes while the capture runs. When you reopen it, you land on the Home screen — not inside any tool panel.</div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════ ANALYTICS -->
+<div class="section" id="analytics">
+  <h2><span class="h2-icon">⚡</span> Analytics</h2>
+  <p class="h2-sub">Capture and inspect analytics events fired on the page</p>
+
+  <p>The Analytics panel captures data layer events, analytics calls, and WAE (Web Analytics Event) attribute clicks as they happen on the page. Events appear in a live feed as you browse.</p>
+
+  <h3>Supported platforms</h3>
+  <table>
+    <tr><th>Platform</th><th>What is captured</th></tr>
+    <tr><td>GTM / dataLayer</td><td>All <code>dataLayer.push()</code> calls</td></tr>
+    <tr><td>GA4 (gtag)</td><td>All <code>gtag('event', ...)</code> calls</td></tr>
+    <tr><td>Digital DataLayer (DDL)</td><td><code>digitalData</code> mutations and events</td></tr>
+    <tr><td>Adobe Analytics</td><td>Adobe launch and s.t() / s.tl() calls</td></tr>
+    <tr><td>Tealium</td><td><code>utag.track()</code> and <code>utag.link()</code></td></tr>
+    <tr><td>Meta Pixel</td><td><code>fbq('track', ...)</code> calls</td></tr>
+    <tr><td>Floodlight / CM360</td><td>Floodlight tag fires</td></tr>
+    <tr><td>Segment</td><td><code>analytics.track()</code> calls</td></tr>
+    <tr><td>WAE attributes</td><td>Clicks on elements with <code>data-wae-*</code> attributes — always captured</td></tr>
+  </table>
+
+  <h3>Searching events</h3>
+  <p>The search bar supports multi-criteria queries:</p>
+  <table>
+    <tr><th>Syntax</th><th>Behaviour</th><th>Example</th></tr>
+    <tr><td><code>term</code></td><td>Single term — match anywhere in the event</td><td><code>page_view</code></td></tr>
+    <tr><td><code>a, b</code></td><td>Comma or space separated = OR</td><td><code>wae, ddl</code></td></tr>
+    <tr><td><code>+term</code></td><td>Must include (AND mode)</td><td><code>+wae +click</code></td></tr>
+    <tr><td><code>-term</code></td><td>Must exclude</td><td><code>wae -test</code></td></tr>
+  </table>
+
+  <h3>Filtering</h3>
+  <ul>
+    <li><strong>Platform filter</strong> — show events from one platform only (GTM, GA4, DDL, etc.)</li>
+    <li><strong>Event type filter</strong> — narrow by event type (page_view, click, etc.)</li>
+    <li>Search and filter settings are persisted between popup opens</li>
+  </ul>
+
+  <h3>Event actions</h3>
+  <ul>
+    <li>Click any event to expand and see its full payload</li>
+    <li><strong>⬇ Export</strong> — download all captured events as a JSON file</li>
+    <li><strong>⏸ Pause</strong> — stop capturing new events temporarily</li>
+    <li><strong>🗑 Clear Log</strong> — remove all captured events from the session</li>
+  </ul>
+
+  <div class="tip">Analytics capture starts the moment the page loads, before QAKit is opened. Events are buffered in the background so you never miss a page load event.</div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════ NET MOCK -->
+<div class="section" id="netmock">
+  <h2><span class="h2-icon">⟷</span> Network Mock</h2>
+  <p class="h2-sub">Intercept and rewrite network requests in real time</p>
+
+  <p>Network Mock lets you intercept HTTP requests made by the page and return custom responses — without changing any code or running a proxy. Perfect for testing how the UI handles different API responses, error states, or edge cases.</p>
+
+  <h3>Creating a rule</h3>
+  <ol class="steps">
+    <li>Open the Network Mock panel</li>
+    <li>Click <strong>+ Add Rule</strong></li>
+    <li>Enter a URL pattern to match (supports wildcards: <code>*</code>)</li>
+    <li>Choose the HTTP method (GET, POST, PUT, DELETE, or Any)</li>
+    <li>Select the response type: <strong>JSON body</strong>, <strong>Status code</strong>, <strong>Redirect</strong>, or <strong>Block</strong></li>
+    <li>Enter the response body or status code</li>
+    <li>Toggle the rule on and reload the page</li>
+  </ol>
+
+  <h3>Rule options</h3>
+  <table>
+    <tr><th>Option</th><th>Description</th></tr>
+    <tr><td>URL Pattern</td><td>Match string with optional <code>*</code> wildcards, e.g. <code>*/api/flights*</code></td></tr>
+    <tr><td>Method</td><td>GET, POST, PUT, DELETE, PATCH, or Any</td></tr>
+    <tr><td>Response Type</td><td>JSON body, Status code only, Redirect to URL, or Block entirely</td></tr>
+    <tr><td>Status Code</td><td>Override the HTTP status (200, 400, 404, 500, etc.)</td></tr>
+    <tr><td>Delay (ms)</td><td>Add artificial latency to simulate slow networks</td></tr>
+    <tr><td>Active toggle</td><td>Enable or disable a rule without deleting it</td></tr>
+  </table>
+
+  <h3>Managing rules</h3>
+  <ul>
+    <li>Rules persist across page reloads and popup closes</li>
+    <li>Active rules are shown with a green dot on the Home tile</li>
+    <li>Toggle individual rules on/off without deleting them</li>
+    <li>Click the trash icon to permanently delete a rule</li>
+    <li>Import and export rules as JSON for sharing with your team</li>
+  </ul>
+
+  <div class="warn"><strong>Reload required:</strong> Most rules take effect on the next page load, since requests are intercepted at the network level.</div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════ HEADERS -->
+<div class="section" id="headers">
+  <h2><span class="h2-icon">🏷</span> Headers Modifier</h2>
+  <p class="h2-sub">Inject, modify or remove HTTP request and response headers</p>
+
+  <p>Headers Modifier lets you add, override, or remove HTTP headers on every request made by the page. Useful for testing authentication tokens, CORS scenarios, feature flags passed via headers, or custom debugging headers.</p>
+
+  <h3>Adding a header rule</h3>
+  <ol class="steps">
+    <li>Open the Headers Modifier panel</li>
+    <li>Click <strong>+ Add Header</strong></li>
+    <li>Choose direction: <strong>Request</strong> (sent to the server) or <strong>Response</strong> (received from server)</li>
+    <li>Choose operation: <strong>Add/Override</strong> or <strong>Remove</strong></li>
+    <li>Enter the header name (e.g. <code>Authorization</code>)</li>
+    <li>Enter the value (for Add/Override)</li>
+    <li>Toggle the rule active and reload the page</li>
+  </ol>
+
+  <h3>Common use cases</h3>
+  <ul>
+    <li>Inject a bearer token to test authenticated endpoints without logging in</li>
+    <li>Add custom feature-flag headers to test staged features</li>
+    <li>Remove security headers temporarily to test CORS handling</li>
+    <li>Override <code>Accept-Language</code> to test localisation</li>
+    <li>Simulate specific user agent strings</li>
+  </ul>
+
+  <div class="tip">Header rules are applied at the <code>declarativeNetRequest</code> level — they're reliable and fast, and work with all requests including preload and prefetch.</div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════ PAGE AUDIT -->
+<div class="section" id="audit">
+  <h2><span class="h2-icon">🔬</span> Page Audit</h2>
+  <p class="h2-sub">Automated quality checks for links, images, spelling, performance, security and accessibility</p>
+
+  <p>Page Audit runs a comprehensive scan of the current page and scores it across four dimensions: Performance, Security, and Accessibility. The results are shown in a dashboard with an overall grade and clickable per-category scores.</p>
+
+  <h3>Running an audit</h3>
+  <ol class="steps">
+    <li>Navigate to the page you want to audit</li>
+    <li>Open QAKit and tap the <strong>Page Audit 🔬</strong> tile</li>
+    <li>Click the green <strong>▶ Run</strong> button</li>
+    <li>Wait for the scan to complete (typically 5–30 seconds)</li>
+    <li>Review the Overview dashboard, then click into Perf, Security, or A11y tabs</li>
+  </ol>
+
+  <h3>Overview dashboard</h3>
+  <p>After a scan, the Overview tab shows:</p>
+  <ul>
+    <li><strong>Overall grade</strong> — A through F with a score out of 100</li>
+    <li><strong>Perf / Security / A11y score chips</strong> — click any chip to jump to that sub-tab</li>
+    <li><strong>Core Web Vitals</strong> — LCP, CLS, FCP, TTFB with pass/fail indicators</li>
+    <li><strong>Issue summary chips</strong> — broken links count, broken images, spelling errors, accessibility issues, security issues</li>
+  </ul>
+
+  <h3>Sub-tabs</h3>
+  <table>
+    <tr><th>Tab</th><th>What it checks</th></tr>
+    <tr><td><strong>Overview</strong></td><td>Score dashboard, Core Web Vitals, issue summary</td></tr>
+    <tr><td><strong>Perf</strong></td><td>LCP, CLS, FCP, TTFB, page weight, number of requests, render-blocking resources</td></tr>
+    <tr><td><strong>Security</strong></td><td>Missing security headers (HSTS, CSP, X-Frame-Options, etc.), mixed content, insecure cookies, weak CORS policy</td></tr>
+    <tr><td><strong>A11y</strong></td><td>WCAG AA contrast failures, missing alt text, unlabelled form fields, missing landmarks, ARIA errors, heading hierarchy</td></tr>
+  </table>
+
+  <h3>Grading scale</h3>
+  <table>
+    <tr><th>Grade</th><th>Score</th><th>Meaning</th></tr>
+    <tr><td><span class="badge">A</span></td><td>90–100</td><td>Excellent — meets best practices</td></tr>
+    <tr><td><span class="badge">B</span></td><td>75–89</td><td>Good — minor issues</td></tr>
+    <tr><td><span class="badge" style="background:#fef3c7;color:#92400e">C</span></td><td>60–74</td><td>Fair — noticeable issues</td></tr>
+    <tr><td><span class="badge badge-amber">D</span></td><td>45–59</td><td>Poor — significant problems</td></tr>
+    <tr><td><span class="badge badge-red">F</span></td><td>0–44</td><td>Failing — critical issues</td></tr>
+  </table>
+
+  <h3>Persistence and the last-scan banner</h3>
+  <p>Audit results are saved automatically after every scan. The next time you open the Page Audit panel, you'll see a <strong>rich summary banner</strong> showing the last run's grade, scores, issue chips, and Core Web Vitals — regardless of whether you're on the same URL or a different one.</p>
+  <ul>
+    <li>Click <strong>"View full results →"</strong> to load the full detailed results from that scan</li>
+    <li>Click <strong>×</strong> to dismiss the banner</li>
+    <li>Click <strong>▶ Run</strong> to run a fresh scan on the current page</li>
+  </ul>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════ SESSION -->
+<div class="section" id="session">
+  <h2><span class="h2-icon">🔐</span> Session &amp; Environment</h2>
+  <p class="h2-sub">Environment markers, cookies, local storage, and console errors</p>
+
+  <!-- Environment Marker -->
+  <h3>🏷 Environment Marker</h3>
+  <p>Display a persistent visual badge on the page so everyone looking at a screen share or screenshot can instantly see which environment they're viewing (e.g. Staging, UAT, Dev, QA).</p>
+  <ul>
+    <li><strong>Variants:</strong> Bar (full-width top or bottom), Pill (corner), Ribbon (diagonal corner flag)</li>
+    <li><strong>Positions:</strong> Top, Bottom (Bar), or any of the four corners (Pill / Ribbon)</li>
+    <li><strong>Customise:</strong> label text, background colour, text colour, opacity</li>
+    <li><strong>URL pattern matching:</strong> markers activate only on URLs matching a configured pattern</li>
+    <li><strong>Multiple markers:</strong> add as many as you need, drag to reorder</li>
+    <li><strong>Hide temporarily:</strong> double-click the marker on the page to hide it for the current page load</li>
+    <li><strong>Drag to reorder:</strong> drag the grip handle (⠿) to reorder markers in the list</li>
+  </ul>
+  <div class="tip">The opacity slider is draggable. The URL pattern input field is fully editable — click to place the cursor and type or select text normally.</div>
+
+  <!-- Cookie Manager -->
+  <h3>🍪 Cookie Manager</h3>
+  <p>View, search, edit, and delete cookies for the current domain.</p>
+  <ul>
+    <li>Lists all cookies for the current URL with name, value, domain, path, expiry, and flags (Secure, HttpOnly, SameSite)</li>
+    <li><strong>Filter</strong> — search by cookie name or value</li>
+    <li><strong>⊞ Expand / ⊟ Collapse</strong> — toggle all cookie rows expanded or collapsed</li>
+    <li>Click any cookie row to expand and see full details</li>
+    <li>Click the <strong>Edit</strong> (✎) button to modify a cookie's value, domain, path, or flags</li>
+    <li>Click the <strong>Delete</strong> (🗑) button to remove a cookie</li>
+    <li>Click <strong>↻ Refresh</strong> to reload the cookie list</li>
+  </ul>
+
+  <!-- Local Storage -->
+  <h3>🗄 Local Storage</h3>
+  <p>Browse and manage the <code>localStorage</code> keys for the current origin.</p>
+  <ul>
+    <li>Lists all keys with truncated values — click any row to expand</li>
+    <li><strong>⊞ Expand all / ⊟ Collapse all</strong> — single toggle button cycles between expanded and collapsed state</li>
+    <li><strong>🔍 Search</strong> — filter by key name or value</li>
+    <li>Click the <strong>Edit</strong> button on any row to modify its value inline</li>
+    <li>Click the <strong>Delete</strong> button to remove a key</li>
+    <li>Click <strong>↻ Refresh</strong> to reload</li>
+    <li>Long values are truncated in the collapsed view — expand to see the full content</li>
+  </ul>
+
+  <!-- Console Errors -->
+  <h3>⌗ Console Errors</h3>
+  <p>Capture JavaScript errors and console output from the page's execution context.</p>
+  <ul>
+    <li>Captures errors, warnings, and uncaught exceptions from page scripts</li>
+    <li>Shows the error message, source file, and line number</li>
+    <li>Click any error to expand and see the full stack trace</li>
+    <li><strong>↻ Refresh</strong> to reload the list</li>
+    <li><strong>🗑 Clear</strong> to remove all captured errors</li>
+    <li>Error count shown on the Home tile and in the page status strip</li>
+    <li>Configure which URL path prefixes are monitored in Settings → Console Error Paths</li>
+  </ul>
+  <div class="tip">Console capture uses a MAIN-world injected script to intercept errors from page scripts — not just the extension context. This means it catches errors that the DevTools console would show you.</div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════ UTILITIES -->
+<div class="section" id="utilities">
+  <h2><span class="h2-icon">🔧</span> Utilities</h2>
+  <p class="h2-sub">Time, encoding, geolocation override, and page metadata</p>
+
+  <!-- Time -->
+  <h3>⏱ Time &amp; Epoch</h3>
+  <p>Two sub-tabs for time-related work:</p>
+  <h4>World Clock (default)</h4>
+  <ul>
+    <li>Shows the current time in a set of pinned cities</li>
+    <li>Business hours dot indicator (green = business hours, grey = outside hours)</li>
+    <li>Pin your favourite cities, copy time with one click</li>
+  </ul>
+  <h4>Epoch &amp; Timezone</h4>
+  <ul>
+    <li><strong>Unix timestamp converter</strong> — paste any epoch value to see its human-readable date/time in UTC and local time</li>
+    <li><strong>Date to epoch</strong> — enter a date and time to get the epoch value</li>
+    <li><strong>Timezone converter</strong> — convert a time between any two timezones</li>
+    <li>Formats: ISO 8601, RFC 2822, relative time ("3 days ago")</li>
+  </ul>
+
+  <!-- Encode & Decode -->
+  <h3>🔐 Encode &amp; Decode</h3>
+  <p>Three encoding utilities in one panel:</p>
+  <h4>🔑 JWT Decoder</h4>
+  <ul>
+    <li>Paste a JWT token to instantly see the decoded header, payload, and signature</li>
+    <li>Highlights expiry (<code>exp</code>), issued-at (<code>iat</code>), and subject (<code>sub</code>)</li>
+    <li>Shows a warning if the token is expired</li>
+    <li>Copy individual claims with one click</li>
+  </ul>
+  <h4>🔗 URL Encode / Decode</h4>
+  <ul>
+    <li>Encode a raw string to URL-safe format (<code>%20</code>, <code>%2F</code>, etc.)</li>
+    <li>Decode a URL-encoded string back to plain text</li>
+    <li>Full URL parser — break a URL into its scheme, host, path, query params, and fragment</li>
+  </ul>
+  <h4>📦 Base64 Encode / Decode</h4>
+  <ul>
+    <li>Encode any text or binary string to Base64</li>
+    <li>Decode Base64 back to plain text</li>
+    <li>Handles both standard and URL-safe Base64 variants</li>
+  </ul>
+
+  <!-- Geolocation -->
+  <h3>📍 Override Geolocation</h3>
+  <p>Override the browser's <code>navigator.geolocation</code> API to return a custom location. Perfect for testing location-based features without physically being at that location.</p>
+  <ul>
+    <li><strong>City presets:</strong> Sydney, Melbourne, Brisbane, Perth, Auckland, London, New York, Singapore</li>
+    <li><strong>Custom coordinates:</strong> enter exact latitude/longitude values</li>
+    <li><strong>Accuracy override:</strong> set the reported accuracy in metres</li>
+    <li>Override is injected into the MAIN world so it affects page scripts, not just the extension</li>
+    <li>Active override shown in the Home tile hint and status strip</li>
+    <li>Toggle off to restore the real geolocation</li>
+    <li>Override persists across page loads until turned off</li>
+  </ul>
+  <div class="tip">The geolocation override intercepts <code>getCurrentPosition()</code> and <code>watchPosition()</code> calls. Pages that cache location data may need a reload to pick up the override.</div>
+
+  <!-- Metadata -->
+  <h3>🔎 Page Metadata</h3>
+  <p>Scans the current page and extracts all SEO and social metadata. Opens immediately when tapped from the Home grid and auto-runs the scan.</p>
+  <ul>
+    <li><strong>Core SEO:</strong> title, description, keywords, author, canonical URL, robots directive, viewport, charset, language</li>
+    <li><strong>Open Graph:</strong> all <code>og:*</code> properties including title, description, image, type, URL, site name</li>
+    <li><strong>Twitter Cards:</strong> all <code>twitter:*</code> properties</li>
+    <li><strong>JSON-LD:</strong> all structured data blocks with type and summary</li>
+    <li><strong>H1 tags:</strong> first five H1 elements on the page</li>
+    <li><strong>Page stats:</strong> total links, images, and external scripts</li>
+    <li><strong>All meta tags:</strong> complete list of every <code>&lt;meta&gt;</code> element</li>
+  </ul>
+  <p>Use the <strong>⎘ Copy</strong> button to copy all metadata as formatted text, or <strong>⬇ Export</strong> to download as a <code>.txt</code> or <code>.json</code> file.</p>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════ TOOLS -->
+<div class="section" id="tools">
+  <h2><span class="h2-icon">🛠</span> Developer Tools</h2>
+  <p class="h2-sub">JSON Viewer and Text Compare — open in a full browser tab</p>
+
+  <!-- JSON Viewer -->
+  <h3>{ } JSON Viewer</h3>
+  <p>A standalone JSON editor and tree explorer. Opens in a new browser tab for full-screen editing.</p>
+
+  <h4>Data tab</h4>
+  <ul>
+    <li><strong>📋 Paste</strong> — paste from clipboard; auto-formats valid JSON</li>
+    <li><strong>Format</strong> — pretty-print JSON with 2-space indentation + syntax colour</li>
+    <li><strong>Minify</strong> — collapse to a single line</li>
+    <li><strong>Sort keys</strong> — alphabetically sort all object keys recursively</li>
+    <li><strong>Escape / Unescape</strong> — convert between raw and JSON-string representation</li>
+    <li><strong>⎘ Copy</strong> — copy current content to clipboard</li>
+    <li><strong>⬇ Download</strong> — save as <code>.json</code> file</li>
+    <li><strong>Clear</strong> — reset the editor</li>
+    <li>Status pill shows validation state and node count</li>
+    <li>Typing in the Data tab live-syncs to Tree View</li>
+  </ul>
+
+  <h4>Tree View tab</h4>
+  <ul>
+    <li>Collapsible tree with <strong>[+] / [−]</strong> toggle boxes for every object and array</li>
+    <li>Colour-coded by type: <span style="color:#8b3a3a">■</span> keys, <span style="color:#0a6e51">■</span> strings, <span style="color:#185fa5">■</span> numbers, <span style="color:#6b21a8">■</span> booleans, <span style="color:#888">■</span> null</li>
+    <li><strong>⊞ Expand all / ⊟ Collapse all</strong> buttons</li>
+    <li><strong>Sort keys / Copy / Download</strong> toolbar buttons</li>
+    <li><strong>Search box</strong> — filters matching keys/values; auto-expands ancestors of matches</li>
+    <li><strong>↑ / ↓ Next / Previous</strong> buttons to cycle through search matches</li>
+    <li>Status shows match count (e.g. <code>3/12 matches</code>)</li>
+    <li>Click any node to see its full value in the detail pane on the right</li>
+    <li>Resizable splitter between the tree and detail pane</li>
+  </ul>
+
+  <!-- Text Compare -->
+  <h3>⇄ Text Compare</h3>
+  <p>A side-by-side text diff tool. Opens in a new browser tab. Both panes are always editable — paste text into either side and the diff highlights update live.</p>
+
+  <h4>Live diff</h4>
+  <ul>
+    <li>Live mode (on by default) — diff updates automatically 300ms after you stop typing or pasting</li>
+    <li>Uncheck <strong>Live</strong> to only compute the diff when you click <strong>▶ Compare</strong></li>
+    <li>Both panes always remain editable — the diff is shown as a colour overlay on top of the text</li>
+  </ul>
+
+  <h4>Diff highlighting</h4>
+  <ul>
+    <li><strong>Red background</strong> — lines removed from the original (left pane)</li>
+    <li><strong>Green background</strong> — lines added in the revised version (right pane)</li>
+    <li><strong>Word highlight</strong> — within changed lines, specific added/removed words are highlighted in deeper red/green</li>
+  </ul>
+
+  <h4>Copy actions</h4>
+  <ul>
+    <li><strong>→ Copy to right</strong> button — appears on each changed/removed line in the left pane; copies that line to the right pane</li>
+    <li><strong>← Copy to left</strong> button — appears on each added/changed line in the right pane; copies that line to the left pane</li>
+    <li><strong>Shift+click</strong> multiple copy buttons to select several lines, then use the floating bar to <strong>→ Copy all to right</strong> or <strong>← Copy all to left</strong></li>
+  </ul>
+
+  <h4>Minimap</h4>
+  <ul>
+    <li>The right edge of the compare view shows a VS Code-style minimap column</li>
+    <li>Green ticks = added lines, Red ticks = removed lines, Amber ticks = changed lines</li>
+    <li>A viewport rectangle shows your current scroll position</li>
+    <li>Click any tick to jump to that change</li>
+  </ul>
+
+  <h4>Toolbar options</h4>
+  <table>
+    <tr><th>Option</th><th>Effect</th></tr>
+    <tr><td>Ignore whitespace</td><td>Treats lines differing only in whitespace as equal</td></tr>
+    <tr><td>Ignore case</td><td>Case-insensitive comparison</td></tr>
+    <tr><td>Word highlight</td><td>Highlights word-level differences within changed lines</td></tr>
+    <tr><td>⇄ Swap</td><td>Swaps left and right pane contents</td></tr>
+    <tr><td>Clear</td><td>Empties both panes</td></tr>
+  </table>
+
+  <h4>Jump strip</h4>
+  <p>Below the comparison area, a row of labelled change tags (e.g. <code>+R:3 −L:7 ~L:12</code>) lets you jump directly to any specific change. Click any tag to scroll both panes to that change with a flash highlight.</p>
+
+  <div class="tip">Both panes scroll in synchrony — scrolling either pane moves the other to the same line level, keeping the two sides aligned.</div>
+  <div class="tip">The workspace is auto-saved. Your pane contents, split ratio, and options are restored the next time you open Text Compare.</div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════ SETTINGS -->
+<div class="section" id="settings">
+  <h2><span class="h2-icon">⚙</span> Settings</h2>
+  <p class="h2-sub">Configure QAKit for your team and workflow</p>
+
+  <div class="feat-grid">
+    <div class="card">
+      <div class="card-title">🎨 Appearance</div>
+      <p>Toggle between <strong>☀ Light mode</strong> and <strong>🌙 Dark mode</strong> with a single button. The theme applies immediately and is saved automatically.</p>
+    </div>
+    <div class="card">
+      <div class="card-title">🌐 Allowed Domains</div>
+      <p>Comma-separated URL patterns that QAKit activates on. Use <code>*</code> as a wildcard. Leave blank for all domains. Example: <code>*.myapp.com, *.staging.myapp.com</code></p>
+    </div>
+    <div class="card">
+      <div class="card-title">📡 Analytics Providers</div>
+      <p>Choose which analytics platforms to monitor. WAE attribute capture is always on. Toggle GTM, GA4, DDL, Adobe, Tealium, Meta Pixel, Floodlight, and Segment individually.</p>
+    </div>
+    <div class="card">
+      <div class="card-title">📊 Analytics Filter</div>
+      <p>Set a default search filter that pre-populates the Analytics search box. Useful if you always want to filter to a specific event type or platform.</p>
+    </div>
+    <div class="card">
+      <div class="card-title">🔍 Test Locator Attribute</div>
+      <p>The attribute name used for test IDs on your application (e.g. <code>data-testid</code>, <code>data-qa</code>). The Element Inspector highlights this attribute in its output.</p>
+    </div>
+    <div class="card">
+      <div class="card-title">🗄 Local Storage Keys</div>
+      <p>Comma-separated key names to track. Leave blank to show all keys. Useful if your application has many LS keys and you only care about a specific subset.</p>
+    </div>
+    <div class="card">
+      <div class="card-title">🍪 Cookie Filter</div>
+      <p>Comma-separated cookie names to show in the Cookie Manager. Leave blank to show all cookies.</p>
+    </div>
+    <div class="card">
+      <div class="card-title">🖥 Console Error Paths</div>
+      <p>Comma-separated URL path prefixes. Console errors from scripts at these paths are captured. Default: <code>/scripts/,/blocks/</code></p>
+    </div>
+  </div>
+
+  <h3>Save and Reset</h3>
+  <ul>
+    <li>Click <strong>💾 Save Settings</strong> to persist all changes</li>
+    <li>Click <strong>↺ Reset to Defaults</strong> to restore all settings to their original values</li>
+    <li>Settings are stored in <code>chrome.storage.local</code> — they persist between browser sessions but are local to your browser</li>
+  </ul>
+
+  <h3>Export / Import</h3>
+  <ul>
+    <li><strong>⬇ Export settings</strong> — download your configuration as a <code>.json</code> file for backup or sharing with teammates</li>
+    <li><strong>⬆ Import settings</strong> — load a previously exported settings file</li>
+  </ul>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════ SHORTCUTS -->
+<div class="section" id="shortcuts">
+  <h2><span class="h2-icon">⌨</span> Keyboard Shortcuts</h2>
+  <p class="h2-sub">Shortcuts work when the browser is focused on the page</p>
+
+  <table>
+    <tr><th>Action</th><th>Mac</th><th>Windows / Linux</th></tr>
+    <tr><td>Element Inspector</td><td><kbd>⌘⇧Q</kbd></td><td><kbd>Ctrl⇧Q</kbd></td></tr>
+    <tr><td>Spacing Inspector</td><td><kbd>⌘⇧Y</kbd></td><td><kbd>Ctrl⇧Y</kbd></td></tr>
+    <tr><td>Region Screenshot</td><td><kbd>⌘⇧U</kbd></td><td><kbd>Ctrl⇧U</kbd></td></tr>
+    <tr><td>Full Page Screenshot</td><td><kbd>⌘⇧K</kbd></td><td><kbd>Ctrl⇧K</kbd></td></tr>
+  </table>
+
+  <div class="tip">Shortcuts trigger the tool directly on the page without opening the QAKit popup. The result (screenshot) is delivered via a toast notification so you can continue working uninterrupted.</div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════ FOOTER -->
+<div class="footer">
+  <p><strong>QAKit v1.0.0</strong> · Built with passion for QAs &amp; developers<br>
+  By <strong>Prem Nepak</strong> · QAKit Extension<br>
+  <span style="font-size:12px">Questions or feedback? <a href="mailto:qakit.extension@gmail.com" style="color:#0a6e51;font-weight:600">qakit.extension@gmail.com</a></span></p>
+</div>
+
+</div><!-- .content -->
+</body>
+</html>

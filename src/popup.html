@@ -1,0 +1,2330 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>QAKit v1.0.0</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Syne:wght@700;800&display=swap');
+
+  /* ── Light theme (default) ── */
+  :root {
+    --bg:           #f4f6f9;
+    --surface:      #ffffff;
+    --card:         #f0f4f8;
+    --border:       #d1d9e0;
+    --accent:       #0a6e51;
+    --accent-hover: #085c44;
+    --warn:         #c0392b;
+    --warn-hover:   #a93226;
+    --text:         #12161c;
+    --muted:        #596270;
+    --accent-light: #dff2eb;
+    --warn-light:   #fce8e6;
+    --tab-bg:       #e8edf3;
+    --tab-active-bg:#ffffff;
+    --btn-secondary:#eef2f7;
+    --btn-secondary-border: #c5cdd8;
+    --btn-secondary-text:   #374151;
+  }
+
+  /* ── Dark theme ── */
+  body.dark-theme {
+    --bg:           #0d1117;
+    --surface:      #161b22;
+    --card:         #1c2128;
+    --border:       #30363d;
+    --accent:       #3fb68b;
+    --accent-hover: #2da373;
+    --warn:         #f85149;
+    --warn-hover:   #da3633;
+    --text:         #e6edf3;
+    --muted:        #8b949e;
+    --accent-light: #0d2b20;
+    --warn-light:   #2d1216;
+    --tab-bg:       #161b22;
+    --tab-active-bg:#1c2128;
+    --btn-secondary:#21262d;
+    --btn-secondary-border: #30363d;
+    --btn-secondary-text:   #c9d1d9;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    width: 420px;
+    min-height: 0;
+    height: 600px;
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
+
+
+  /* ── Header ── */
+  .header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 12px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    position: relative;
+    z-index: 1;
+    gap: 8px;
+  }
+
+  .logo { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+
+  .dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--accent);
+    box-shadow: 0 0 6px var(--accent);
+    animation: pulse 2s ease-in-out infinite;
+    flex-shrink: 0;
+  }
+  .dot.paused   { background: var(--warn);  box-shadow: 0 0 8px var(--warn);  animation: none; }
+  .dot.inactive { background: var(--muted); box-shadow: none; animation: none; }
+
+  @keyframes pulse {
+    0%,100% { opacity:1; transform:scale(1); }
+    50%     { opacity:.4; transform:scale(.75); }
+  }
+
+  /* 2-line logo block */
+  .logo-text {
+    font-family: 'Syne', sans-serif;
+    font-weight: 800;
+    font-size: 12px;
+    color: #fff;
+    letter-spacing: .04em;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    line-height: 1.25;
+  }
+  /* line1: QA and Kit */
+  .logo-line1 { display: flex; align-items: center; gap: 0; }
+  .logo-line2 { display: flex; align-items: baseline; gap: 3px; }
+
+  /* QA Kit logo */
+  .logo-qa      { color: var(--accent); font-size: 16px; font-weight: 900; letter-spacing: -.01em; }
+  .logo-tools   { color: var(--text);   font-size: 12px; font-weight: 700; letter-spacing: .04em; margin-left: 2px; }
+  .logo-version { color: var(--muted); font-size: 9px; font-weight: 400; letter-spacing: .06em; }
+
+  .logo-favicon {
+    width: 18px; height: 18px;
+    border-radius: 3px;
+    flex-shrink: 0;
+    margin-right: 2px;
+  }
+  .logo-favicon-large {
+    width: 32px; height: 32px;
+    border-radius: 5px;
+    flex-shrink: 0;
+    margin-right: 8px;
+  }
+
+  /* Header right side — single row with all controls */
+  .header-right {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
+  }
+  .header-btns {
+    display: flex;
+    gap: 4px;
+    align-items: center;
+  }
+
+  .status-badge {
+    font-size: 9px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase;
+    padding: 3px 8px; border-radius: 4px;
+    background: var(--accent-light); color: var(--accent); border: 1px solid #b2d8ce;
+  }
+  .status-badge.paused   { background: var(--warn-light); color: var(--warn); border-color: #f5c6c3; }
+  .status-badge.inactive { background: #f3f4f6; color: var(--muted); border-color: var(--border); }
+
+  /* ── Recording toggle (replaces static RECORDING pill) ── */
+  .rec-toggle {
+    display: inline-flex; align-items: center; gap: 5px;
+    cursor: pointer; user-select: none;
+  }
+  .rec-label {
+    font-size: 9px; font-weight: 700; letter-spacing: .06em;
+    color: var(--accent);
+  }
+  .rec-switch {
+    position: relative; width: 26px; height: 14px;
+    background: var(--accent); border-radius: 7px;
+    transition: background .16s;
+  }
+  .rec-knob {
+    position: absolute; right: 2px; top: 2px;
+    width: 10px; height: 10px;
+    background: #fff; border-radius: 50%;
+    box-shadow: 0 1px 2px rgba(0,0,0,.2);
+    transition: right .16s;
+  }
+  .rec-toggle.paused .rec-switch { background: #cbd0d8; }
+  .rec-toggle.paused .rec-knob   { right: 14px; }
+  .rec-toggle.paused .rec-label  { color: var(--muted); }
+
+
+
+  /* ── Tabs — scrollable so full labels always fit ── */
+  .tabs {
+    display: flex;
+    background: var(--tab-bg);
+    border-bottom: 2px solid var(--accent);
+    position: relative; z-index: 10;
+    padding: 3px 0 0 3px;
+    gap: 1px;
+    flex-shrink: 0;
+    align-items: stretch;
+    overflow: hidden;     /* never bleed into panel area */
+    width: 100%;
+  }
+  .tabs-scroll {
+    display: flex;
+    gap: 1px;
+    overflow-x: auto;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+    flex: 1 1 0;          /* explicit 1 1 0 so it compresses correctly */
+    min-width: 0;
+  }
+  .tabs-scroll::-webkit-scrollbar { display: none; }
+  .tab {
+    flex-shrink: 0; padding: 5px 7px 4px; text-align: center;
+    font-size: 9px; font-weight: 700; letter-spacing: .02em; text-transform: uppercase;
+    color: var(--muted); cursor: pointer; white-space: nowrap;
+    border-radius: 5px 5px 0 0;
+    border: 1px solid transparent;
+    border-bottom: none;
+    transition: all .15s; user-select: none;
+    background: transparent;
+    position: relative; bottom: -2px;
+  }
+  .tab-badge {
+    display: inline-block; margin-left: 3px;
+    font-size: 7.5px; font-weight: 800; line-height: 12px;
+    min-width: 12px; height: 12px; padding: 0 3px;
+    border-radius: 6px; text-align: center;
+    color: #fff; vertical-align: middle;
+  }
+  .tab.active .tab-badge { opacity: .9; }
+
+  .tab.active {
+    color: var(--accent);
+    background: var(--tab-active-bg);
+    border-color: var(--accent);
+    border-bottom-color: var(--tab-active-bg);
+    font-weight: 800;
+    box-shadow: 0 -1px 0 var(--accent) inset;
+  }
+  .tab:hover:not(.active) {
+    color: var(--text);
+    background: rgba(0,229,160,.08);
+  }
+  body.dark-theme .tab:hover:not(.active) {
+    background: rgba(0,229,160,.12);
+  }
+
+  /* Audit export menu hover */
+  .audit-export-item:hover {
+    background: var(--accent-light); color: var(--accent);
+  }
+
+  /* ── Tab overflow ⋯ button + menu — sticky, always visible at right ── */
+  .tab-more {
+    flex-shrink: 0;
+    padding: 5px 8px 4px;
+    font-size: 13px; line-height: 12px;
+    color: var(--muted); cursor: pointer;
+    border-left: 1px solid var(--border);
+    user-select: none; position: relative;
+    display: flex !important;
+    align-items: center; gap: 4px;
+    bottom: -2px;
+    background: var(--tab-bg);
+    z-index: 2;
+  }
+  .tab-more:hover { color: var(--accent); background: rgba(0,229,160,.12); }
+  body.dark-theme .tab-more:hover { background: rgba(0,229,160,.12); }
+  .tab-more-dots { font-size: 14px; font-weight: 700; line-height: 1; }
+  .tab-more-badge {
+    display: inline-block; font-size: 7.5px; font-weight: 800;
+    min-width: 13px; height: 13px; line-height: 13px; padding: 0 3px;
+    border-radius: 7px; text-align: center;
+    color: #fff; background: var(--err);
+  }
+  .tab-more-menu {
+    position: fixed; /* escape .tabs overflow-x:auto clip */
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 6px; box-shadow: 0 6px 18px rgba(0,0,0,.18);
+    padding: 4px; z-index: 10000; min-width: 160px;
+    /* Scrollable so arbitrary number of overflow tabs can fit */
+    max-height: 300px; overflow-y: auto;
+  }
+  .tab-more-menu::-webkit-scrollbar { width: 6px; }
+  .tab-more-menu::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  .tab-more-menu::-webkit-scrollbar-thumb:hover { background: var(--muted); }
+  .tab-more-menu .tab-more-item {
+    padding: 6px 10px; font-size: 10px; font-weight: 700;
+    letter-spacing: .03em; text-transform: uppercase;
+    color: var(--text); cursor: pointer; border-radius: 4px;
+    display: flex; align-items: center; justify-content: space-between; gap: 6px;
+  }
+  .tab-more-menu .tab-more-item:hover { background: var(--accent-light); color: var(--accent); }
+  .tab-more-item-label { flex: 1; }
+  .tab-more-item-badge {
+    display: inline-block; font-size: 8px; font-weight: 800;
+    color: #fff; padding: 1px 5px; border-radius: 6px;
+    min-width: 14px; text-align: center;
+  }
+
+  /* ── Home panel ── */
+  .home-status-card {
+    padding: 10px 12px; background: var(--surface);
+    border-bottom: 1px solid var(--border); flex-shrink: 0;
+  }
+  .home-status-row {
+    display: flex; align-items: center; gap: 6px; margin-bottom: 7px;
+  }
+  .home-domain { font-size: 11px; font-weight: 700; color: var(--text); }
+  .home-scope-badge {
+    background: var(--accent-light); color: var(--accent);
+    font-size: 8.5px; padding: 1px 5px; border-radius: 3px;
+    font-weight: 700; letter-spacing: .04em;
+  }
+  .home-scope-badge.out { background: var(--warn-light); color: var(--warn); }
+  .home-session { font-size: 9px; color: var(--muted); margin-left: auto; }
+
+  .home-metrics { display: flex; gap: 5px; margin-bottom: 8px; }
+  .home-metric {
+    flex: 1; background: var(--bg); border-radius: 5px; padding: 5px 7px;
+  }
+  .home-metric.err  { background: var(--warn-light); }
+  .home-metric.clickable { cursor: pointer; transition: transform .12s, box-shadow .12s; }
+  .home-metric.clickable:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 6px rgba(0,0,0,.06);
+  }
+  .home-metric-label { font-size: 8.5px; color: var(--muted); letter-spacing: .04em; font-weight: 700; }
+  .home-metric.err .home-metric-label { color: var(--warn); }
+  .home-metric-value { font-size: 15px; font-weight: 700; color: var(--text); line-height: 1.1; margin-top: 1px; }
+  .home-metric.err .home-metric-value { color: var(--warn); }
+  .home-metric.click .home-metric-value { color: #0890b5; }
+  .home-metric.mock  .home-metric-value { color: #b06bff; }
+
+  .home-actions { display: flex; gap: 4px; }
+  .home-actions button {
+    flex: 1; font-family: 'JetBrains Mono', monospace;
+    font-size: 10px; color: var(--text);
+    background: transparent; border: 1px solid var(--border);
+    border-radius: 4px; padding: 4px; cursor: pointer;
+  }
+  .home-actions button:hover { border-color: var(--accent); color: var(--accent); }
+  .home-actions button.danger { border-color: var(--warn); color: var(--warn); }
+  .home-actions button.danger:hover { background: var(--warn-light); }
+
+  .home-scroll {
+    flex: 1; overflow-y: auto; padding: 5px 8px 6px;
+    display: flex; flex-direction: column; gap: 0;
+  }
+
+  .home-alerts { display: flex; gap: 5px; flex-shrink: 0; margin-bottom: 4px; }
+  .home-alert {
+    flex: 1; border: 1px solid; border-left-width: 3px; border-radius: 6px;
+    padding: 6px 8px; display: flex; align-items: center; gap: 6px; cursor: pointer;
+    transition: transform .12s;
+  }
+  .home-alert:hover { transform: translateY(-1px); }
+  .home-alert.err {
+    background: var(--warn-light); border-color: #f5c6cc; border-left-color: var(--warn);
+  }
+  .home-alert.audit {
+    background: #fff9ec; border-color: #f3e4be; border-left-color: #ba7517;
+  }
+  .home-alert-icon { font-size: 13px; flex-shrink: 0; }
+  .home-alert-title { font-size: 10px; font-weight: 700; }
+  .home-alert-detail { font-size: 9px; }
+  .home-alert.err .home-alert-title   { color: #7a1818; }
+  .home-alert.err .home-alert-detail  { color: #a8594d; }
+  .home-alert.audit .home-alert-title { color: #633806; }
+  .home-alert.audit .home-alert-detail{ color: #854f0b; }
+
+  /* Section wrapper — provides the gap between groups */
+  .home-section { margin-bottom: 6px; }
+  .home-section:last-child { margin-bottom: 0; }
+
+  .home-section-label {
+    font-size: 8px; color: var(--muted); font-weight: 700;
+    letter-spacing: .10em; margin-bottom: 4px; text-transform: uppercase;
+  }
+
+  .home-grid {
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px;
+  }
+  .home-grid.home-grid-5 { grid-template-columns: repeat(5, 1fr); }
+  .home-grid.home-grid-3 { grid-template-columns: repeat(3, 1fr); }
+
+  /* Tile sizing — slightly larger than v1.0.0, fills space without scrolling */
+  .home-grid .home-tile        { padding: 6px 3px; }
+  .home-grid .home-tile-icon   { font-size: 17px; line-height: 1; margin-bottom: 3px; }
+  .home-grid .home-tile-name   { font-size: 10px; font-weight: 700; }
+  .home-grid .home-tile-hint   { font-size: 8px; color: var(--muted); margin-top: 1px; }
+  .home-grid.home-grid-5 .home-tile      { padding: 5px 2px; }
+  .home-grid.home-grid-5 .home-tile-name { font-size: 9.5px; }
+  .home-grid.home-grid-5 .home-tile-hint { font-size: 7.5px; }
+
+  /* ── Compact status strip (Fix 22) ── */
+  .home-status-strip {
+    padding: 6px 10px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    font-size: 9.5px;
+    flex-wrap: wrap;
+    flex-shrink: 0;
+  }
+  .home-status-dom {
+    font-family: monospace;
+    font-weight: 700;
+    color: var(--accent);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 140px;
+  }
+  .home-status-sep { color: var(--border); }
+  .home-status-item {
+    cursor: pointer;
+    color: var(--text);
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+  }
+  .home-status-item:hover { color: var(--accent); }
+  .home-status-item .num { font-weight: 700; }
+  .home-status-err { color: var(--warn); font-weight: 600; }
+  .home-status-actions {
+    margin-left: auto;
+    display: flex;
+    gap: 4px;
+    flex-shrink: 0;
+  }
+  .home-status-action-btn {
+    padding: 2px 7px;
+    font-size: 10px;
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    cursor: pointer;
+    color: var(--muted);
+  }
+  .home-status-action-btn:hover { color: var(--text); background: var(--card); }
+  .home-status-action-btn.home-status-danger:hover { color: #fff; background: var(--warn); border-color: var(--warn); }
+
+  /* ── Audit pill (used in status strip + tiles) ── */
+  .audit-pill {
+    background: var(--accent);
+    color: #0f141d;
+    padding: 1px 7px;
+    border-radius: 8px;
+    font-weight: 800;
+    font-size: 9px;
+    letter-spacing: .04em;
+    flex-shrink: 0;
+  }
+  .audit-pill.grade-c, .audit-pill.grade-d {
+    background: #f59e0b;
+  }
+  .audit-pill.grade-f {
+    background: var(--warn);
+    color: #fff;
+  }
+
+  /* ── Home list-row tile (2-col landscape rows) ── */
+  .home-list-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 4px;
+    margin-bottom: 4px;
+  }
+  .home-list-tile {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    padding: 6px 8px;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    cursor: pointer;
+    transition: border-color .15s, transform .15s;
+  }
+  .home-list-tile:hover {
+    border-color: var(--accent);
+    transform: translateY(-1px);
+  }
+  .home-list-icon {
+    font-size: 14px;
+    flex-shrink: 0;
+    width: 18px;
+    text-align: center;
+  }
+  .home-list-text {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+  }
+  .home-list-name {
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--text);
+  }
+  .home-list-hint {
+    font-size: 8.5px;
+    color: var(--muted);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .home-list-hint.active { color: var(--accent); font-weight: 600; }
+  .home-list-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--accent);
+    flex-shrink: 0;
+  }
+  .home-list-dot.warn { background: #ea580c; }
+  .home-tile {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 6px;
+    padding: 6px 4px; text-align: center; cursor: pointer;
+    transition: border-color .12s, transform .12s;
+  }
+  .home-tile:hover { border-color: var(--accent); transform: translateY(-1px); }
+  .home-tile-icon { font-size: 15px; margin-bottom: 2px; }
+  .home-tile-name { font-size: 9px; font-weight: 700; color: var(--text); }
+  .home-tile-hint { font-size: 8px; color: var(--muted); margin-top: 1px; }
+  .home-tile-hint.err { color: var(--warn); font-weight: 700; }
+
+  .home-recent {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 6px;
+    margin-bottom: 6px;
+  }
+  .home-recent-item {
+    padding: 6px 9px; display: flex; align-items: center; gap: 8px;
+    border-bottom: 1px solid var(--border); cursor: pointer;
+  }
+  .home-recent-item:last-child { border-bottom: none; }
+  .home-recent-item:hover { background: var(--accent-light); }
+  .home-recent-icon { font-size: 12px; }
+  .home-recent-text { font-size: 10px; flex: 1; color: var(--text); }
+  .home-recent-text-meta { color: var(--muted); }
+  .home-recent-time { font-size: 9px; color: var(--muted); }
+  .home-empty { padding: 10px; text-align: center; color: var(--muted); font-size: 10px; }
+
+  /* ── Panels ── */
+  /* Panel fills whatever body has left after header + tabbar + footer.
+     Body height is locked to 600px (Chrome popup max). The footer is sticky
+     so it stays anchored at the bottom regardless of panel content height. */
+  /* Option 2 — pure launcher. Home = base layer; every other panel slides in
+     from the right as a full-screen overlay inside .panel-area. */
+  .panel-area {
+    flex: 1; min-height: 0;
+    position: relative;
+    overflow: hidden;
+  }
+  .panel {
+    position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+    display: flex; flex-direction: column;
+    overflow: hidden;
+    /* Default: hidden off-screen to the right */
+    transform: translateX(100%);
+    transition: transform .22s cubic-bezier(.4,0,.2,1);
+    background: var(--bg);
+    z-index: 2;
+    will-change: transform;
+  }
+  /* Home sits at base, never transformed */
+  #panel-home {
+    transform: translateX(0);
+    z-index: 1;
+  }
+  /* Active non-home panel slides in */
+  .panel.active {
+    transform: translateX(0);
+    z-index: 3;
+  }
+  /* When we're ON home, home is active but transform stays 0 */
+  #panel-home.active { transform: translateX(0); z-index: 1; }
+
+  /* Panel back-nav bar — sits just below header inside each tool panel */
+  .panel-nav {
+    background: #1a1f2c;
+    display: flex; align-items: center; gap: 10px;
+    padding: 8px 12px;
+    flex-shrink: 0;
+    border-bottom: 1px solid rgba(255,255,255,.08);
+    position: relative;
+  }
+  .panel-nav-back {
+    display: inline-flex; align-items: center; gap: 5px;
+    background: #00e5a0; border: none;
+    border-radius: 5px; padding: 5px 11px;
+    color: #0f141d; font-size: 10px; font-weight: 700;
+    cursor: pointer; font-family: inherit;
+    transition: background .15s; flex-shrink: 0;
+  }
+  .panel-nav-back:hover { background: #00d090; }
+  .panel-nav-title {
+    color: #fff; font-size: 12px; font-weight: 600;
+    position: absolute; left: 50%; transform: translateX(-50%);
+    text-align: center; white-space: nowrap;
+    pointer-events: none;
+  }
+  .panel.active { display: flex; }
+
+  /* ── Analytics (DDL) panel ── */
+  .ddl-panel { flex: 1; overflow-y: auto; padding: 8px; display: flex; flex-direction: column; gap: 3px; }
+
+  .ddl-entry {
+    padding: 8px 10px;
+    background: var(--card);
+    border-radius: 6px;
+    border-left: 3px solid var(--border);
+    border: 1px solid transparent;
+    border-left-width: 3px;
+    transition: border-color .12s, background .12s;
+    cursor: pointer;
+    animation: fadeIn .18s ease-out;
+  }
+  .ddl-entry:hover { background: #f0f4f8; border-color: var(--border); }
+
+  @keyframes fadeIn {
+    from { opacity:0; transform:translateY(-4px); }
+    to   { opacity:1; transform:translateY(0); }
+  }
+
+  .ddl-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 2px; }
+  .ddl-event-name { font-weight: 700; font-size: 13px; }
+  .ddl-toggle {
+    font-size: 10px; color: var(--muted); cursor: pointer;
+    user-select: none; flex-shrink: 0; margin-left: 8px;
+    padding: 1px 5px; border-radius: 3px; border: 1px solid var(--border);
+    transition: all .12s;
+  }
+  .ddl-toggle:hover { color: var(--accent); border-color: var(--accent); }
+  .ddl-meta { color: var(--muted); font-size: 11px; margin-bottom: 3px; }
+  .ddl-preview-row { color: #4b5563; font-size: 11px; line-height: 1.5; }
+  .ddl-full {
+    color: #374151; font-size: 11px; line-height: 1.6;
+    white-space: pre-wrap; word-break: break-all;
+    margin-top: 6px; padding: 8px;
+    background: #f1f5f9; border-radius: 4px; border: 1px solid var(--border);
+  }
+
+  /* Empty state */
+  .empty {
+    flex: 1; display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    gap: 6px; color: var(--muted);
+  }
+  .empty-icon { font-size: 28px; opacity: .3; }
+  .empty-text { font-size: 12px; text-align: center; line-height: 1.6; }
+
+  /* ── Footer (Analytics tab only) ── */
+  .footer {
+    display: flex; gap: 6px; padding: 8px 12px;
+    background: var(--surface); border-top: 1px solid var(--border);
+    position: relative; z-index: 1;
+  }
+  .footer.hidden { display: none; }
+
+  .search {
+    flex: 1;
+    background: var(--card); border: 1px solid var(--border); border-radius: 6px;
+    color: var(--text); font-family: 'JetBrains Mono', monospace;
+    font-size: 10px; padding: 6px 10px; outline: none;
+    transition: border-color .12s;
+  }
+  .search:focus { border-color: var(--accent); }
+
+  button {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px; font-weight: 700; letter-spacing: .06em;
+    padding: 6px 10px; border-radius: 6px; border: 1px solid var(--border);
+    cursor: pointer; transition: all .12s; white-space: nowrap;
+  }
+  /* Buttons — clear hierarchy: accent (primary), secondary, danger */
+  .btn-ghost {
+    background: var(--btn-secondary);
+    color: var(--btn-secondary-text);
+    border-color: var(--btn-secondary-border);
+  }
+  .btn-ghost:hover {
+    background: var(--border);
+    color: var(--text);
+    border-color: var(--muted);
+  }
+  .btn-warn {
+    background: var(--warn-light);
+    color: var(--warn);
+    border-color: var(--warn);
+    font-weight: 700;
+  }
+  .btn-warn:hover { background: var(--warn); color: #fff; border-color: var(--warn-hover); }
+  .btn-accent {
+    background: var(--accent);
+    color: #fff;
+    border-color: var(--accent);
+    font-weight: 700;
+    box-shadow: 0 1px 3px rgba(0,0,0,.15);
+  }
+  .btn-accent:hover { background: var(--accent-hover); border-color: var(--accent-hover); box-shadow: 0 2px 6px rgba(0,0,0,.2); }
+
+  /* ── Local Storage panel ── */
+  .ls-panel {
+    flex: 1; overflow-y: auto; padding: 10px;
+    display: flex; flex-direction: column; gap: 10px;
+    min-height: 0;
+  }
+
+  .ls-toolbar {
+    display: flex; align-items: center; justify-content: flex-end;
+    flex-shrink: 0;
+  }
+
+  .ls-url-bar {
+    display: flex; align-items: flex-start; gap: 5px;
+    padding: 5px 8px; background: var(--surface);
+    border: 1px solid var(--border); border-radius: 6px;
+    font-size: 9px; word-break: break-all; flex-shrink: 0;
+  }
+  .ls-url-label { flex-shrink: 0; }
+  .ls-url-text  { color: #6b7280; line-height: 1.4; }
+
+  .ls-card {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 10px; overflow: hidden; flex-shrink: 0;
+  }
+
+  /* ── New collapsed-row Storage list (Fix 17) ── */
+  .ls-row {
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+    overflow: hidden;
+  }
+  .ls-row-header {
+    display: flex; align-items: center; gap: 8px;
+    padding: 7px 10px;
+    cursor: pointer;
+    user-select: none;
+  }
+  .ls-row-header:hover { background: var(--card); }
+  .ls-row-toggle {
+    color: var(--muted); font-size: 11px; width: 12px; flex-shrink: 0;
+    font-family: monospace;
+  }
+  .ls-row-key {
+    flex: 1; font-family: monospace; font-size: 10.5px;
+    font-weight: 700; color: var(--accent);
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    min-width: 0;
+  }
+  .ls-row-meta {
+    font-size: 9px; color: var(--muted);
+    flex-shrink: 0; padding: 1px 6px;
+    background: var(--card); border-radius: 3px;
+    font-family: monospace;
+  }
+  .ls-row-action {
+    flex-shrink: 0;
+    padding: 3px 6px;
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    cursor: pointer;
+    font-size: 9.5px;
+    color: var(--muted);
+  }
+  .ls-row-action:hover { background: var(--card); color: var(--text); }
+  .ls-row-body {
+    display: none;
+    padding: 6px 10px 10px 30px;
+    background: var(--card);
+    border-top: 1px solid var(--border);
+  }
+  .ls-row.expanded .ls-row-body { display: block; }
+
+  .ls-card-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 12px; background: #eef2f7; gap: 8px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .ls-key {
+    font-family: var(--mono, monospace); font-size: 11px; font-weight: 700;
+    color: var(--accent); letter-spacing: .03em;
+    flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+
+  .ls-card-actions { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+
+  /* Prominent action buttons */
+  .ls-btn {
+    font-family: 'JetBrains Mono', monospace; font-size: 10px; font-weight: 700;
+    padding: 5px 10px; border-radius: 5px; cursor: pointer;
+    transition: all .15s; white-space: nowrap; letter-spacing: .04em;
+  }
+  .ls-btn-load {
+    background: var(--accent-light); color: var(--accent);
+    border: 1px solid #b2d8ce;
+  }
+  .ls-btn-load:hover { background: var(--accent); color: #000; }
+
+  .ls-btn-delete {
+    background: var(--warn-light); color: var(--warn);
+    border: 1px solid #f5c6c3;
+  }
+  .ls-btn-delete:hover { background: var(--warn); color: #fff; border-color: var(--warn); }
+
+  .ls-btn-save {
+    background: var(--accent); color: #000;
+    border: 1px solid var(--accent); font-weight: 700;
+    padding: 6px 14px; font-size: 11px;
+  }
+  .ls-btn-save:hover { filter: brightness(1.1); }
+
+  .ls-status {
+    font-size: 8px; font-weight: 700; padding: 3px 7px; border-radius: 3px;
+    letter-spacing: .06em; text-transform: uppercase; white-space: nowrap;
+  }
+  .ls-status.found  { background: var(--accent-light); color: var(--accent); border: 1px solid #b2d8ce; }
+  .ls-status.absent { background: var(--warn-light); color: var(--warn); border: 1px solid #f5c6c3; }
+
+  .ls-card-body { padding: 10px 12px; }
+
+  .ls-value-raw {
+    font-family: var(--mono, monospace); font-size: 9.5px;
+    color: #374151; line-height: 1.6; white-space: pre-wrap; word-break: break-all;
+  }
+
+  .ls-ts-badge {
+    display: inline-flex; align-items: center; gap: 3px;
+    margin-left: 6px; font-size: 9px; color: #ff9f43;
+    background: #ff9f4318; border: 1px solid #ff9f4340;
+    padding: 1px 6px; border-radius: 3px;
+    font-family: var(--mono, monospace); white-space: nowrap;
+  }
+
+  .ls-parsed-table { width: 100%; border-collapse: collapse; font-size: 10px; }
+  .ls-parsed-table tr { border-bottom: 1px solid var(--border); }
+  .ls-parsed-table tr:last-child { border-bottom: none; }
+  .ls-parsed-table td { padding: 5px 6px; vertical-align: top; line-height: 1.5; }
+  .ls-parsed-table .td-key {
+    color: #6b7280; white-space: nowrap; width: 38%;
+    font-family: var(--mono, monospace); font-size: 9px;
+  }
+  .ls-parsed-table .td-val { color: #1a1d23; word-break: break-word; }
+
+  /* Nested table for array items / sub-objects */
+  .ls-nested-table { width: 100%; border-collapse: collapse; font-size: 9.5px; margin: 0; }
+  .ls-nested-table tr { border-bottom: 1px solid #e5e7eb; }
+  .ls-nested-table tr:last-child { border-bottom: none; }
+  .ls-nested-table td { padding: 3px 4px; vertical-align: top; line-height: 1.45; }
+  .td-depth-1 { color: #9ca3af !important; padding-left: 10px !important; font-size: 8.5px !important; }
+  .ls-null { color: var(--muted); font-style: italic; }
+
+  .ls-absent-msg { font-size: 11px; color: var(--muted); font-style: italic; margin-bottom: 8px; }
+
+  /* Edit section — collapsed by default */
+  .ls-edit-details { margin-top: 10px; }
+  .ls-edit-summary {
+    font-size: 10px; font-weight: 700; color: var(--accent);
+    cursor: pointer; user-select: none;
+    letter-spacing: .04em; list-style: none;
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 4px 10px; border-radius: 5px;
+    border: 1px solid #b2d8ce; background: var(--accent-light);
+    transition: background .12s;
+  }
+  .ls-edit-summary::-webkit-details-marker { display: none; }
+  .ls-edit-summary:hover { background: #d1f0e8; }
+  .ls-edit-section { margin-top: 8px; display: flex; flex-direction: column; gap: 8px; }
+  .ls-edit-area {
+    width: 100%; background: var(--card);
+    border: 1px solid var(--border); border-radius: 5px;
+    color: #1e40af; font-family: var(--mono, monospace);
+    font-size: 9.5px; line-height: 1.5; padding: 7px 9px;
+    resize: vertical; outline: none; transition: border-color .12s;
+  }
+  .ls-edit-area:focus { border-color: var(--accent); }
+  .ls-edit-actions { display: flex; align-items: center; gap: 8px; }
+  .ls-edit-hint { font-size: 9px; color: var(--muted); font-style: italic; }
+
+  /* Published time badge for dismissed_alerts */
+  .ls-pub-badge {
+    display: block; margin-top: 4px;
+    font-size: 9px; color: #7ec8e3;
+    background: #7ec8e318; border: 1px solid #7ec8e340;
+    padding: 2px 7px; border-radius: 3px;
+    font-family: var(--mono, monospace);
+  }
+
+  /* Feedback footer */
+  .feedback-made { font-size: 9px; color: var(--muted); letter-spacing: .04em; opacity: .7; }
+  .feedback-sep  { font-size: 9px; color: var(--muted); opacity: .4; margin: 0 4px; }
+  .feedback-footer {
+    text-align: center; padding: 5px 0 6px;
+    background: var(--surface); border-top: 1px solid var(--border);
+    position: sticky; bottom: 0;
+    z-index: 10;
+    flex-shrink: 0;
+  }
+  .feedback-link {
+    font-size: 9px; color: var(--muted); text-decoration: none;
+    letter-spacing: .04em; transition: color .12s;
+  }
+  .feedback-link:hover { color: var(--accent); text-decoration: underline; }
+
+  @keyframes toastIn {
+    from { opacity:0; transform:translateX(-50%) translateY(6px); }
+    to   { opacity:1; transform:translateX(-50%) translateY(0); }
+  }
+
+  /* ── Network Mock Tab ── */
+  .net-panel {
+    flex: 1; display: flex; flex-direction: column; min-height: 0;
+    overflow: hidden;
+  }
+
+  .net-toolbar {
+    display: flex; align-items: center; gap: 8px;
+    padding: 8px 12px; background: var(--surface);
+    border-bottom: 1px solid var(--border); flex-shrink: 0;
+  }
+
+  .net-status-dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--muted); flex-shrink: 0;
+    transition: background .2s;
+  }
+  .net-status-dot.active { background: var(--accent); box-shadow: 0 0 6px var(--accent); animation: pulse 2s ease-in-out infinite; }
+
+  .net-status-label { font-size: 9px; color: var(--muted); letter-spacing: .04em; }
+
+  #netRuleList {
+    flex: 1; overflow-y: auto; padding: 8px;
+    display: flex; flex-direction: column; gap: 6px;
+    min-height: 0; max-height: 200px;
+  }
+
+  /* Rule card */
+  .net-rule-card {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 8px; overflow: hidden;
+    animation: fadeIn .15s ease-out;
+  }
+  .net-rule-header {
+    display: flex; align-items: center; gap: 8px;
+    padding: 8px 10px; background: #eef2f7;
+  }
+  .net-rule-toggle {
+    width: 28px; height: 16px; border-radius: 8px;
+    background: var(--muted); border: none; cursor: pointer;
+    position: relative; flex-shrink: 0; transition: background .15s;
+    padding: 0;
+  }
+  .net-rule-toggle::after {
+    content: ''; position: absolute; width: 12px; height: 12px;
+    border-radius: 50%; background: #fff;
+    top: 2px; left: 2px; transition: left .15s;
+    box-shadow: 0 1px 2px rgba(0,0,0,.3);
+  }
+  .net-rule-toggle.on { background: var(--accent); }
+  .net-rule-toggle.on::after { left: 14px; }
+
+  .net-rule-name { font-size: 11px; font-weight: 700; color: var(--text); flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .net-rule-pattern { font-size: 9px; color: var(--muted); font-family: var(--mono, monospace); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 130px; }
+  .net-rule-match-type {
+    font-size: 8px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase;
+    padding: 1px 5px; border-radius: 3px; flex-shrink: 0;
+    background: var(--accent-light); color: var(--accent); border: 1px solid #b2d8ce;
+  }
+  .net-rule-actions { display: flex; gap: 4px; flex-shrink: 0; }
+  .net-rule-btn {
+    font-family: 'JetBrains Mono', monospace; font-size: 9px; font-weight: 700;
+    padding: 3px 7px; border-radius: 4px; cursor: pointer;
+    transition: all .12s; border: 1px solid var(--border); background: transparent; color: var(--muted);
+  }
+  .net-rule-btn:hover { color: var(--text); border-color: #555; }
+  .net-rule-btn.edit:hover { color: var(--accent); border-color: var(--accent); }
+  .net-rule-btn.del:hover  { color: var(--warn);   border-color: var(--warn);   }
+
+  .net-rule-body {
+    padding: 8px 10px; border-top: 1px solid var(--border);
+    font-size: 9px; color: #374151;
+    white-space: pre-wrap; word-break: break-all;
+    max-height: 60px; overflow-y: auto;
+    font-family: var(--mono, monospace); line-height: 1.5;
+  }
+
+  /* Intercept log */
+  .net-log-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 5px 12px; background: var(--surface);
+    border-top: 1px solid var(--border); border-bottom: 1px solid var(--border);
+    font-size: 9px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase;
+    color: var(--muted); flex-shrink: 0;
+  }
+  .net-log-clear { font-size: 9px; padding: 2px 7px; }
+
+  .net-log {
+    flex-shrink: 0; height: 88px; overflow-y: auto;
+    padding: 4px 8px; display: flex; flex-direction: column; gap: 2px;
+  }
+  .net-log-empty { font-size: 10px; color: var(--muted); padding: 6px 4px; font-style: italic; }
+
+  .net-log-entry {
+    display: grid; grid-template-columns: 52px 1fr auto;
+    gap: 6px; align-items: start;
+    padding: 4px 6px; background: var(--card);
+    border-radius: 4px; font-size: 9px;
+    animation: fadeIn .15s ease-out;
+  }
+  .net-log-time { color: var(--muted); }
+  .net-log-url  { color: #374151; word-break: break-all; line-height: 1.4; font-family: var(--mono, monospace); }
+  .net-log-status { font-weight: 700; font-size: 9px; padding: 1px 5px; border-radius: 3px; white-space: nowrap; }
+  .net-log-status.ok   { background: var(--accent-light); color: var(--accent); }
+  .net-log-status.err  { background: var(--warn-light); color: var(--warn); }
+  .net-log-status.mock { background: #f3e8ff; color: #7c3aed; }
+
+  /* Modal overlay */
+  .net-modal-overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,.4);
+    z-index: 100; display: flex; align-items: center; justify-content: center;
+  }
+  .net-modal {
+    background: #ffffff; border: 1px solid var(--border);
+    border-radius: 12px; padding: 18px; width: 370px;
+    max-height: 90vh; overflow-y: auto;
+    display: flex; flex-direction: column; gap: 8px;
+  }
+  .net-modal-title {
+    font-family: 'Syne', sans-serif; font-weight: 800;
+    font-size: 14px; color: var(--text); margin-bottom: 4px;
+  }
+  .net-label {
+    font-size: 9px; font-weight: 700; letter-spacing: .08em;
+    text-transform: uppercase; color: var(--muted); margin-top: 4px;
+  }
+  .net-input {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 6px; color: var(--text);
+    font-family: 'JetBrains Mono', monospace; font-size: 10px;
+    padding: 7px 10px; outline: none; transition: border-color .12s; width: 100%;
+  }
+  .net-input:focus { border-color: var(--accent); }
+  .net-select {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 6px; color: var(--text);
+    font-family: 'JetBrains Mono', monospace; font-size: 10px;
+    padding: 7px 10px; outline: none; cursor: pointer;
+    flex-shrink: 0;
+  }
+  .net-match-row { display: flex; gap: 6px; align-items: center; }
+  .net-textarea {
+    width: 100%; background: var(--card); border: 1px solid var(--border);
+    border-radius: 6px; color: #a0d0ff;
+    font-family: 'JetBrains Mono', monospace; font-size: 9.5px;
+    color: #1e40af;
+    line-height: 1.5; padding: 8px 10px; resize: vertical; outline: none;
+    transition: border-color .12s;
+  }
+  .net-textarea:focus { border-color: var(--accent); }
+
+  .net-body-tabs {
+    display: flex; gap: 4px; margin-bottom: 4px;
+  }
+  .net-body-tab {
+    font-family: 'JetBrains Mono', monospace; font-size: 9px; font-weight: 700;
+    padding: 4px 10px; border-radius: 4px; cursor: pointer;
+    border: 1px solid var(--border); background: transparent; color: var(--muted);
+    transition: all .12s;
+  }
+  .net-body-tab.active { background: var(--accent); color: #000; border-color: var(--accent); }
+
+  .net-file-drop {
+    border: 2px dashed var(--border); border-radius: 8px;
+    padding: 20px; text-align: center; cursor: pointer;
+    transition: border-color .15s, background .15s;
+  }
+  .net-file-drop:hover, .net-file-drop.dragover {
+    border-color: var(--accent); background: var(--accent-light);
+  }
+  .net-file-icon { font-size: 24px; margin-bottom: 6px; opacity: .5; }
+  .net-file-label { font-size: 10px; color: var(--muted); }
+  .net-file-name {
+    font-size: 10px; color: var(--accent); padding: 6px 8px;
+    background: var(--accent-light); border-radius: 5px;
+    border: 1px solid #b2d8ce; font-family: var(--mono, monospace);
+    word-break: break-all;
+  }
+
+  .net-modal-actions {
+    display: flex; justify-content: flex-end; gap: 8px; margin-top: 8px;
+  }
+
+  .inspect-btn {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px; font-weight: 700; letter-spacing: .06em;
+    padding: 4px 9px; border-radius: 5px; cursor: pointer;
+    border: 1px solid #b2d8ce;
+    background: transparent; color: var(--muted);
+    transition: all .15s; white-space: nowrap;
+  }
+  .inspect-btn:hover { color: var(--accent); border-color: var(--accent); background: var(--accent-light); }
+  .inspect-btn.active {
+    background: var(--accent); color: #fff;
+    border-color: var(--accent);
+    box-shadow: 0 2px 8px rgba(0,122,90,.3);
+    animation: inspectPulse 2s ease-in-out infinite;
+  }
+  @keyframes inspectPulse {
+    0%,100% { box-shadow: 0 2px 8px rgba(0,122,90,.3); }
+    50%      { box-shadow: 0 4px 16px rgba(0,122,90,.5); }
+  }
+
+  /* ── Audit ── */
+  .audit-summary { display:flex; gap:8px; padding:10px; flex-wrap:wrap; }
+  .audit-chip { display:flex; flex-direction:column; align-items:center; gap:2px;
+    padding:8px 12px; border-radius:8px; border:1px solid; min-width:60px; background:var(--card); }
+  .audit-section-title { font-size:10px; font-weight:700; color:var(--text); padding:6px 10px 4px;
+    border-bottom:1px solid var(--border); letter-spacing:.04em; }
+  .audit-item { padding:6px 10px; border-bottom:1px solid var(--border); }
+  .audit-item.warn .audit-item-label { color:var(--warn); font-size:10px; font-weight:700; }
+  .audit-item.info .audit-item-label { color:#ff9f43; font-size:10px; font-weight:700; }
+  .audit-item-url { color:var(--muted); font-size:9px; font-family:var(--mono,monospace); word-break:break-all; margin-top:2px; }
+  .audit-ok-row { font-size:10px; color:var(--accent); padding:8px 10px; }
+  .audit-note { font-size:9px; color:var(--muted); padding:4px 10px; font-style:italic; }
+
+  /* ── Geo ── */
+  .geo-status-msg { font-size:10px; padding:7px 10px; border-radius:6px; }
+  .geo-status-idle   { background:var(--card); color:var(--muted); border:1px solid var(--border); }
+  .geo-status-active { background:#00e5a015; color:var(--accent); border:1px solid #00e5a030; }
+  .geo-status-error  { background:#ff6b6b15; color:var(--warn);   border:1px solid #ff6b6b30; }
+
+  /* ── Settings ── */
+  .setting-group { display:flex; flex-direction:column; gap:4px; }
+  .setting-group-title { font-size:10px; font-weight:700; color:var(--text); }
+  .setting-desc { font-size:9px; color:var(--muted); line-height:1.5; }
+  .setting-tabs-grid { display:grid; grid-template-columns:1fr 1fr; gap:4px; margin-top:4px; }
+  .setting-tab-row { display:flex; align-items:center; gap:6px; font-size:10px; color:var(--text);
+    padding:4px 8px; background:var(--card); border-radius:5px; border:1px solid var(--border);
+    cursor:pointer; transition:border-color .12s; }
+  .setting-tab-row:hover { border-color:var(--accent); }
+  .setting-tab-row input[type=checkbox] { accent-color:var(--accent); cursor:pointer; }
+
+  /* ── Epoch ── */
+  .epoch-section-title { font-size:10px; font-weight:700; color:var(--accent); margin-bottom:6px; }
+  .epoch-results { display:flex; flex-direction:column; gap:3px; }
+  .epoch-row { display:flex; justify-content:space-between; align-items:baseline;
+    padding:4px 8px; background:var(--card); border-radius:4px; gap:8px; }
+  .epoch-label { font-size:9px; color:var(--muted); white-space:nowrap; flex-shrink:0; }
+  .epoch-val { font-size:10px; color:var(--text); word-break:break-all; text-align:right; font-family:var(--mono,monospace); }
+
+  .epoch-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 10px 12px;
+  }
+  .epoch-out-row {
+    display:flex; align-items:center; gap:6px;
+    padding:4px 6px;
+    border-bottom: 1px solid var(--border);
+  }
+  .epoch-out-row:last-child { border-bottom: none; }
+  .epoch-out-label {
+    font-size:9px; color:var(--muted); width:64px; flex-shrink:0;
+    letter-spacing:.04em; text-transform:uppercase;
+  }
+  .epoch-out-val {
+    flex:1; font-family:monospace; font-size:10.5px; color:var(--text);
+    overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+  }
+  .epoch-out-copy {
+    flex-shrink:0; padding:2px 6px; font-size:9px;
+    border:1px solid var(--border); background:transparent;
+    color:var(--muted); cursor:pointer; border-radius:3px;
+  }
+  .epoch-out-copy:hover { background:var(--card); }
+
+  /* ── World Clock — bigger, more readable rows ── */
+  .wc-row {
+    display:flex; align-items:center; gap:8px;
+    padding:8px 12px;
+    border-bottom:1px solid var(--border);
+    font-size:13px;
+  }
+  .wc-row:hover { background:var(--card); }
+  .wc-flag { font-size:14px; flex-shrink:0; }
+  .wc-biz {
+    width:8px; height:8px; border-radius:50%;
+    flex-shrink:0;
+  }
+  .wc-name {
+    flex:1;
+    font-weight:700;
+    color:var(--text);
+    font-size:13px;
+  }
+  .wc-time {
+    font-family:monospace;
+    font-size:14px;
+    color:var(--accent);
+    font-weight:700;
+    flex-shrink:0;
+  }
+  .wc-meta {
+    font-size:10.5px;
+    color:var(--muted);
+    width:78px;
+    text-align:right;
+    flex-shrink:0;
+  }
+  .wc-copy, .wc-pin {
+    padding:2px 6px; font-size:11px;
+    border:none; background:none; cursor:pointer;
+    flex-shrink:0;
+  }
+  .wc-copy { color:var(--muted); }
+  .wc-copy:hover { color:var(--text); }
+  .wc-section-label {
+    padding:6px 12px;
+    background:var(--card);
+    font-size:9.5px;
+    color:var(--muted);
+    font-weight:700;
+    letter-spacing:.1em;
+    border-bottom:1px solid var(--border);
+  }
+
+  /* ── Audit extras ── */
+  .audit-page-title { font-size:11px; font-weight:700; color:var(--text); }
+  .audit-page-url   { font-size:9px; color:var(--muted); word-break:break-all; margin-top:2px; }
+  .audit-page-ts    { font-size:9px; color:var(--muted); margin-top:1px; }
+  @keyframes spin { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
+
+  /* ── Time sub-tabs ── */
+  .time-subtab, .util-subtab {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9.5px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase;
+    padding: 7px 2px; border: none; cursor: pointer;
+    background: transparent; color: var(--muted);
+    border-bottom: 2px solid transparent; transition: all .15s;
+  }
+  .time-subtab.active, .util-subtab.active {
+    color: var(--accent); border-bottom-color: var(--accent); background: var(--tab-active-bg);
+  }
+  .time-subtab:hover:not(.active), .util-subtab:hover:not(.active) { color: var(--text); }
+  .time-sub, .util-sub { display: flex; flex-direction: column; }
+  .time-sub.active, .util-sub.active { display: flex; }
+
+  /* ── World Clock ── */
+  .clock-card {
+    background: var(--card); border: 1px solid var(--border); border-radius: 7px;
+    padding: 7px 9px; cursor: default;
+  }
+  .clock-city { font-size: 9px; font-weight: 700; color: var(--muted); margin-bottom: 2px; }
+  .clock-time { font-size: 16px; font-weight: 700; color: var(--text); font-family: monospace; line-height: 1.1; }
+  .clock-date { font-size: 8px; color: var(--muted); margin-top: 2px; }
+
+  @keyframes progressPulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+
+  /* ── Page Kit tab ── */
+  .pt-tool-btn {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px; font-weight: 700; letter-spacing: .04em;
+    border-radius: 6px; border: 1.5px solid var(--btn-secondary-border);
+    background: var(--btn-secondary); color: var(--btn-secondary-text);
+    cursor: pointer; transition: all .15s; white-space: nowrap;
+  }
+  .pt-tool-btn:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-light); }
+  .pt-tool-btn.active {
+    background: var(--accent); color: #fff; border-color: var(--accent);
+    box-shadow: 0 2px 8px rgba(0,122,90,.3);
+    animation: inspectPulse 2s ease-in-out infinite;
+  }
+
+  /* Viewport list item */
+  .vp-item {
+    display:flex;align-items:center;gap:7px;padding:5px 7px;
+    background:var(--card);border:1px solid var(--border);border-radius:6px;
+  }
+  .vp-item input[type=checkbox] { accent-color: var(--accent); cursor: pointer; }
+  .vp-item-name { font-size:9.5px;font-weight:700;color:var(--text);flex:1 }
+  .vp-item-dim  { font-size:9px;color:var(--muted);white-space:nowrap }
+  .vp-item-del  { font-size:9px;color:var(--warn);cursor:pointer;padding:1px 5px;border-radius:3px;border:1px solid transparent }
+  .vp-item-del:hover { background:var(--warn-light);border-color:var(--warn) }
+  .vp-item-checked { border-color: var(--accent); background: var(--accent-light); }
+
+  /* ── Page Tools tab ── */
+  .pt-subtab {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase;
+    padding: 5px 10px; border: none; cursor: pointer; flex: 1; text-align: center;
+    background: transparent; color: var(--muted);
+    border-bottom: 2px solid transparent; transition: all .15s;
+    white-space: nowrap;
+  }
+  .pt-subtab.active  {
+    color: #fff; background: var(--accent);
+    border-radius: 20px; border-bottom-color: transparent;
+  }
+  .pt-subtab:hover:not(.active) {
+    color: var(--text); background: rgba(0,0,0,.06); border-radius: 20px;
+  }
+  body.dark-theme .pt-subtab:hover:not(.active) { background: rgba(255,255,255,.08); border-radius: 20px; }
+  /* Sub-tab bar has a distinctly different tint from the main tab bar */
+  .pt-subtab-bar {
+    display: flex;
+    background: #dde8f2;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+    overflow-x: auto;
+    padding: 4px 6px;
+    gap: 3px;
+    align-items: center;
+  }
+  body.dark-theme .pt-subtab-bar { background: #0d1d2e; }
+  .pt-sub { display: none; flex-direction: column; flex: 1; min-height: 0; overflow: hidden; }
+  .pt-sub.active { display: flex; flex-direction: column; flex: 1; min-height: 0; overflow: hidden; }
+
+  /* Viewport grid */
+  .vp-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; padding: 6px; overflow-y: auto; flex: 1; }
+  .vp-card { background: var(--card); border: 1px solid var(--border); border-radius: 7px; overflow: hidden; cursor: pointer; transition: border-color .15s; }
+  .vp-card:hover { border-color: var(--accent); }
+  .vp-label { font-size: 8.5px; font-weight: 700; color: var(--muted); padding: 4px 7px; background: var(--surface); border-bottom: 1px solid var(--border); }
+  .vp-frame-wrap { overflow: hidden; background: #fff; }
+
+  /* Screenshot canvas */
+  #ssCanvas { display: none; width: 100%; border-radius: 6px; border: 1px solid var(--border); cursor: default; }
+  #ssAnnotateToolbar { display: none; gap: 6px; align-items: center; flex-wrap: wrap; padding: 6px 0; }
+
+  /* Metadata */
+  .meta-row { display: flex; gap: 8px; padding: 4px 10px; border-bottom: 1px solid var(--border); font-size: 9.5px; }
+  .meta-label { color: var(--muted); font-weight: 700; min-width: 90px; flex-shrink: 0; font-size: 9px; text-transform: uppercase; letter-spacing: .04em; padding-top: 1px; }
+  .meta-val { color: var(--text); word-break: break-word; flex: 1; line-height: 1.4; }
+  .meta-section-title { font-size: 9px; font-weight: 800; color: var(--accent); padding: 6px 10px 3px; letter-spacing: .08em; text-transform: uppercase; border-bottom: 1px solid var(--border); background: var(--card); }
+
+  /* ── Keep JetBrains Mono for code/data contexts ── */
+  .net-input, .net-textarea, .net-select, .search,
+  .ls-key, .ls-value-raw, .ls-parsed-table, .ls-nested-table,
+  .ddl-full, .ddl-meta,
+  code, pre,
+  #jwtInput, #jwtHdrInput, #jwtPayInput, #jwtDecodeOut, #jwtEncodeOut,
+  #urlInput, #urlOutput, #b64Input, #b64Output,
+  .epoch-results, input[type="number"] {
+    font-family: 'JetBrains Mono', monospace;
+  }
+  /* Keep JetBrains Mono on tabs and buttons */
+  .tab, .pt-subtab, .time-subtab, .util-subtab, button {
+    font-family: 'JetBrains Mono', monospace;
+  }
+  /* System font for labels, descriptions, tooltips, empty states */
+  .net-label, .setting-desc, .setting-group-title,
+  .ddl-preview-row, .ddl-event-name, .ddl-toggle,
+  .empty-text, .meta-label, .meta-val,
+  .feedback-footer, .feedback-made, .feedback-link,
+  .vp-item-name, .vp-item-dim, .vp-label,
+  .ls-absent-msg, .ls-status {
+    font-family: -apple-system, 'Segoe UI', sans-serif;
+  }
+
+  /* scrollbar */
+  ::-webkit-scrollbar { width: 3px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: #c5cbd4; border-radius: 2px; }
+</style>
+</head>
+<body>
+
+<!-- Header -->
+<div class="header">
+  <div class="logo">
+    <div class="dot" id="dot"></div>
+    <img class="logo-favicon-large" id="logoFavicon" src="icons/icon48.png" alt="QAKit" />
+    <div class="logo-text">
+      <div class="logo-line1">
+        <span class="logo-qa">QA</span><span class="logo-tools">Kit</span>
+      </div>
+      <div class="logo-line2">
+        <span class="logo-version">v1.0.0</span>
+      </div>
+    </div>
+  </div>
+  <div class="header-right">
+    <div class="header-btns">
+      <button class="inspect-btn" id="inspectBtn" title="Element inspector — highlights data-testid on hover" style="display:none">🔍 Inspect</button>
+      <button class="inspect-btn" id="spacingBtn" title="Spacing inspector — shows Figma-style box model" style="display:none">📐 Spacing</button>
+      <button class="inspect-btn" id="settingsBtn" title="Open Settings">⚙ Settings</button>
+    </div>
+    <label class="rec-toggle" id="recToggle" title="Recording ON — click to pause">
+      <span class="rec-label" id="recLabel">REC</span>
+      <span class="rec-switch"><span class="rec-knob"></span></span>
+    </label>
+  </div>
+</div>
+
+
+
+<!-- Tabs — HIDDEN in Option 2 pure launcher (kept for JS compat) -->
+<div class="tabs" id="tabsBar" style="display:none">
+  <div class="tabs-scroll" id="tabsScroll">
+    <div class="tab active" data-tab="home">Home</div>
+    <div class="tab" data-tab="pagetools">Page Kit</div>
+    <div class="tab" data-tab="audit">Page Audit</div>
+    <div class="tab" data-tab="ddl">Analytics</div>
+    <div class="tab" data-tab="net">Net Mock</div>
+    <div class="tab" data-tab="tools">Tools</div>
+    <!-- Secondary tabs live in the overflow menu. popup.js shows/hides them
+         based on visibleTabs settings. Marked data-overflow. -->
+    <div class="tab" data-tab="headers" data-overflow="true" style="display:none">Headers</div>
+    <div class="tab" data-tab="ls"      data-overflow="true" style="display:none">Storage</div>
+    <div class="tab" data-tab="time"    data-overflow="true" style="display:none">Time</div>
+    <div class="tab" data-tab="utils"   data-overflow="true" style="display:none">Encode</div>
+    <div class="tab" data-tab="cookies" data-overflow="true" style="display:none">Cookies</div>
+    <div class="tab" data-tab="console" data-overflow="true" style="display:none">Console</div>
+    <div class="tab" data-tab="geo"     data-overflow="true" style="display:none">Geo</div>
+    <div class="tab" data-tab="envmarker" data-overflow="true" style="display:none">Env Marker</div>
+  </div>
+  <div class="tab-more" id="tabMoreBtn" title="More tabs">
+    <span class="tab-more-dots">⋯</span>
+    <span class="tab-more-badge" id="tabMoreBadge" style="display:none">0</span>
+  </div>
+  <div class="tab-more-menu" id="tabMoreMenu" style="display:none"></div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════════
+     Panel Area — all panels live here as full-screen overlays (Option 2).
+     Home is the base layer; tool panels slide in from the right.
+     ═══════════════════════════════════════════════════════════════════════════ -->
+<div class="panel-area" id="panelArea">
+<!-- ═══════════════════════════════════════════════════════════════════════════
+     Home Panel — default landing screen.
+     ═══════════════════════════════════════════════════════════════════════════ -->
+<div class="panel active" id="panel-home">
+  <!-- Compact status strip — only shows indicators that have something to show -->
+  <div class="home-status-strip" id="homeStatusStrip">
+    <span class="home-status-dom" id="homeDomain">—</span>
+    <span class="home-status-sep">·</span>
+    <span class="home-status-item home-status-err"   id="homeStatErrors"  data-tab="console"   style="display:none">⚠ <span class="num" id="homeErrors">0</span> errors</span>
+    <span class="home-status-sep" id="homeStatErrorsSep" style="display:none">·</span>
+    <span class="home-status-item" id="homeStatAudit" data-tab="audit"     style="display:none"><span class="audit-pill" id="homeAuditPill">—</span> Audit</span>
+    <span class="home-status-sep" id="homeStatAuditSep" style="display:none">·</span>
+    <span class="home-status-item" id="homeStatEvents" data-tab="ddl">⚡ <span class="num" id="homeEvents">0</span> events</span>
+    <span class="home-status-sep">·</span>
+    <span class="home-status-item" id="homeStatCookies" data-tab="cookies"><span id="homeHintCookies">🍪 —</span></span>
+    <span class="home-status-sep" id="homeStatGeoSep" style="display:none">·</span>
+    <span class="home-status-item" id="homeStatGeo"     data-tab="geo"     style="display:none">📍 <span id="homeHintGeo">—</span></span>
+    <span class="home-status-actions">
+      <button id="homeExportBtn" title="Export event log as JSON" class="home-status-action-btn">⬇</button>
+      <button id="homeClearBtn"  title="Clear all captured events" class="home-status-action-btn home-status-danger">🗑</button>
+    </span>
+  </div>
+
+  <div class="home-scroll">
+    <div class="home-alerts" id="homeAlerts" style="display:none"></div>
+
+    <!-- ── INSPECT & MEASURE ── Inspect, Spacing, Ruler, Viewports -->
+    <div class="home-section">
+      <div class="home-section-label">INSPECT &amp; MEASURE</div>
+      <div class="home-grid">
+        <div class="home-tile" data-action="inspect"><div class="home-tile-icon">🔍</div><div class="home-tile-name">Inspect</div><div class="home-tile-hint">⌘⇧Q</div></div>
+        <div class="home-tile" data-action="spacing"><div class="home-tile-icon">📐</div><div class="home-tile-name">Spacing</div><div class="home-tile-hint">⌘⇧Y</div></div>
+        <div class="home-tile" data-action="ruler"><div class="home-tile-icon">📏</div><div class="home-tile-name">Ruler</div><div class="home-tile-hint">measure</div></div>
+        <div class="home-tile" data-action="viewports"><div class="home-tile-icon">📱</div><div class="home-tile-name">Viewports</div><div class="home-tile-hint">preview</div></div>
+      </div>
+    </div>
+
+    <!-- ── CAPTURE ── Annotate, Region, Full Page, Element -->
+    <div class="home-section">
+      <div class="home-section-label">CAPTURE</div>
+      <div class="home-grid">
+        <div class="home-tile" data-action="annotate"><div class="home-tile-icon">✏</div><div class="home-tile-name">Annotate</div><div class="home-tile-hint">draw</div></div>
+        <div class="home-tile" data-action="region"><div class="home-tile-icon">⬚</div><div class="home-tile-name">Region</div><div class="home-tile-hint">⌘⇧U</div></div>
+        <div class="home-tile" data-action="fullpage"><div class="home-tile-icon">📄</div><div class="home-tile-name">Full Page</div><div class="home-tile-hint">⌘⇧K</div></div>
+        <div class="home-tile" data-action="element-shot"><div class="home-tile-icon">🖼</div><div class="home-tile-name">Element</div><div class="home-tile-hint">1 click</div></div>
+      </div>
+    </div>
+
+    <!-- ── DATA & NETWORK ── Analytics, Net Mock, Headers, Page Audit -->
+    <div class="home-section">
+      <div class="home-section-label">DATA &amp; NETWORK</div>
+      <div class="home-grid">
+        <div class="home-tile" data-tab="ddl"><div class="home-tile-icon">⚡</div><div class="home-tile-name">Analytics</div><div class="home-tile-hint" id="homeHintEvents">0 events</div></div>
+        <div class="home-tile" data-tab="net"><div class="home-tile-icon">⟷</div><div class="home-tile-name">Net Mock</div><div class="home-tile-hint" id="homeHintMocks">0 rules</div></div>
+        <div class="home-tile" data-tab="headers"><div class="home-tile-icon">🏷</div><div class="home-tile-name">Headers</div><div class="home-tile-hint">inject</div></div>
+        <div class="home-tile" data-tab="audit"><div class="home-tile-icon">🔬</div><div class="home-tile-name">Page Audit</div><div class="home-tile-hint" id="homeHintAudit">a11y · perf</div></div>
+      </div>
+    </div>
+
+    <!-- ── SESSION & ENVIRONMENT ── Env Marker, Cookies, Storage, Console -->
+    <div class="home-section">
+      <div class="home-section-label">SESSION &amp; ENVIRONMENT</div>
+      <div class="home-grid">
+        <div class="home-tile" data-tab="envmarker"><div class="home-tile-icon">🏷</div><div class="home-tile-name">Env Marker</div><div class="home-tile-hint" id="homeHintEnv">configure</div></div>
+        <div class="home-tile" data-tab="cookies"><div class="home-tile-icon">🍪</div><div class="home-tile-name">Cookies</div><div class="home-tile-hint" id="homeHintCookies2">—</div></div>
+        <div class="home-tile" data-tab="ls"><div class="home-tile-icon">🗄</div><div class="home-tile-name">Storage</div><div class="home-tile-hint" id="homeHintStorage">—</div></div>
+        <div class="home-tile" data-tab="console"><div class="home-tile-icon">⌗</div><div class="home-tile-name">Console</div><div class="home-tile-hint" id="homeHintConsole">—</div></div>
+      </div>
+    </div>
+
+    <!-- ── UTILITIES ── Time, Encode, Geolocation, Metadata -->
+    <div class="home-section">
+      <div class="home-section-label">UTILITIES</div>
+      <div class="home-grid">
+        <div class="home-tile" data-tab="time"><div class="home-tile-icon">⏱</div><div class="home-tile-name">Time</div><div class="home-tile-hint">epoch · tz</div></div>
+        <div class="home-tile" data-tab="utils"><div class="home-tile-icon">🔐</div><div class="home-tile-name">Encode</div><div class="home-tile-hint">JWT · B64</div></div>
+        <div class="home-tile" data-tab="geo"><div class="home-tile-icon">📍</div><div class="home-tile-name">Geolocation</div><div class="home-tile-hint" id="homeHintGeo2">—</div></div>
+        <div class="home-tile" data-action="metadata"><div class="home-tile-icon">🔎</div><div class="home-tile-name">Metadata</div><div class="home-tile-hint">scan</div></div>
+      </div>
+    </div>
+
+    <!-- ── TOOLS ── JSON Viewer ↗, Text Compare ↗, Help -->
+    <div class="home-section">
+      <div class="home-section-label">TOOLS</div>
+      <div class="home-grid home-grid-3">
+        <div class="home-tile" data-action="open-jsondiff"><div class="home-tile-icon" style="font-family:monospace">{ }</div><div class="home-tile-name">JSON Viewer</div><div class="home-tile-hint">↗ new tab</div></div>
+        <div class="home-tile" data-action="open-textcompare"><div class="home-tile-icon">⇄</div><div class="home-tile-name">Text Compare</div><div class="home-tile-hint">↗ new tab</div></div>
+        <div class="home-tile" data-action="open-help"><div class="home-tile-icon">❓</div><div class="home-tile-name">Help</div><div class="home-tile-hint">docs</div></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- Page Tools Panel -->
+<div class="panel" id="panel-pagetools">
+  <!-- Sub-tabs -->
+  <div class="pt-subtab-bar">
+    <button class="pt-subtab active" data-sub="inspect">🔍 Inspect</button>
+    <button class="pt-subtab" data-sub="responsive">📐 Responsive</button>
+    <button class="pt-subtab" data-sub="meta">🏷 Metadata</button>
+    <!-- Screenshot sub-tab hidden — all screenshot actions accessible via Home tiles -->
+    <button class="pt-subtab" data-sub="screenshot" style="display:none">📸 Screenshot</button>
+  </div>
+
+  <!-- Inspect / Spacing / Ruler sub-panel -->
+  <div class="pt-sub active" id="ptsub-inspect" style="flex-direction:column;flex:1;min-height:0;overflow:hidden">
+  <div style="padding:10px;gap:8px;overflow-y:auto;flex:1;display:flex;flex-direction:column;min-height:0">
+
+    <!-- Tool buttons — same style, accent when active -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
+      <button class="pt-tool-btn" id="pt-inspectBtn" title="Toggle Element Inspector — hover to see tag/class/ID/testid/selector/xpath" style="padding:10px 6px;font-size:9.5px">🔍 Element Inspector</button>
+      <button class="pt-tool-btn" id="pt-spacingBtn" title="Toggle Spacing Inspector — hover to see W×H, margin, padding, colours, font" style="padding:10px 6px;font-size:9.5px">📐 Spacing Inspector</button>
+      <button class="pt-tool-btn" id="pt-rulerBtn" title="Ruler — click to set start point, move to measure pixel distance"   style="padding:10px 6px;font-size:9.5px">📏 Ruler</button>
+      <button class="pt-tool-btn" id="pt-annotateBtn" title="Annotate Page — draw on the live page with pen, rect, arrow, text" style="padding:10px 6px;font-size:9.5px">✏ Annotate Page</button>
+    </div>
+
+    <div style="background:var(--card);border:1px solid var(--border);border-radius:8px;padding:7px 9px;font-size:9px;color:var(--muted);line-height:1.5">
+      <strong style="color:var(--text)">Tip:</strong> Click a tool to activate it on the page. 
+      <strong>Inspector</strong> — hover elements, click to pin &amp; copy values, Esc to exit. 
+      <strong>Annotate</strong> — draws SVG over the page, 📸 to capture.
+    </div>
+
+  </div>
+  </div><!-- /inner scroll -->
+
+  <!-- Responsive Viewer sub-panel -->
+  <div class="pt-sub" id="ptsub-responsive" style="flex-direction:column;flex:1;min-height:0">
+    <!-- Top toolbar -->
+    <div style="padding:6px 8px;border-bottom:1px solid var(--border);flex-shrink:0;background:var(--surface);display:flex;gap:6px;align-items:center">
+      <span style="font-size:9px;color:var(--muted);flex:1">Select up to 6 viewports, then launch</span>
+      <button class="btn-accent" id="vpLaunchBtn" title="Launch responsive preview overlay — shows selected viewports side by side" style="padding:4px 10px;font-size:9px;white-space:nowrap">↗ Launch Preview</button>
+    </div>
+
+    <!-- Viewport list with checkboxes -->
+    <div id="vpPresetList" style="overflow-y:auto;flex:1;padding:6px;display:flex;flex-direction:column;gap:3px;min-height:0"></div>
+
+    <!-- Add custom viewport -->
+    <div style="padding:6px 8px;border-top:1px solid var(--border);flex-shrink:0;background:var(--surface)">
+      <div style="font-size:9px;font-weight:700;color:var(--text);margin-bottom:4px">+ Add Custom Viewport</div>
+      <div style="display:flex;gap:4px;align-items:center">
+        <input id="vpNewName" class="net-input" placeholder="Name" style="flex:1;padding:4px 6px;font-size:9px" />
+        <input id="vpNewW" class="net-input" type="number" placeholder="W" style="width:55px;padding:4px 5px;font-size:9px" />
+        <span style="font-size:9px;color:var(--muted)">×</span>
+        <input id="vpNewH" class="net-input" type="number" placeholder="H" style="width:55px;padding:4px 5px;font-size:9px" />
+        <button class="btn-accent" id="vpAddBtn" title="Add custom viewport to list" style="padding:4px 10px;font-size:9px">Add</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Screenshot sub-panel -->
+  <div class="pt-sub" id="ptsub-screenshot" style="flex-direction:column;flex:1;min-height:0;overflow:hidden">
+
+    <!-- Annotation toolbar — uses the full in-page annotation engine -->
+    <div id="ssAnnotateToolbar" style="display:flex;gap:5px;align-items:center;padding:5px 8px;border-bottom:1px solid var(--border);background:var(--surface);flex-shrink:0">
+      <button class="pt-tool-btn" id="ss-annotatePageBtn" title="Open in-page annotation mode — draw on page then 📸 to capture" style="padding:5px 8px;font-size:9px">✏ Annotate Page</button>
+      <span style="font-size:9px;color:var(--muted);flex:1">Draw on the page first, then capture.</span>
+      <button class="btn-ghost" id="ssUndoBtn" title="Undo last annotation stroke" style="font-size:9px;padding:3px 6px">↩</button>
+      <button class="btn-ghost" id="ssClearAnnotBtn" title="Clear all annotations" style="font-size:9px;padding:3px 6px">✕</button>
+    </div>
+
+    <!-- Canvas area — scrollable, takes remaining space -->
+    <div style="flex:1;overflow-y:auto;padding:6px;display:flex;flex-direction:column;gap:5px;min-height:0">
+      <div id="ssStatus" style="font-size:9px;color:var(--muted)">Choose Full Page or Region capture. Annotate before or after capturing.</div>
+      <div id="ssProgress" style="display:none;height:3px;background:var(--accent);border-radius:2px;animation:progressPulse 1s ease-in-out infinite"></div>
+      <canvas id="ssCanvas" style="display:none;width:100%;border-radius:5px;border:1px solid var(--border);cursor:crosshair;touch-action:none;pointer-events:auto"></canvas>
+    </div>
+
+    <!-- Bottom action bar — flex-shrink:0 keeps it always visible -->
+    <div style="display:flex;gap:5px;padding:6px 8px;border-top:1px solid var(--border);background:var(--surface);flex-shrink:0">
+      <button class="btn-accent" id="ss-fullBtn"   title="Capture full page — Ctrl+Shift+K / Cmd+Shift+K" style="flex:1;font-size:9px;padding:6px 4px">📄 Full Page</button>
+      <button class="btn-ghost"  id="ss-regionBtn" title="Select a region to capture — Ctrl+Shift+U / Cmd+Shift+U" style="flex:1;font-size:9px;padding:6px 4px">⬚ Region</button>
+      <button class="btn-ghost"  id="ssCopyBtn"    title="Copy screenshot to clipboard" style="font-size:9px;padding:6px 8px">⎘</button>
+      <button class="btn-accent" id="ssSaveBtn"    title="Save screenshot as PNG"       style="font-size:9px;padding:6px 10px">⬇ Save</button>
+      <button class="btn-ghost"  id="ssClearBtn"   title="Clear screenshot canvas"      style="font-size:9px;padding:6px 7px">✕</button>
+    </div>
+  </div>
+
+  <!-- Metadata sub-panel -->
+  <div class="pt-sub" id="ptsub-meta" style="flex-direction:column;flex:1;min-height:0">
+    <div style="padding:5px 8px;border-bottom:1px solid var(--border);flex-shrink:0;display:flex;align-items:center;gap:6px;background:var(--surface)">
+      <span style="font-size:9px;color:var(--muted);flex:1">SEO meta tags, Open Graph, page stats</span>
+      <button class="btn-accent" id="metaRefreshBtn" title="Load page metadata — SEO tags, OG, page stats" style="padding:4px 10px;font-size:9px">↻ Load</button>
+      <button class="btn-ghost"  id="metaCopyBtn"   title="Copy all metadata as text" style="padding:4px 8px;font-size:9px" disabled>⎘</button>
+      <div style="position:relative;display:inline-block">
+        <button class="btn-ghost" id="metaExportBtn" title="Export metadata" style="padding:4px 8px;font-size:9px" disabled>⬇</button>
+        <div id="metaExportMenu" style="display:none;position:absolute;top:100%;right:0;background:var(--surface);border:1px solid var(--border);border-radius:4px;box-shadow:0 4px 12px rgba(0,0,0,.12);z-index:100;min-width:110px;padding:3px">
+          <div data-meta-format="text" style="padding:5px 8px;font-size:9px;cursor:pointer;border-radius:3px" class="audit-export-item">📄 Text</div>
+          <div data-meta-format="json" style="padding:5px 8px;font-size:9px;cursor:pointer;border-radius:3px" class="audit-export-item">{ } JSON</div>
+        </div>
+      </div>
+    </div>
+    <div id="metaContent" style="overflow-y:auto;flex:1">
+      <div style="padding:16px;text-align:center;color:var(--muted);font-size:10px">Click ↻ Load to read page metadata</div>
+    </div>
+  </div>
+</div>
+
+<!-- Page Metadata Panel — standalone (Fix 51) -->
+<div class="panel" id="panel-meta">
+  <div style="padding:5px 8px;border-bottom:1px solid var(--border);flex-shrink:0;display:flex;align-items:center;gap:6px;background:var(--surface)">
+    <span style="font-size:9px;color:var(--muted);flex:1">SEO meta tags, Open Graph, page stats</span>
+    <button class="btn-accent" id="metaRefreshBtn2" title="Load page metadata" style="padding:4px 10px;font-size:9px">↻ Load</button>
+    <button class="btn-ghost"  id="metaCopyBtn2"   title="Copy all metadata as text" style="padding:4px 8px;font-size:9px" disabled>⎘</button>
+    <div style="position:relative;display:inline-block">
+      <button class="btn-ghost" id="metaExportBtn2" title="Export metadata" style="padding:4px 8px;font-size:9px" disabled>⬇</button>
+      <div id="metaExportMenu2" style="display:none;position:absolute;top:100%;right:0;background:var(--surface);border:1px solid var(--border);border-radius:4px;box-shadow:0 4px 12px rgba(0,0,0,.12);z-index:100;min-width:110px;padding:3px">
+        <div data-meta-format2="text" style="padding:5px 8px;font-size:9px;cursor:pointer;border-radius:3px" class="audit-export-item">📄 Text</div>
+        <div data-meta-format2="json" style="padding:5px 8px;font-size:9px;cursor:pointer;border-radius:3px" class="audit-export-item">{ } JSON</div>
+      </div>
+    </div>
+  </div>
+  <div id="metaContent2" style="overflow-y:auto;flex:1">
+    <div style="padding:16px;text-align:center;color:var(--muted);font-size:10px">Loading metadata…</div>
+  </div>
+</div>
+
+<!-- Analytics Panel -->
+<div class="panel" id="panel-ddl">
+  <!-- Row 1: Search + event type filter -->
+  <div style="padding:5px 8px;border-bottom:1px solid var(--border);flex-shrink:0;display:flex;align-items:center;gap:5px;background:var(--surface)">
+    <input class="search" id="searchInput" placeholder="🔍 Search (comma-separated, e.g. wae, ddl)" value="" title="Multiple terms separated by commas/spaces (OR). Use +term for AND, -term to exclude." style="margin:0;flex:1;padding:4px 8px;height:auto;font-size:10px" />
+    <select id="ddlEventTypeFilter" style="font-family:'JetBrains Mono',monospace;font-size:9px;padding:3px 4px;border:1px solid var(--border);border-radius:5px;background:var(--card);color:var(--text);cursor:pointer;max-width:90px">
+      <option value="">All types</option>
+    </select>
+  </div>
+  <!-- Row 2: Platform filter + live tail + event count -->
+  <div style="padding:3px 8px;border-bottom:1px solid var(--border);flex-shrink:0;display:flex;align-items:center;gap:5px;background:var(--card)">
+    <select id="ddlPlatformFilter" style="font-family:'JetBrains Mono',monospace;font-size:9px;padding:2px 4px;border:1px solid var(--border);border-radius:5px;background:var(--surface);color:var(--text);cursor:pointer;flex:1">
+      <option value="">All platforms</option>
+      <option value="GTM">GTM / dataLayer</option>
+      <option value="DDL">DDL / digitalDataLayer</option>
+      <option value="GA4">GA4</option>
+      <option value="click">Clicks</option>
+      <option value="Adobe">Adobe Analytics</option>
+      <option value="Tealium">Tealium</option>
+      <option value="Meta Pixel">Meta Pixel</option>
+      <option value="Floodlight">Floodlight</option>
+      <option value="Segment">Segment</option>
+    </select>
+    <span style="font-size:9px;color:var(--muted);flex-shrink:0" id="ddlEventCount"></span>
+  </div>
+  <div class="ddl-panel" id="ddlList">
+    <div class="empty">
+      <div class="empty-icon">📊</div>
+      <div class="empty-text">Browse the page to record events.<br><span style="font-size:11px;opacity:.6">Analytics events will appear here automatically.</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- Local Storage Panel -->
+<div class="panel" id="panel-ls">
+  <div class="ls-panel">
+    <!-- Header showing storage type + origin -->
+    <div style="padding:6px 10px;background:var(--surface);border-bottom:1px solid var(--border);font-size:9.5px;color:var(--muted);flex-shrink:0;display:flex;align-items:center;gap:6px">
+      <span style="font-weight:700;color:var(--text)">🗄 Local Storage</span>
+      <span>·</span>
+      <span id="lsOrigin" style="font-family:monospace;color:var(--accent);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1">—</span>
+      <span id="lsCount" style="font-size:9px">—</span>
+    </div>
+    <!-- Search + actions -->
+    <div style="padding:6px 10px;background:var(--surface);border-bottom:1px solid var(--border);display:flex;gap:6px;align-items:center;flex-shrink:0">
+      <div style="position:relative;flex:1">
+        <input class="net-input" id="lsSearch" placeholder="🔍 Search keys or values…" style="width:100%;padding-right:24px" />
+        <button id="lsSearchClear" style="position:absolute;right:4px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--muted);cursor:pointer;padding:2px 6px;font-size:11px;display:none" title="Clear search">✕</button>
+      </div>
+      <button class="btn-ghost" id="lsToggleAllBtn" style="padding:4px 8px;font-size:9px" title="Expand/Collapse all keys">⊞ Expand all</button>
+      <button class="btn-accent" id="lsRefreshBtn" style="padding:4px 9px;font-size:9px" title="Refresh">↻</button>
+    </div>
+    <div id="lsContent" style="overflow-y:auto;flex:1">
+      <div class="empty">
+        <div class="empty-icon">🗄</div>
+        <div class="empty-text">Loading Local Storage…</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Network Mock Panel -->
+<div class="panel" id="panel-net">
+  <div class="net-panel">
+
+    <!-- Toolbar: status + add button -->
+    <div class="net-toolbar">
+      <span class="net-status-dot" id="netStatusDot"></span>
+      <span class="net-status-label" id="netStatusLabel">Interceptor inactive</span>
+      <div style="flex:1"></div>
+      <button class="btn-accent" id="netAddBtn" title="Add a new network mock rule">+ Add Rule</button>
+    </div>
+
+    <!-- Rule list -->
+    <div id="netRuleList">
+      <div class="empty" id="netEmpty">
+        <div class="empty-icon">🔀</div>
+        <div class="empty-text">No mock rules yet.<br>Click "+ Add Rule" to intercept a network call.</div>
+      </div>
+    </div>
+
+    <!-- Intercept log -->
+    <div class="net-log-header">
+      <span>Intercept Log</span>
+      <button class="net-log-clear btn-ghost" id="netLogClearBtn">Clear</button>
+    </div>
+    <div class="net-log" id="netLog">
+      <div class="net-log-empty">No intercepted requests yet</div>
+    </div>
+
+  </div>
+</div>
+
+<!-- Add/Edit Rule Modal (hidden by default) -->
+<div class="net-modal-overlay" id="netModalOverlay" style="display:none">
+  <div class="net-modal">
+    <div class="net-modal-title" id="netModalTitle">New Mock Rule</div>
+
+    <label class="net-label">Rule Name</label>
+    <input class="net-input" id="netRuleName" placeholder="e.g. Mock flights API" />
+
+    <label class="net-label">URL Pattern</label>
+    <div class="net-match-row">
+      <select class="net-select" id="netMatchType">
+        <option value="contains">Contains</option>
+        <option value="exact">Exact</option>
+        <option value="regex">Regex</option>
+        <option value="path">Path only</option>
+      </select>
+      <input class="net-input" id="netPattern" placeholder="e.g. /api/flights" style="flex:1" />
+    </div>
+
+    <label class="net-label">Response Status</label>
+    <input class="net-input" id="netStatus" type="number" value="200" style="width:100px" />
+
+    <label class="net-label">Response Body</label>
+    <div class="net-body-tabs">
+      <button class="net-body-tab active" data-bodytab="text">Paste JSON</button>
+      <button class="net-body-tab" data-bodytab="file">Upload File</button>
+    </div>
+    <div id="netBodyText">
+      <textarea class="net-textarea" id="netBodyPaste" placeholder='{"key": "value"}' rows="6"></textarea>
+    </div>
+    <div id="netBodyFile" style="display:none">
+      <div class="net-file-drop" id="netFileDrop">
+        <div class="net-file-icon">📂</div>
+        <div class="net-file-label">Drop a .json file here or click to browse</div>
+        <input type="file" id="netFileInput" accept=".json,.txt" style="display:none" />
+      </div>
+      <div class="net-file-name" id="netFileName" style="display:none"></div>
+    </div>
+
+    <div class="net-modal-actions">
+      <button class="btn-ghost" id="netModalCancel">Cancel</button>
+      <button class="btn-accent" id="netModalSave">Save Rule</button>
+    </div>
+  </div>
+</div>
+
+<!-- Console Errors Panel -->
+<div class="panel" id="panel-console">
+  <div class="ls-toolbar" style="padding:8px 10px;border-bottom:1px solid var(--border);flex-shrink:0;">
+    <span style="font-size:9px;color:var(--muted);letter-spacing:.06em;text-transform:uppercase;">
+      <span id='consolePathsLabel' style='color:var(--accent);font-size:9px'>Configured paths</span>
+    </span>
+    <div style="display:flex;gap:6px;margin-left:auto;">
+      <button class="btn-accent" id="consoleRefreshBtn" title="Refresh console errors" style="padding:4px 10px;font-size:9px;">↻ Refresh</button>
+      <button class="btn-ghost" id="consoleClearBtn" title="Clear captured console errors" style="padding:4px 8px;font-size:9px;">✕ Clear</button>
+    </div>
+  </div>
+  <div class="ddl-panel" id="consoleList">
+    <div class="empty">
+      <div class="empty-icon">🖥</div>
+      <div class="empty-text">No console errors from /scripts/* paths yet</div>
+    </div>
+  </div>
+</div>
+
+<!-- Page Audit Panel -->
+<div class="panel" id="panel-audit">
+  <!-- Toolbar -->
+  <div class="ls-toolbar" style="padding:6px 10px;border-bottom:1px solid var(--border);flex-shrink:0;gap:6px;">
+    <span style="font-size:9px;color:var(--muted);flex:1">Scan: Links · Images · Spelling · Perf · Security · A11y</span>
+    <button class="btn-accent"  id="auditRunBtn" title="Run full page audit — links, images, spelling, performance, security, accessibility"    style="padding:4px 10px;font-size:9px;">▶ Run</button>
+    <div style="position:relative;display:inline-block">
+      <button class="btn-ghost" id="auditExportBtn" title="Export audit results — text, JSON, or CSV" style="padding:4px 8px;font-size:9px;">⬇</button>
+      <div id="auditExportMenu" style="display:none;position:absolute;top:100%;right:0;background:var(--surface);border:1px solid var(--border);border-radius:4px;box-shadow:0 4px 12px rgba(0,0,0,.12);z-index:100;min-width:110px;padding:3px">
+        <div data-export-format="text" style="padding:5px 8px;font-size:9px;cursor:pointer;border-radius:3px" class="audit-export-item">📄 Text</div>
+        <div data-export-format="json" style="padding:5px 8px;font-size:9px;cursor:pointer;border-radius:3px" class="audit-export-item">{ } JSON</div>
+        <div data-export-format="csv"  style="padding:5px 8px;font-size:9px;cursor:pointer;border-radius:3px" class="audit-export-item">📊 CSV</div>
+      </div>
+    </div>
+    <button class="btn-ghost"   id="auditClearBtn" title="Clear audit results"  style="padding:4px 8px;font-size:9px;">✕</button>
+  </div>
+  <!-- Spinner -->
+  <div id="auditSpinner" style="display:none;align-items:center;justify-content:center;padding:16px;gap:8px;color:var(--muted);font-size:10px;flex-shrink:0">
+    <span style="animation:spin 1s linear infinite;display:inline-block">⟳</span> Scanning…
+  </div>
+  <!-- Page header (url + timestamp) -->
+  <div id="auditPageHeader" style="display:none;padding:6px 10px;border-bottom:1px solid var(--border);background:var(--card);flex-shrink:0"></div>
+
+  <!-- Sub-tab bar -->
+  <div class="pt-subtab-bar" id="auditSubTabBar" style="background:var(--tab-bg);display:none">
+    <button class="time-subtab pt-subtab active" data-auditsub="overview"  style="flex:1;font-size:8px">📋 Overview</button>
+    <button class="time-subtab pt-subtab"        data-auditsub="perf"      style="flex:1;font-size:8px">⚡ Perf</button>
+    <button class="time-subtab pt-subtab"        data-auditsub="security"  style="flex:1;font-size:8px">🔒 Security</button>
+    <button class="time-subtab pt-subtab"        data-auditsub="a11y"      style="flex:1;font-size:8px">♿ A11y</button>
+    <button class="time-subtab pt-subtab"        data-auditsub="history"   style="flex:1;font-size:8px">📊 History</button>
+  </div>
+
+  <!-- Sub-panels -->
+  <div class="ddl-panel" id="auditContent">
+    <div class="empty"><div class="empty-icon">🔍</div><div class="empty-text" id="auditScanStatus">Click "Run" to scan this page</div></div>
+  </div>
+  <div class="ddl-panel" id="auditPerfContent"     style="display:none"></div>
+  <div class="ddl-panel" id="auditSecContent"      style="display:none"></div>
+  <div class="ddl-panel" id="auditA11yContent"     style="display:none"></div>
+  <div class="ddl-panel" id="auditHistoryContent"  style="display:none"></div>
+</div>
+
+<!-- Inline CSS for per-sub-tab Run buttons injected via JS -->
+<style>
+  .audit-subrun-bar {
+    display: flex; align-items: center; gap: 6px;
+    padding: 5px 10px; background: var(--card);
+    border-bottom: 1px solid var(--border);
+    font-size: 9px;
+  }
+  .audit-subrun-bar .audit-subrun-desc { color: var(--muted); flex: 1; }
+  .audit-subrun-bar button {
+    padding: 3px 8px; font-size: 9px;
+  }
+</style>
+
+<!-- Cookie Manager Panel -->
+<div class="panel" id="panel-cookies">
+  <div class="ls-toolbar" style="padding:6px 10px;border-bottom:1px solid var(--border);flex-shrink:0;gap:6px;">
+    <input class="search" id="cookieSearch" placeholder="Filter cookies…" style="flex:1;margin:0;padding:4px 8px;height:auto" />
+    <span id="cookieCount" style="font-size:9px;color:var(--muted);white-space:nowrap"></span>
+    <button class="btn-ghost" id="cookieToggleAllBtn" style="padding:4px 8px;font-size:9px" title="Expand/Collapse all cookies">⊞ Expand</button>
+    <button class="btn-accent" id="cookieRefreshBtn" title="Refresh cookies for the current domain" style="padding:4px 10px;font-size:9px;">↻ Refresh</button>
+  </div>
+  <div class="ls-panel" style="padding:6px 8px;overflow-y:auto;flex:1" id="cookieList">
+    <div class="empty"><div class="empty-icon">🍪</div><div class="empty-text">Click Refresh to load cookies</div></div>
+  </div>
+</div>
+
+<!-- Cookie Edit Modal -->
+<div class="net-modal-overlay" id="cookieEditOverlay" style="display:none">
+  <div class="net-modal" style="width:340px">
+    <div class="net-modal-title">Edit Cookie</div>
+    <label class="net-label">Name</label>
+    <input class="net-input" id="ckEditName" />
+    <label class="net-label">Value</label>
+    <textarea class="net-textarea" id="ckEditValue" rows="3"></textarea>
+    <label class="net-label">Domain</label>
+    <input class="net-input" id="ckEditDomain" />
+    <label class="net-label">Path</label>
+    <input class="net-input" id="ckEditPath" value="/" />
+    <div class="net-modal-actions">
+      <button class="btn-ghost" id="ckEditCancel">Cancel</button>
+      <button class="btn-accent" id="ckEditSave">💾 Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- Geolocation Panel -->
+<div class="panel" id="panel-geo">
+  <div style="padding:12px;overflow-y:auto;flex:1">
+
+    <!-- Active indicator -->
+    <div id="geoActiveIndicator" style="display:none;align-items:center;gap:8px;
+      padding:8px 10px;background:#00e5a018;border:1px solid #00e5a030;border-radius:6px;margin-bottom:10px">
+      <span style="width:8px;height:8px;border-radius:50%;background:var(--accent);
+        box-shadow:0 0 6px var(--accent);flex-shrink:0;animation:pulse 2s ease-in-out infinite;display:block"></span>
+      <span style="font-size:9px;color:var(--accent)">Spoofing active</span>
+      <span class="geo-active-coords" style="font-size:9px;color:var(--muted);margin-left:auto;font-family:monospace"></span>
+    </div>
+
+    <!-- Presets -->
+    <label class="net-label">Quick Preset</label>
+    <select class="net-select" id="geoPresetSelect" style="width:100%;margin-bottom:10px">
+      <option value="">— Select a city —</option>
+    </select>
+
+    <!-- Custom coords -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
+      <div>
+        <label class="net-label">Latitude</label>
+        <input class="net-input" id="geoLat" placeholder="-33.8688" type="number" step="any" />
+      </div>
+      <div>
+        <label class="net-label">Longitude</label>
+        <input class="net-input" id="geoLng" placeholder="151.2093" type="number" step="any" />
+      </div>
+    </div>
+    <label class="net-label">Accuracy (metres)</label>
+    <input class="net-input" id="geoAccuracy" placeholder="10" type="number" value="10" style="width:100px;margin-bottom:10px" />
+
+    <div style="display:flex;gap:8px;margin-bottom:10px">
+      <button class="btn-accent" id="geoApplyBtn" title="Apply spoofed geolocation to this tab" style="flex:1">📍 Apply Geolocation</button>
+      <button class="btn-ghost" id="geoClearBtn" title="Clear geolocation spoofing — restore real location">✕ Clear</button>
+    </div>
+
+    <div id="geoStatusMsg" class="geo-status-msg geo-status-idle">Not active — real location in use</div>
+
+    <div style="margin-top:12px;padding:8px;background:var(--card);border-radius:6px;border:1px solid var(--border)">
+      <div style="font-size:9px;color:var(--muted);line-height:1.6">
+        ⚠️ Uses Chrome Debugger API. A banner will briefly appear in the tab. Reload the page after applying for geolocation-dependent content to update.
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Time Panel (Epoch + World Clock + Timezone Converter) -->
+<div class="panel" id="panel-time">
+  <!-- Sub-tabs: World Clock first (default), Epoch & Timezone second -->
+  <div class="pt-subtab-bar" style="background:var(--tab-bg)">
+    <button class="time-subtab pt-subtab active" data-sub="clock"     style="flex:1">🌍 World Clock</button>
+    <button class="time-subtab pt-subtab"        data-sub="timestamp" style="flex:1">⏱ Epoch &amp; Timezone</button>
+  </div>
+
+  <!-- World Clock sub-panel (default) -->
+  <div class="time-sub active" id="timesub-clock" style="overflow:hidden;flex:1;display:flex;flex-direction:column">
+    <div style="padding:6px 10px;border-bottom:1px solid var(--border);flex-shrink:0">
+      <input class="search" id="clockFilter" placeholder="Filter cities…" style="width:100%;margin:0;padding:5px 9px;height:auto" />
+    </div>
+    <div id="worldClockGrid" style="overflow-y:auto;flex:1"></div>
+  </div>
+
+  <!-- Epoch & Timezone sub-panel — two stacked sections -->
+  <div class="time-sub" id="timesub-timestamp" style="display:none;overflow-y:auto;flex:1;padding:10px;flex-direction:column;gap:12px">
+
+    <!-- ── Section 1: Unix Epoch ↔ Human Date ───────────────────────────── -->
+    <div class="epoch-card">
+      <div class="epoch-section-title">Unix Epoch ↔ Human Date</div>
+
+      <div style="margin-bottom:10px">
+        <label class="net-label">Unix epoch → human date</label>
+        <div style="display:flex;gap:4px;align-items:center;margin-bottom:3px">
+          <input class="net-input" id="epochInput" placeholder="e.g. 1741783721 (auto-detects s/ms/μs)" style="flex:1" />
+          <select class="net-select" id="epochUnit" style="width:62px" title="Epoch unit">
+            <option value="auto">auto</option>
+            <option value="s">s</option>
+            <option value="ms">ms</option>
+            <option value="us">μs</option>
+          </select>
+          <button class="btn-ghost" id="epochNowBtn" style="padding:5px 8px;font-size:9px" title="Use current time">Now</button>
+          <button class="btn-ghost" id="epochPasteBtn" style="padding:5px 8px;font-size:9px" title="Paste from clipboard">📋</button>
+        </div>
+        <div id="epochDetected" style="font-size:8.5px;color:var(--muted);font-family:monospace;min-height:12px"></div>
+        <div id="epochResult" class="epoch-results" style="margin-top:4px"></div>
+      </div>
+
+      <div style="border-top:1px solid var(--border);padding-top:10px">
+        <label class="net-label">Human date → Unix epoch</label>
+        <div style="display:flex;gap:4px;align-items:center;margin-bottom:3px">
+          <input class="net-input" id="humanDateInput" type="datetime-local" style="flex:1" />
+          <button class="btn-ghost" id="humanNowBtn" style="padding:5px 8px;font-size:9px" title="Use current time">Now</button>
+        </div>
+        <div id="humanResult" class="epoch-results" style="margin-top:4px"></div>
+      </div>
+    </div>
+
+    <!-- ── Section 2: Timezone Converter ────────────────────────────────── -->
+    <div class="epoch-card">
+      <div class="epoch-section-title">Timezone Converter</div>
+
+      <div style="margin-bottom:6px">
+        <label class="net-label">Date / Time</label>
+        <div style="display:flex;gap:4px;align-items:center">
+          <input class="net-input" id="tzDateInput" type="datetime-local" style="flex:1" />
+          <button class="btn-ghost" id="tzNowBtn" style="padding:5px 8px;font-size:9px" title="Use current time">Now</button>
+        </div>
+      </div>
+
+      <div style="display:flex;gap:6px;align-items:flex-end;margin-bottom:8px">
+        <div style="flex:1">
+          <label class="net-label">From</label>
+          <select class="net-select" id="tzFrom" style="width:100%"></select>
+        </div>
+        <button class="btn-ghost" id="tzSwapBtn" style="padding:6px 8px;font-size:11px;margin-bottom:1px" title="Swap timezones">⇄</button>
+        <div style="flex:1">
+          <label class="net-label">To</label>
+          <select class="net-select" id="tzTo" style="width:100%"></select>
+        </div>
+      </div>
+
+      <button class="btn-accent" id="tzConvertBtn" style="width:100%;padding:7px;font-size:10px">↔ Convert</button>
+      <div id="tzResult" class="epoch-results" style="margin-top:8px"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Utils Panel (JWT / URL / Base64) -->
+<div class="panel" id="panel-utils">
+  <!-- Sub-tabs (Encode = JWT, URL, Base64). JSON/Compare moved to Tools tab. -->
+  <div class="pt-subtab-bar" style="background:var(--tab-bg)">
+    <button class="util-subtab pt-subtab active" data-sub="jwt"      style="flex:1">🔑 JWT</button>
+    <button class="util-subtab pt-subtab"        data-sub="url"      style="flex:1">🔗 URL</button>
+    <button class="util-subtab pt-subtab"        data-sub="base64"   style="flex:1">📦 Base64</button>
+  </div>
+
+  <!-- JWT sub-panel -->
+  <div class="util-sub active" id="utilsub-jwt" style="overflow-y:auto;flex:1;padding:10px;display:flex;flex-direction:column;gap:8px">
+    <div>
+      <div class="epoch-section-title">Decode JWT</div>
+      <textarea class="net-textarea" id="jwtInput" rows="3" placeholder="Paste JWT token here…" style="width:100%"></textarea>
+      <div style="display:flex;gap:6px;margin-top:5px">
+        <button class="btn-accent" id="jwtDecodeBtn" style="flex:1">▶ Decode</button>
+        <button class="btn-ghost"  id="jwtCopyBtn">⎘ Copy JSON</button>
+      </div>
+      <div id="jwtDecodeOut" style="margin-top:6px"></div>
+    </div>
+    <div style="border-top:1px solid var(--border);padding-top:8px">
+      <div class="epoch-section-title">Encode JWT (unsigned)</div>
+      <label class="net-label">Header JSON</label>
+      <textarea class="net-textarea" id="jwtHdrInput" rows="2" style="width:100%;margin-bottom:5px">{"alg":"HS256","typ":"JWT"}</textarea>
+      <label class="net-label">Payload JSON</label>
+      <textarea class="net-textarea" id="jwtPayInput" rows="3" placeholder='{"sub":"user123","iat":1700000000}' style="width:100%;margin-bottom:5px"></textarea>
+      <div style="display:flex;gap:6px">
+        <button class="btn-accent" id="jwtEncodeBtn" style="flex:1">▶ Encode</button>
+        <button class="btn-ghost"  id="jwtEnCopyBtn">⎘ Copy Token</button>
+      </div>
+      <div id="jwtEncodeOut" style="margin-top:6px"></div>
+    </div>
+  </div>
+
+  <!-- URL sub-panel -->
+  <div class="util-sub" id="utilsub-url" style="display:none;overflow-y:auto;flex:1;padding:10px;flex-direction:column;gap:8px">
+    <div class="epoch-section-title">URL Encoder / Decoder</div>
+    <label class="net-label">Input</label>
+    <textarea class="net-textarea" id="urlInput" rows="4" placeholder="Enter URL or text to encode/decode…" style="width:100%"></textarea>
+    <div style="display:flex;gap:6px;flex-wrap:wrap">
+      <button class="btn-accent" id="urlEncodeBtn"  style="flex:1">encodeURIComponent</button>
+      <button class="btn-ghost"  id="urlDecodeBtn"  style="flex:1">Decode</button>
+      <button class="btn-ghost"  id="urlFullEncBtn" style="flex:1">encodeURI</button>
+    </div>
+    <label class="net-label">Output</label>
+    <textarea class="net-textarea" id="urlOutput" rows="4" style="width:100%" readonly></textarea>
+    <button class="btn-ghost" id="urlCopyBtn">⎘ Copy Output</button>
+  </div>
+
+  <!-- Base64 sub-panel -->
+  <div class="util-sub" id="utilsub-base64" style="display:none;overflow-y:auto;flex:1;padding:10px;flex-direction:column;gap:8px">
+    <div class="epoch-section-title">Base64 Encoder / Decoder</div>
+    <label class="net-label">Input</label>
+    <textarea class="net-textarea" id="b64Input" rows="4" placeholder="Enter text to encode or Base64 to decode…" style="width:100%"></textarea>
+    <div style="display:flex;gap:6px;flex-wrap:wrap">
+      <button class="btn-accent" id="b64EncodeBtn"  style="flex:1">Encode → Base64</button>
+      <button class="btn-ghost"  id="b64DecodeBtn"  style="flex:1">Decode ← Base64</button>
+      <button class="btn-ghost"  id="b64UrlEncBtn"  style="flex:1">URL-safe Base64</button>
+    </div>
+    <label class="net-label">Output</label>
+    <textarea class="net-textarea" id="b64Output" rows="4" style="width:100%" readonly></textarea>
+    <button class="btn-ghost" id="b64CopyBtn">⎘ Copy Output</button>
+  </div>
+</div>
+
+<!-- Tools Panel — JSON Viewer + Text Compare launchers -->
+<div class="panel" id="panel-tools">
+  <div class="pt-subtab-bar" style="background:var(--tab-bg)">
+    <button class="tools-subtab pt-subtab active" data-sub="json"    style="flex:1">{ } JSON Viewer</button>
+    <button class="tools-subtab pt-subtab"        data-sub="compare" style="flex:1">⇄ Text Compare</button>
+  </div>
+
+  <div class="tools-sub active" id="toolssub-json" style="overflow-y:auto;flex:1;padding:18px;display:flex;flex-direction:column;gap:14px">
+    <div style="text-align:center;padding:18px 14px;background:var(--card);border:1px solid var(--border);border-radius:8px">
+      <div style="font-size:38px;line-height:1;margin-bottom:10px">{ }</div>
+      <div style="font-size:14px;font-weight:700;color:var(--text);margin-bottom:6px">JSON Viewer</div>
+      <div style="font-size:10.5px;color:var(--muted);margin-bottom:14px;line-height:1.55">
+        Paste JSON in the Data tab, see it as a collapsible<br>tree in the Tree View tab. Search, expand all,<br>colour-coded structure, click to drill in.
+      </div>
+      <button class="btn-accent" id="openJsonDiffBtn" style="padding:9px 22px;font-size:12px;font-weight:700">▶ Open JSON Viewer</button>
+      <div style="font-size:9px;color:var(--muted);margin-top:8px">opens in a new browser tab</div>
+    </div>
+    <div style="font-size:9.5px;color:var(--muted);line-height:1.7;padding:0 4px">
+      <div style="font-weight:700;color:var(--text);margin-bottom:5px">Features</div>
+      <div>• <strong>Data tab</strong> — paste-only JSON input, validation</div>
+      <div>• <strong>Tree View tab</strong> — collapsible tree + Name/Value detail pane</div>
+      <div>• Search highlights matching keys/values, Next/Previous to cycle</div>
+      <div>• Expand all / Collapse all buttons</div>
+      <div>• Colour-coded by type (key, string, number, boolean, null)</div>
+      <div>• Resizable splitter between tree and detail panes</div>
+    </div>
+  </div>
+
+  <div class="tools-sub" id="toolssub-compare" style="display:none;overflow-y:auto;flex:1;padding:18px;flex-direction:column;gap:14px">
+    <div style="text-align:center;padding:18px 14px;background:var(--card);border:1px solid var(--border);border-radius:8px">
+      <div style="font-size:38px;line-height:1;margin-bottom:10px">⇄</div>
+      <div style="font-size:14px;font-weight:700;color:var(--text);margin-bottom:6px">Text Compare</div>
+      <div style="font-size:10.5px;color:var(--muted);margin-bottom:14px;line-height:1.55">
+        Side-by-side text comparison with line and word<br>highlighting. Live compare, inline edit, copy-right<br>and copy-left, minimap navigation.
+      </div>
+      <button class="btn-accent" id="openTextCompareBtn" style="padding:9px 22px;font-size:12px;font-weight:700">▶ Open Text Compare</button>
+      <div style="font-size:9px;color:var(--muted);margin-top:8px">opens in a new browser tab</div>
+    </div>
+    <div style="font-size:9.5px;color:var(--muted);line-height:1.7;padding:0 4px">
+      <div style="font-weight:700;color:var(--text);margin-bottom:5px">Features</div>
+      <div>• Live compare as you paste — no Run button needed</div>
+      <div>• Side-by-side line diff with word-level highlights</div>
+      <div>• Copy-right / Copy-left buttons on each diff line</div>
+      <div>• Minimap of changes on the right (VS Code style)</div>
+      <div>• Inline edit in compare mode</div>
+      <div>• Ignore whitespace / case toggles</div>
+    </div>
+  </div>
+</div>
+
+<!-- Header Modifier Panel -->
+<div class="panel" id="panel-headers">
+  <div style="display:flex;align-items:center;gap:6px;padding:6px 10px;border-bottom:1px solid var(--border);flex-shrink:0;background:var(--surface)">
+    <span style="font-size:9px;color:var(--muted);flex:1">Modify request headers for matching URLs</span>
+    <span id="hdrInfo" style="font-size:8px;color:var(--muted)"></span>
+    <button class="btn-ghost" id="hdrClearAllBtn" style="padding:3px 8px;font-size:8px">✕ Clear All</button>
+    <button class="btn-accent" id="hdrAddBtn" style="padding:4px 10px;font-size:9px">+ Add Rule</button>
+  </div>
+  <div id="hdrRuleList" style="overflow-y:auto;flex:1;padding:6px"></div>
+</div>
+
+<!-- Header Rule Modal -->
+<div class="net-modal-overlay" id="hdrModal" style="display:none">
+  <div class="net-modal" style="width:360px">
+    <div class="net-modal-title" id="hdrModalTitle">Add Header Rule</div>
+    <label class="net-label">URL Filter (use * as wildcard)</label>
+    <input class="net-input" id="hdrUrlFilter" placeholder="*example.com*  or  https://api.example.com/*" />
+    <label class="net-label">Header Name</label>
+    <input class="net-input" id="hdrHeaderName" placeholder="e.g. Authorization, X-Custom-Header" />
+    <label class="net-label">Operation</label>
+    <select class="net-select" id="hdrOp" style="width:100%">
+      <option value="set">Set (create or overwrite)</option>
+      <option value="add">Add (append if exists)</option>
+      <option value="remove">Remove (delete header)</option>
+    </select>
+    <div id="hdrValueRow">
+      <label class="net-label">Header Value</label>
+      <input class="net-input" id="hdrHeaderValue" placeholder="e.g. Bearer token123" />
+    </div>
+    <label class="net-label">Apply to Request Type</label>
+    <select class="net-select" id="hdrReqType" style="width:100%">
+      <option value="all">All requests</option>
+      <option value="xhr">XHR / Fetch only</option>
+      <option value="doc">Documents only</option>
+      <option value="script">Scripts only</option>
+      <option value="image">Images only</option>
+    </select>
+    <div class="net-modal-actions">
+      <button class="btn-ghost" id="hdrModalCancel">Cancel</button>
+      <button class="btn-accent" id="hdrModalSave">💾 Save Rule</button>
+    </div>
+  </div>
+</div>
+
+<!-- Environment Marker Panel -->
+<div class="panel" id="panel-envmarker">
+  <div style="padding:6px 10px;border-bottom:1px solid var(--border);flex-shrink:0;display:flex;align-items:center;gap:6px">
+    <span style="font-size:9px;color:var(--muted);flex:1">Inject a coloured ribbon on pages matching URL rules — helps testers spot the environment</span>
+    <button class="btn-accent" id="envmarkerAddBtn" style="padding:4px 9px;font-size:9px">+ Add</button>
+    <button class="btn-ghost" id="envmarkerResetBtn" title="Reset to defaults" style="padding:4px 7px;font-size:9px">↺</button>
+  </div>
+  <div id="envmarkerList" style="overflow-y:auto;flex:1;padding:8px"></div>
+</div>
+
+<!-- Settings Panel -->
+
+<!-- Settings Panel -->
+<div class="panel" id="panel-settings">
+  <div style="overflow-y:auto;flex:1;padding:10px 12px;display:flex;flex-direction:column;gap:10px">
+
+    <div class="setting-group">
+      <div style="display:flex;align-items:center;justify-content:space-between">
+        <span style="font-size:11px;font-weight:700;color:var(--text)">🎨 Theme</span>
+        <div style="display:flex;align-items:center;background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:3px;gap:2px">
+          <button id="themeLightBtn" style="
+            display:inline-flex;align-items:center;gap:4px;padding:4px 10px;
+            border-radius:4px;cursor:pointer;font-size:10px;font-weight:700;
+            font-family:inherit;transition:all .15s;
+            background:var(--card);border:1px solid var(--border);color:var(--text);
+          ">☀ Light</button>
+          <button id="themeDarkBtn" style="
+            display:inline-flex;align-items:center;gap:4px;padding:4px 10px;
+            border-radius:4px;cursor:pointer;font-size:10px;font-weight:700;
+            font-family:inherit;transition:all .15s;
+            background:transparent;border:1px solid transparent;color:var(--muted);
+          ">🌙 Dark</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="setting-group">
+      <div class="setting-group-title">🌐 Allowed Domains</div>
+      <div class="setting-desc">Comma-separated patterns. Use * as wildcard. Leave blank or use * to work on all domains. e.g. *.example.com, *.mysite.com</div>
+      <input class="net-input" id="settingDomains" placeholder="*" />
+      <div id="settingDomainsPreview" style="font-size:8.5px;color:var(--muted);margin-top:3px;font-family:monospace">✓ Matches all domains</div>
+    </div>
+
+    <div class="setting-group">
+      <div class="setting-group-title">📡 Analytics Providers</div>
+      <div class="setting-desc">Select which analytics platforms to intercept and show in the Analytics tab. WAE attributes are always captured automatically via click handler — not listed here.</div>
+      <div id="settingProviders" style="display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-top:4px">
+        <label class="setting-tab-row" style="gap:6px;cursor:pointer"><input type="checkbox" value="gtm" style="accent-color:var(--accent)"> <span>GTM / dataLayer</span></label>
+        <label class="setting-tab-row" style="gap:6px;cursor:pointer"><input type="checkbox" value="ga4" style="accent-color:var(--accent)"> <span>GA4 (gtag)</span></label>
+        <label class="setting-tab-row" style="gap:6px;cursor:pointer"><input type="checkbox" value="ddl" style="accent-color:var(--accent)"> <span>Digital DataLayer</span></label>
+        <label class="setting-tab-row" style="gap:6px;cursor:pointer"><input type="checkbox" value="adobe" style="accent-color:var(--accent)"> <span>Adobe Analytics</span></label>
+        <label class="setting-tab-row" style="gap:6px;cursor:pointer"><input type="checkbox" value="tealium" style="accent-color:var(--accent)"> <span>Tealium (utag)</span></label>
+        <label class="setting-tab-row" style="gap:6px;cursor:pointer"><input type="checkbox" value="meta" style="accent-color:var(--accent)"> <span>Meta Pixel (fbq)</span></label>
+        <label class="setting-tab-row" style="gap:6px;cursor:pointer"><input type="checkbox" value="floodlight" style="accent-color:var(--accent)"> <span>Floodlight / CM360</span></label>
+        <label class="setting-tab-row" style="gap:6px;cursor:pointer"><input type="checkbox" value="segment" style="accent-color:var(--accent)"> <span>Segment / analytics.js</span></label>
+      </div>
+    </div>
+
+    <div class="setting-group">
+      <div class="setting-group-title">📊 Analytics Filter</div>
+      <div class="setting-desc">Default search filter in the Analytics tab. Leave blank to show all events.</div>
+      <input class="net-input" id="settingAnalyticsFilter" placeholder="e.g. wae" />
+    </div>
+
+    <div class="setting-group">
+      <div class="setting-group-title">🔍 Test Locator Attribute</div>
+      <div class="setting-desc">The attribute used for test IDs. Inspector will highlight this. Leave blank for auto-suggest.</div>
+      <input class="net-input" id="settingTestIdAttr" placeholder="data-testid" />
+    </div>
+
+    <div class="setting-group">
+      <div class="setting-group-title">🗄 Local Storage Keys</div>
+      <div class="setting-desc">Comma-separated keys to track. Leave blank to show all keys.</div>
+      <textarea class="net-textarea" id="settingLsKeys" rows="2" placeholder="dismissed_alerts,redirectPopupSelection"></textarea>
+      <div id="settingLsKeysPreview" style="font-size:8.5px;color:var(--muted);margin-top:3px;font-family:monospace">✓ Showing all LS keys</div>
+    </div>
+
+    <div class="setting-group">
+      <div class="setting-group-title">🍪 Cookie Filter</div>
+      <div class="setting-desc">Comma-separated cookie names to show. Leave blank to show all.</div>
+      <input class="net-input" id="settingCookieFilter" placeholder="Leave blank for all cookies" />
+      <div id="settingCookieFilterPreview" style="font-size:8.5px;color:var(--muted);margin-top:3px;font-family:monospace">✓ Showing all cookies</div>
+    </div>
+
+    <div class="setting-group">
+      <div class="setting-group-title">🖥 Console Error Paths</div>
+      <div class="setting-desc">Comma-separated URL path prefixes. Console errors from these paths are captured. Defaults: /scripts/,/blocks/</div>
+      <input class="net-input" id="settingConsolePaths" placeholder="/scripts/,/blocks/" />
+    </div>
+
+    <div class="setting-group">
+      <div class="setting-group-title">⌨ Keyboard Shortcuts</div>
+      <div class="setting-desc">Shortcuts work when the popup is focused.</div>
+      <div style="display:grid;grid-template-columns:1fr auto;gap:4px 10px;font-size:9.5px;padding:4px 0">
+        <span style="color:var(--text)">Element Inspector</span>
+        <span style="color:var(--muted);font-family:monospace">⌘⇧Q / Ctrl⇧Q</span>
+        <span style="color:var(--text)">Spacing Inspector</span>
+        <span style="color:var(--muted);font-family:monospace">⌘⇧Y / Ctrl⇧Y</span>
+        <span style="color:var(--text)">Region Screenshot</span>
+        <span style="color:var(--muted);font-family:monospace">⌘⇧U / Ctrl⇧U</span>
+        <span style="color:var(--text)">Full-Page Screenshot</span>
+        <span style="color:var(--muted);font-family:monospace">⌘⇧K / Ctrl⇧K</span>
+        <span style="color:var(--text)">Toggle Recording</span>
+        <span style="color:var(--muted);font-family:monospace">Click REC toggle</span>
+      </div>
+      <div style="font-size:8.5px;color:var(--muted);margin-top:4px">Additional actions are available via right-click → QAKit on any page.</div>
+    </div>
+
+    <div class="setting-group">
+      <div class="setting-group-title">📤 Import / Export</div>
+      <div class="setting-desc">Share settings with your team, or back them up.</div>
+      <div style="display:flex;gap:6px;margin-top:4px">
+        <button class="btn-ghost" id="settingExportBtn" style="flex:1;padding:5px 8px;font-size:9.5px">⬇ Export as JSON</button>
+        <button class="btn-ghost" id="settingImportBtn" style="flex:1;padding:5px 8px;font-size:9.5px">⬆ Import JSON</button>
+        <input type="file" id="settingImportFile" accept="application/json,.json" style="display:none">
+      </div>
+    </div>
+
+    <div style="display:flex;gap:8px;padding-top:4px;flex-wrap:wrap">
+      <button class="btn-accent" id="settingSaveBtn" title="Save settings and apply to popup" style="flex:1;min-width:120px">💾 Save Settings</button>
+      <button class="btn-ghost" id="settingResetBtn" style="padding:6px 10px">↺ Reset</button>
+    </div>
+  </div>
+</div>
+
+</div><!-- end .panel-area -->
+
+<div class="footer" id="analyticsFooter">
+  <button class="btn-ghost" id="pauseBtn" title="Pause/resume analytics recording">⏸ Pause</button>
+  <button class="btn-ghost" id="exportBtn" title="Export all recorded analytics events as JSON">⬇ Export</button>
+  <button class="btn-warn" id="clearBtn" title="Clear all recorded analytics events">🗑 Clear Log</button>
+</div>
+
+<!-- Feedback footer -->
+<div class="feedback-footer">
+  <span class="feedback-made">Built with passion for QAs &amp; developers — by Prem Nepak</span>
+  <span class="feedback-sep">·</span>
+  <a href="mailto:qakit.extension@gmail.com" class="feedback-link">Feedback</a><span class="feedback-sep">·</span><a href="privacy-policy.html" target="_blank" class="feedback-link">Privacy</a><span class="feedback-sep">·</span><a href="help.html" target="_blank" class="feedback-link">Help</a>
+</div>
+
+<script src="pagetools.js"></script>
+<script src="network-mock.js"></script>
+<script src="settings.js"></script>
+<script src="page-audit.js"></script>
+<script src="cookie-manager.js"></script>
+<script src="geolocation.js"></script>
+<script src="time.js"></script>
+<script src="utils.js"></script>
+<script src="headers.js"></script>
+<script src="envmarker.js"></script>
+<script src="popup.js"></script>
+</body>
+</html>

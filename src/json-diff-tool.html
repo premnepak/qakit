@@ -1,0 +1,507 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>QAKit · JSON Viewer</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; height: 100%; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    font-size: 13px;
+    color: #1a1f2c;
+    background: #f5f5f3;
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    overflow: hidden;
+  }
+  .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+
+  /* ── Header ── */
+  .qd-header {
+    background: #1a1f2c;
+    color: #fff;
+    padding: 9px 16px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex-shrink: 0;
+  }
+  .qd-logo {
+    display: inline-flex; align-items: center; gap: 8px;
+    font-weight: 600;
+    font-size: 14px;
+  }
+  .qd-logo-badge {
+    width: 22px; height: 22px;
+    background: #00e5a0;
+    border-radius: 5px;
+    display: inline-flex; align-items: center; justify-content: center;
+    color: #0f141d;
+    font-weight: 700; font-size: 11px;
+  }
+  .qd-modes {
+    display: flex; gap: 4px;
+  }
+  .qd-mode {
+    padding: 6px 16px;
+    font-size: 12px;
+    color: rgba(255,255,255,.55);
+    cursor: pointer;
+    border-radius: 5px;
+    border: 1px solid transparent;
+    user-select: none;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    font-weight: 600;
+  }
+  .qd-mode:hover { color: #fff; background: rgba(255,255,255,.05); }
+  .qd-mode.active {
+    background: rgba(0,229,160,.15);
+    color: #00e5a0;
+    border-color: rgba(0,229,160,.5);
+  }
+  .qd-version {
+    margin-left: auto;
+    font-size: 11px;
+    color: rgba(255,255,255,.4);
+  }
+
+  /* ── Toolbar ── */
+  .qd-toolbar {
+    background: #ececea;
+    border-bottom: 1px solid #c7c5bd;
+    padding: 7px 12px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+    flex-shrink: 0;
+  }
+  .qd-btn {
+    padding: 5px 11px;
+    background: #fff;
+    border: 1px solid #6b6b6b;
+    border-radius: 4px;
+    font-size: 11px;
+    color: #1a1f2c;
+    font-weight: 500;
+    cursor: pointer;
+    user-select: none;
+  }
+  .qd-btn:hover { background: #f5f5f3; }
+  .qd-btn.qd-btn-primary {
+    background: #00e5a0;
+    border-color: #0a6e51;
+    color: #0f141d;
+  }
+  .qd-btn.qd-btn-primary:hover { background: #00d094; }
+  .qd-input {
+    padding: 5px 9px;
+    border: 1px solid #6b6b6b;
+    border-radius: 4px;
+    font-size: 11px;
+    color: #1a1f2c;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    background: #fff;
+  }
+  .qd-divider {
+    width: 1px; height: 18px;
+    background: #b4b2a9;
+    margin: 0 4px;
+  }
+  .qd-status {
+    margin-left: auto;
+    font-size: 11px;
+    padding: 4px 9px;
+    border-radius: 4px;
+    font-weight: 500;
+  }
+  .qd-status.ok    { color: #0a6e51; background: #d3f0e1; }
+  .qd-status.error { color: #fff;    background: #c0392b; }
+  .qd-status.idle  { color: #555; }
+  .qd-toggle {
+    display: flex; align-items: center; gap: 5px;
+    font-size: 11px; color: #1a1f2c; font-weight: 500;
+    cursor: pointer; user-select: none;
+  }
+  .qd-toggle input { accent-color: #0a6e51; cursor: pointer; }
+
+  /* ── Body ── */
+  .qd-body { flex: 1; min-height: 0; overflow: hidden; display: flex; }
+
+  /* ── Resizable splitter ── */
+  .qd-splitter {
+    width: 6px;
+    background: #c7c5bd;
+    cursor: col-resize;
+    flex-shrink: 0;
+    transition: background .15s;
+  }
+  .qd-splitter:hover, .qd-splitter.dragging { background: #00e5a0; }
+
+  /* ── Tree mode ── */
+  .qd-tree-pane {
+    flex: 1; min-width: 100px; min-height: 0;
+    display: flex; flex-direction: column;
+    background: #fff;
+    overflow: hidden;
+  }
+  .qd-tree-crumb {
+    padding: 6px 12px;
+    background: #f5f5f3;
+    border-bottom: 1px solid #c7c5bd;
+    font-size: 11px;
+    color: #555;
+    flex-shrink: 0;
+  }
+  .qd-tree-crumb .qd-crumb-active {
+    color: #0a6e51;
+    font-weight: 600;
+  }
+  .qd-tree-content {
+    flex: 1; min-height: 0;
+    overflow: auto;
+    padding: 8px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 12.5px;
+    line-height: 1.7;
+  }
+  .qd-tree-row {
+    display: flex; align-items: center; gap: 4px;
+    padding: 2px 4px;
+    cursor: pointer;
+    border-radius: 3px;
+    white-space: nowrap;
+    border-left: 2px solid transparent;
+  }
+  .qd-tree-row:hover { background: #f5f5f3; }
+  .qd-tree-row.selected {
+    background: rgba(0,229,160,.18);
+    border-left-color: #0a6e51;
+  }
+  .qd-tree-row.match {
+    background: rgba(255, 235, 130, .35);
+  }
+  .qd-tree-row.match.active-match {
+    background: rgba(255, 200, 30, .55);
+    outline: 2px solid #f59e0b;
+    outline-offset: -2px;
+  }
+  .qd-toggle-box {
+    display: inline-block;
+    width: 14px; height: 14px;
+    border: 1px solid #888;
+    border-radius: 2px;
+    text-align: center;
+    line-height: 12px;
+    font-size: 11px;
+    color: #1a1f2c;
+    background: #fff;
+    cursor: pointer;
+    user-select: none;
+    flex-shrink: 0;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
+  .qd-toggle-empty {
+    display: inline-block;
+    width: 14px; height: 14px;
+    flex-shrink: 0;
+  }
+  .qd-type-marker {
+    color: #475569;
+    font-weight: 600;
+    flex-shrink: 0;
+  }
+  /* Refined colour palette (Fix 28f) */
+  .qd-key { color: #8b3a3a; font-weight: 600; }
+  .qd-key-selected { color: #0a6e51; font-weight: 700; }
+  .qd-string { color: #0a6e51; }
+  .qd-number { color: #185fa5; font-weight: 600; }
+  .qd-bool   { color: #6b21a8; font-weight: 600; }
+  .qd-null   { color: #888; font-style: italic; }
+  .qd-meta   { color: #888; font-size: 11px; }
+
+  .qd-detail-pane {
+    flex: 1; min-width: 100px;
+    display: flex; flex-direction: column;
+    background: #fff;
+  }
+  .qd-detail-header {
+    background: #f5f5f3;
+    border-bottom: 1px solid #c7c5bd;
+    padding: 6px 12px;
+    display: flex;
+    font-size: 11px;
+    font-weight: 600;
+    color: #1a1f2c;
+  }
+  .qd-detail-header > div { flex: 1; }
+  .qd-detail-content {
+    flex: 1;
+    overflow: auto;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 12.5px;
+  }
+  .qd-detail-row {
+    display: flex;
+    padding: 6px 12px;
+    border-bottom: 1px solid #f0eee6;
+    align-items: baseline;
+  }
+  .qd-detail-row:hover { background: #f5f5f3; }
+  .qd-detail-row > div { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+  .qd-detail-row .qd-drill {
+    color: #185fa5;
+    cursor: pointer;
+    text-decoration: underline;
+  }
+
+  .qd-empty {
+    padding: 40px 24px;
+    text-align: center;
+    color: #888;
+    font-size: 13px;
+  }
+  .qd-empty-icon { font-size: 28px; margin-bottom: 8px; }
+
+  /* ── Text mode ── */
+  .qd-text-wrap {
+    flex: 1; min-width: 0;
+    display: flex;
+    background: #fff;
+    overflow: hidden;
+  }
+  .qd-line-numbers {
+    background: #1a1f2c;
+    color: rgba(255,255,255,.55);
+    padding: 10px 10px 10px 14px;
+    text-align: right;
+    user-select: none;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 12.5px;
+    line-height: 1.6;
+    overflow-y: hidden;
+    white-space: pre;
+    flex-shrink: 0;
+    min-width: 44px;
+  }
+  .qd-line-numbers .qd-error-line { color: #fff; font-weight: 700; }
+  .qd-text-stack {
+    flex: 1; min-width: 0;
+    position: relative;
+    overflow: hidden;
+  }
+  .qd-text-area, .qd-text-overlay {
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    padding: 10px 14px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 12.5px;
+    line-height: 1.6;
+    white-space: pre;
+    overflow: auto;
+    margin: 0;
+    border: 0;
+  }
+  .qd-text-area {
+    outline: none;
+    resize: none;
+    color: #1a1f2c;
+    background: #fff;
+    z-index: 2;
+    /* When overlay is visible, make textarea text transparent */
+  }
+  .qd-text-area.colorised {
+    color: transparent;
+    background: transparent;
+    caret-color: #1a1f2c;
+  }
+  .qd-text-overlay {
+    pointer-events: none;
+    color: #1a1f2c;
+    background: #fff;
+    z-index: 1;
+  }
+  /* Syntax-colour palette */
+  .qd-tx-key    { color: #c0392b; }
+  .qd-tx-string { color: #0a6e51; }
+  .qd-tx-number { color: #185fa5; }
+  .qd-tx-bool   { color: #534ab7; font-weight: 600; }
+  .qd-tx-null   { color: #888; font-style: italic; }
+  .qd-tx-punct  { color: #555; }
+
+  /* ── Diff mode ── */
+  .qd-diff-wrap {
+    flex: 1; min-width: 0;
+    display: flex; flex-direction: column;
+    overflow: hidden;
+  }
+  .qd-diff-input-row {
+    display: grid; grid-template-columns: 1fr 1fr;
+    flex: 1; min-height: 0;
+    border-bottom: 1px solid #c7c5bd;
+  }
+  .qd-diff-pane {
+    display: flex; flex-direction: column;
+    overflow: hidden;
+  }
+  .qd-diff-pane:first-child { border-right: 1px solid #c7c5bd; }
+  .qd-diff-pane-header {
+    padding: 6px 12px;
+    color: #fff;
+    font-size: 11px;
+    font-weight: 600;
+    flex-shrink: 0;
+  }
+  .qd-diff-pane:first-child .qd-diff-pane-header { background: #1a1f2c; }
+  .qd-diff-pane:last-child  .qd-diff-pane-header { background: #0a6e51; }
+  .qd-diff-textarea {
+    flex: 1;
+    border: none;
+    outline: none;
+    resize: none;
+    padding: 8px 12px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 12.5px;
+    line-height: 1.6;
+    color: #1a1f2c;
+    background: #fff;
+    white-space: pre;
+    overflow: auto;
+  }
+  .qd-diff-output {
+    flex: 1; min-height: 0;
+    overflow: auto;
+    background: #fff;
+    border-top: 1px solid #c7c5bd;
+    display: none;
+  }
+  .qd-diff-output.has-content { display: block; }
+  .qd-diff-output-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+  .qd-diff-line {
+    display: flex;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 12.5px;
+    line-height: 1.6;
+  }
+  .qd-diff-line .qd-diff-num {
+    background: #f5f5f3;
+    color: #888;
+    padding: 0 8px;
+    min-width: 36px;
+    text-align: right;
+    user-select: none;
+    flex-shrink: 0;
+  }
+  .qd-diff-line .qd-diff-text {
+    flex: 1;
+    padding: 0 10px;
+    white-space: pre;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .qd-diff-line.added   { background: #d3f0e1; }
+  .qd-diff-line.added   .qd-diff-num { background: #97c459; color: #173404; font-weight: 700; }
+  .qd-diff-line.removed { background: #fcebeb; }
+  .qd-diff-line.removed .qd-diff-num { background: #f7c1c1; color: #501313; font-weight: 700; }
+  .qd-diff-line.empty   .qd-diff-num { color: #ccc; }
+
+  .qd-word-add { background: #97c459; padding: 0 1px; }
+  .qd-word-del { background: #f4a8a8; padding: 0 1px; }
+
+  .qd-diff-stats {
+    padding: 6px 12px;
+    background: #f5f5f3;
+    border-top: 1px solid #c7c5bd;
+    font-size: 11px;
+    color: #1a1f2c;
+    font-weight: 500;
+    flex-shrink: 0;
+  }
+  .qd-diff-stats .added   { color: #0a6e51; }
+  .qd-diff-stats .removed { color: #c0392b; }
+  .qd-diff-stats .changed { color: #b45309; }
+</style>
+</head>
+<body>
+
+<header class="qd-header">
+  <div class="qd-logo">
+    <span class="qd-logo-badge">QK</span>
+    <span>JSON Viewer</span>
+  </div>
+  <div class="qd-modes">
+    <div class="qd-mode active" data-mode="text">Data</div>
+    <div class="qd-mode" data-mode="tree">Tree View</div>
+  </div>
+  <span class="qd-version">v1.0.0</span>
+</header>
+
+<!-- ─── TREE MODE ─── -->
+<section class="qd-mode-pane qd-mode-tree" data-mode-pane="tree" style="display:none;flex:1;min-height:0;flex-direction:column">
+  <div class="qd-toolbar">
+    <button class="qd-btn" id="qdTreeExpandAll" title="Expand all nodes">⊞ Expand all</button>
+    <button class="qd-btn" id="qdTreeCollapseAll" title="Collapse all nodes">⊟ Collapse all</button>
+    <span class="qd-divider"></span>
+    <button class="qd-btn" id="qdTreeSortKeys" title="Sort object keys alphabetically">Sort keys</button>
+    <button class="qd-btn" id="qdTreeCopy" title="Copy formatted JSON">⎘ Copy</button>
+    <button class="qd-btn" id="qdTreeDownload" title="Download as .json">⬇ Download</button>
+    <span class="qd-divider"></span>
+    <input class="qd-input" id="qdTreeFilter" placeholder="🔍 Search keys/values…" style="min-width:160px;max-width:220px" />
+    <button class="qd-btn" id="qdTreeSearchPrev" title="Previous match">↑</button>
+    <button class="qd-btn" id="qdTreeSearchNext" title="Next match">↓</button>
+    <span class="qd-status idle" id="qdTreeStatus" style="margin-left:auto">Empty</span>
+  </div>
+  <div class="qd-body">
+    <div class="qd-tree-pane" id="qdTreePane" style="flex: 1 1 0">
+      <div class="qd-tree-crumb" id="qdTreeCrumb">—</div>
+      <div class="qd-tree-content" id="qdTreeContent">
+        <div class="qd-empty"><div class="qd-empty-icon">{ }</div>Paste JSON in the <strong>Data</strong> tab to view it here</div>
+      </div>
+    </div>
+    <div class="qd-splitter" id="qdSplitter"></div>
+    <div class="qd-detail-pane" id="qdDetailPane" style="flex: 1 1 0">
+      <div class="qd-detail-header">
+        <div>Name</div>
+        <div>Value</div>
+      </div>
+      <div class="qd-detail-content" id="qdDetailContent">
+        <div class="qd-empty">Select a node to see its fields</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ─── TEXT MODE ─── -->
+<section class="qd-mode-pane qd-mode-text" data-mode-pane="text" style="flex:1;min-height:0;flex-direction:column;display:flex">
+  <div class="qd-toolbar">
+    <button class="qd-btn" id="qdTextPaste">📋 Paste</button>
+    <button class="qd-btn qd-btn-primary" id="qdTextFormat">Format</button>
+    <button class="qd-btn" id="qdTextMinify">Minify</button>
+    <button class="qd-btn" id="qdTextSortKeys">Sort keys</button>
+    <span class="qd-divider"></span>
+    <button class="qd-btn" id="qdTextEscape">Escape</button>
+    <button class="qd-btn" id="qdTextUnescape">Unescape</button>
+    <span class="qd-divider"></span>
+    <button class="qd-btn" id="qdTextCopy">⎘ Copy</button>
+    <button class="qd-btn" id="qdTextDownload">⬇</button>
+    <button class="qd-btn" id="qdTextClear">Clear</button>
+    <span class="qd-status idle" id="qdTextStatus" style="margin-left:auto">Empty</span>
+  </div>
+  <div class="qd-text-wrap">
+    <div class="qd-line-numbers" id="qdTextLineNos"></div>
+    <div class="qd-text-stack">
+      <pre class="qd-text-overlay" id="qdTextOverlay"></pre>
+      <textarea class="qd-text-area" id="qdTextArea" spellcheck="false" placeholder="Paste JSON here — switch to Tree View tab to explore it"></textarea>
+    </div>
+  </div>
+</section>
+
+<script src="json-diff-tool.js"></script>
+</body>
+</html>

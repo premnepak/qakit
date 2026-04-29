@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>QAKit v1.0.0 — Privacy Policy</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,"Segoe UI",Roboto,sans-serif;background:#f4f6f9;color:#12161c;line-height:1.7;font-size:14px}
+
+.hero{background:linear-gradient(135deg,#0f141d 0%,#0a4d37 100%);color:#fff;padding:36px 32px}
+.hero-inner{max-width:820px;margin:0 auto}
+.hero h1{font-size:26px;font-weight:900;letter-spacing:-.02em;display:flex;align-items:center;gap:12px;margin-bottom:6px}
+.hero-badge{background:#00e5a0;color:#0f141d;border-radius:7px;padding:4px 11px;font-size:13px;font-weight:800;letter-spacing:.02em}
+.hero-sub{font-size:14px;opacity:.85}
+.hero-meta{font-size:11px;opacity:.55;margin-top:6px}
+
+.content{max-width:820px;margin:0 auto;padding:32px 24px 60px}
+
+h2{font-size:18px;font-weight:800;color:#0a6e51;margin:30px 0 8px;display:flex;align-items:center;gap:9px;border-bottom:2px solid #d1fae5;padding-bottom:6px}
+.h2-icon{font-size:18px}
+h3{font-size:14px;font-weight:700;color:#12161c;margin:18px 0 6px}
+p{font-size:13.5px;color:#374151;margin-bottom:10px}
+ul,ol{padding-left:22px;margin-bottom:12px}
+li{font-size:13.5px;color:#374151;margin-bottom:5px}
+strong{color:#0a4d37;font-weight:700}
+
+.tldr{background:#f0fdf4;border:1.5px solid #0a6e51;border-radius:10px;padding:16px 20px;margin:20px 0}
+.tldr h3{color:#065f46;margin-top:0;margin-bottom:6px;font-size:15px}
+.tldr p{font-size:13.5px;margin-bottom:0;color:#065f46;line-height:1.65}
+
+.tip{background:#eff6ff;border-left:4px solid #3b82f6;padding:10px 14px;border-radius:0 8px 8px 0;margin:14px 0;font-size:13px;color:#1e40af}
+
+table{width:100%;border-collapse:collapse;margin:12px 0;font-size:13px}
+th{background:#f0f4f8;text-align:left;padding:9px 13px;border:1px solid #d1d9e0;font-weight:700;color:#374151}
+td{padding:9px 13px;border:1px solid #d1d9e0;vertical-align:top;color:#374151}
+tr:nth-child(even) td{background:#fafbfc}
+
+.footer{margin-top:44px;padding:20px 0;border-top:2px solid #d1d9e0;text-align:center;font-size:12px;color:#9ca3af}
+.footer a{color:#0a6e51;font-weight:600}
+
+code{background:#f0f4f8;border-radius:3px;padding:2px 6px;font-family:monospace;font-size:12px;color:#0a4d37}
+</style>
+</head>
+<body>
+
+<div class="hero">
+  <div class="hero-inner">
+    <h1><span class="hero-badge">QK</span> Privacy Policy</h1>
+    <div class="hero-sub">QAKit Browser Extension</div>
+    <div class="hero-meta">Version 1.0.0 · Last updated: April 2026</div>
+  </div>
+</div>
+
+<div class="content">
+
+  <div class="tldr">
+    <h3>🔒 Privacy summary</h3>
+    <p><strong>QAKit does not collect, transmit, or sell any personal data.</strong> All data the extension reads (cookies, localStorage, page content, analytics events, screenshots) stays on your device, in your browser. Nothing is sent to any external server, including ours. The extension has no analytics, no telemetry, no remote logging, and no user accounts.</p>
+  </div>
+
+  <h2><span class="h2-icon">📋</span> Overview</h2>
+  <p>QAKit is a developer / QA toolkit that runs entirely inside your browser. It provides on-demand inspection, capture, and debugging features for web pages you choose to test. This privacy policy explains exactly what data the extension accesses, how it is used, and where it is stored.</p>
+
+  <h2><span class="h2-icon">📊</span> Data accessed by the extension</h2>
+  <p>QAKit needs read access to the page you have actively open in order to provide its features. Specifically, it may read the following:</p>
+
+  <table>
+    <tr><th>Feature</th><th>Data accessed</th><th>Why</th></tr>
+    <tr><td>Element Inspector / Spacing</td><td>DOM elements, computed CSS, test attributes</td><td>To display element info on hover</td></tr>
+    <tr><td>Page Audit</td><td>Page HTML, links, images, CSS, performance metrics</td><td>To run quality checks (broken links, a11y, perf)</td></tr>
+    <tr><td>Analytics</td><td><code>dataLayer</code>, <code>gtag</code>, Adobe, Tealium, Segment events</td><td>To display analytics events fired by the page</td></tr>
+    <tr><td>Network Mock</td><td>Outgoing HTTP requests on the active tab</td><td>To match request URLs against your mock rules</td></tr>
+    <tr><td>Headers Modifier</td><td>HTTP request and response headers</td><td>To inject / modify headers per your rules</td></tr>
+    <tr><td>Cookie Manager</td><td>Cookies for the current domain</td><td>To list, edit, and delete cookies</td></tr>
+    <tr><td>Local Storage</td><td><code>localStorage</code> keys for the current origin</td><td>To browse, edit, delete keys</td></tr>
+    <tr><td>Console Errors</td><td>JavaScript errors from page scripts</td><td>To display errors in the QAKit console panel</td></tr>
+    <tr><td>Screenshots</td><td>Visible page area or full-page rendered content</td><td>To produce the screenshot you requested</td></tr>
+    <tr><td>Geolocation Override</td><td>None (only writes a custom location)</td><td>To override the geolocation API for testing</td></tr>
+    <tr><td>Page Metadata</td><td>HTML <code>&lt;meta&gt;</code>, Open Graph, JSON-LD tags</td><td>To extract and display SEO metadata</td></tr>
+  </table>
+
+  <h2><span class="h2-icon">💾</span> Where the data is stored</h2>
+  <p>All data accessed or generated by QAKit is stored <strong>only on your device</strong>, using one of the following local browser mechanisms:</p>
+  <ul>
+    <li><strong><code>chrome.storage.local</code></strong> — your QAKit settings, mock rules, header rules, environment markers, page audit history, and analytics search filters.</li>
+    <li><strong>In-memory (page session)</strong> — captured analytics events, console errors, screenshot data while editing.</li>
+    <li><strong>Your operating system clipboard</strong> — only when you explicitly copy a screenshot or text via QAKit.</li>
+    <li><strong>Your downloads folder</strong> — only when you explicitly save a screenshot or export data as a file.</li>
+  </ul>
+  <p><strong>QAKit never transmits any of this data to remote servers, ours or anyone else's.</strong></p>
+
+  <h2><span class="h2-icon">🌐</span> Network requests made by the extension</h2>
+  <p>QAKit's only outbound network requests, made on your behalf, are:</p>
+  <ul>
+    <li><strong>HEAD requests to URLs on the page you audit</strong> — when you run Page Audit, QAKit sends a HEAD request to each link on the page to check whether it returns a successful HTTP status (broken-link detection). These requests go directly from your browser to the destination URLs; QAKit does not relay them.</li>
+    <li><strong>That's it.</strong> No other outbound traffic. No telemetry. No analytics ping-back. No update check beyond what the Chrome Web Store itself does for all extensions.</li>
+  </ul>
+
+  <h2><span class="h2-icon">🔐</span> Permissions explained</h2>
+  <p>QAKit requests the following Chrome permissions. Each is used solely for the corresponding feature:</p>
+
+  <table>
+    <tr><th>Permission</th><th>Used for</th></tr>
+    <tr><td><code>activeTab</code></td><td>Reading content of the currently active tab when you open the popup</td></tr>
+    <tr><td><code>scripting</code></td><td>Injecting inspection / capture scripts into the active tab</td></tr>
+    <tr><td><code>storage</code></td><td>Saving your settings and rules to <code>chrome.storage.local</code></td></tr>
+    <tr><td><code>tabs</code></td><td>Identifying the active tab and capturing its visible area for screenshots</td></tr>
+    <tr><td><code>cookies</code></td><td>Listing / editing / deleting cookies via Cookie Manager</td></tr>
+    <tr><td><code>debugger</code></td><td>Element / spacing inspection requires DevTools-level access for some metrics</td></tr>
+    <tr><td><code>declarativeNetRequest</code> / <code>declarativeNetRequestWithHostAccess</code></td><td>Implementing Network Mock and Headers Modifier rules</td></tr>
+    <tr><td><code>windows</code></td><td>Opening JSON Viewer / Text Compare / Help in new browser tabs</td></tr>
+    <tr><td><code>contextMenus</code></td><td>Adding QAKit shortcuts to the right-click menu</td></tr>
+    <tr><td><code>&lt;all_urls&gt;</code> host permission</td><td>So the above features work on whichever site you are testing — you control which sites in Settings → Allowed Domains</td></tr>
+  </table>
+
+  <h2><span class="h2-icon">🧒</span> Children's privacy</h2>
+  <p>QAKit is a developer/QA tool not directed at children under 13. We do not knowingly collect any data — from anyone, of any age.</p>
+
+  <h2><span class="h2-icon">🚫</span> What QAKit does NOT do</h2>
+  <ul>
+    <li>❌ Does not transmit any browsing or page data to remote servers</li>
+    <li>❌ Does not include any analytics, telemetry, or usage tracking</li>
+    <li>❌ Does not use cookies, fingerprinting, or any other tracking technology</li>
+    <li>❌ Does not require user accounts, sign-in, or registration</li>
+    <li>❌ Does not sell or share any data with third parties — there is no data to share</li>
+    <li>❌ Does not include advertising or sponsored content</li>
+    <li>❌ Does not modify pages without your explicit action (no auto-injection of changes)</li>
+  </ul>
+
+  <h2><span class="h2-icon">🗑</span> Removing your data</h2>
+  <p>To remove all data QAKit has stored, you can:</p>
+  <ol>
+    <li>Open QAKit Settings and click <strong>↺ Reset to Defaults</strong> to clear all settings, rules, and history</li>
+    <li>Or remove the extension from <code>chrome://extensions/</code> — Chrome automatically clears all extension storage on uninstall</li>
+  </ol>
+
+  <h2><span class="h2-icon">📜</span> Changes to this policy</h2>
+  <p>If this policy changes, the updated version will be included with the next QAKit release. The version date at the top of this document indicates when it was last revised. Substantive changes will be noted in the QAKit release notes / changelog.</p>
+
+  <h2><span class="h2-icon">📧</span> Contact</h2>
+  <p>Questions, concerns, or privacy-related feedback? Email <a href="mailto:qakit.extension@gmail.com" style="color:#0a6e51;font-weight:600">qakit.extension@gmail.com</a></p>
+
+  <div class="footer">
+    <p><strong>QAKit v1.0.0</strong> · Privacy-respecting QA &amp; developer toolkit<br>
+    Questions? <a href="mailto:qakit.extension@gmail.com">qakit.extension@gmail.com</a></p>
+  </div>
+
+</div>
+
+</body>
+</html>

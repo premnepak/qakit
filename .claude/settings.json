@@ -1,0 +1,22 @@
+{
+  "$schema": "https://claude.com/schemas/settings.json",
+  "description": "QAKit Chrome extension — Manifest V3, vanilla JS",
+  "ignore": [
+    "src/spell-bundle.js",
+    "releases/",
+    "assets/*.png",
+    "assets/screenshots/*.png",
+    "src/icons/*.png"
+  ],
+  "context": {
+    "alwaysReadFiles": [
+      "CLAUDE.md",
+      "docs/ARCHITECTURE.md",
+      "docs/FIX_HISTORY.md"
+    ]
+  },
+  "validation": {
+    "preCommit": "./scripts/validate.sh",
+    "postEdit": "./scripts/validate.sh"
+  }
+}

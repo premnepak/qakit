@@ -1,0 +1,48 @@
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Linux
+*~
+.directory
+
+# Editor / IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*.swn
+.netrwhist
+
+# Node (used only for syntax checking, no node_modules required)
+node_modules/
+npm-debug.log
+yarn-error.log
+
+# Claude Code working files (user-local, not project-shared)
+.claude/local/
+.claude/cache/
+
+# Build artefacts
+build/
+dist/
+
+# Local environment files
+.env
+.env.local
+
+# Draft / scratch files
+*.draft.*
+scratch/
+tmp/
+temp/
+
+# Don't ignore release zips — those are intentionally checked in
+!releases/*.zip

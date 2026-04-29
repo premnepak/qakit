@@ -1,0 +1,13 @@
+# AI assistant ignore file (Claude Code, Cursor, etc.)
+# Skip files that waste context without adding value
+
+# Bundled spell-check library — 825 KB minified, do not modify
+src/spell-bundle.js
+
+# Built release artefacts — re-generated from src/, no need to read
+releases/
+
+# Binary assets — assistants can't usefully read PNGs as text
+assets/*.png
+assets/screenshots/*.png
+src/icons/*.png
