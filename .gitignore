@@ -26,6 +26,10 @@ node_modules/
 npm-debug.log
 yarn-error.log
 
+# Playwright test artifacts
+playwright-report/
+test-results/
+
 # Claude Code working files (user-local, not project-shared)
 .claude/local/
 .claude/cache/
