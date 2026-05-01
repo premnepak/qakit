@@ -6,6 +6,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ---
 
+## [1.0.1] — 2026-05-01
+
+### Added
+- Playwright end-to-end tests for popup and inspector (`tests/`)
+
+### Changed
+- Spacing Inspector now displays gap distance (in px) between hovered element and its sibling neighbours
+
+---
+
 ## [1.0.0] — 2026-04-29 — Web Store submission
 
 First public release, ready for Chrome Web Store submission.
@@ -78,4 +88,5 @@ Internal pre-release versions (0.0.x) are kept here for historical traceability,
 - **MINOR** — new feature added
 - **PATCH** — bug fix or doc update
 
+[1.0.1]: https://github.com/premnepak/qakit/releases/tag/v1.0.1
 [1.0.0]: https://github.com/your-username/qakit/releases/tag/v1.0.0

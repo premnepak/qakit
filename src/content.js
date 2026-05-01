@@ -1,4 +1,4 @@
-// content.js — QAKit v1.0.0 Analytics Recorder + localStorage bridge
+// content.js — QAKit v1.0.1 Analytics Recorder + localStorage bridge
 (() => {
   // Skip browser-internal pages
   if (!location.href.startsWith('http')) return;

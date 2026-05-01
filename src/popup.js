@@ -1,4 +1,4 @@
-// popup.js — QAKit v1.0.0
+// popup.js — QAKit v1.0.1
 
 const CATEGORY_COLORS = {
   // DOM events (content.js)

@@ -1,4 +1,4 @@
-// Background service worker — QAKit v1.0.0
+// Background service worker — QAKit v1.0.1
 // Persists events to chrome.storage.local so they survive page loads/navigation
 
 const state = {

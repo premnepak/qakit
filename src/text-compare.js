@@ -1,4 +1,4 @@
-// text-compare.js — QAKit v1.0.0
+// text-compare.js — QAKit v1.0.1
 'use strict';
 const TC_KEY = 'qakit_text_compare_workspace';
 async function tcLoad() { try { const s = await chrome.storage.local.get(TC_KEY); return s[TC_KEY]||{}; } catch { return {}; } }

@@ -1,4 +1,4 @@
-// pagetools.js — QAKit v1.0.0
+// pagetools.js — QAKit v1.0.1
 // Page Kit tab logic: Inspector, Ruler, Responsive, Screenshot.
 
 const VP_STORAGE_KEY = 'qakit_viewport_presets';
