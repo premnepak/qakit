@@ -129,7 +129,8 @@
       el.style.display = 'none';
     });
     ['__q-dim-w','__q-dim-h','__q-dim-pt','__q-dim-pb','__q-dim-pl','__q-dim-pr',
-     '__q-dim-mt','__q-dim-mb','__q-dim-ml','__q-dim-mr'].forEach(id => {
+     '__q-dim-mt','__q-dim-mb','__q-dim-ml','__q-dim-mr',
+     '__q-gap-prev','__q-gap-next','__q-gap-prev-lbl','__q-gap-next-lbl'].forEach(id => {
       const el = document.getElementById(id);
       if (el) el.style.display = 'none';
     });
@@ -607,18 +608,25 @@
     const rawFont = cs.fontFamily || '';
     const primaryFont = rawFont.split(',')[0].trim().replace(/['"]/g, '');
 
-    // ── Gap to next sibling (approximate) ──────────────────────────────────
+    // ── Gap to next sibling ──────────────────────────────────────────────────
     let gapToNext = null;
     const next = el.nextElementSibling;
     if (next) {
       const nr = next.getBoundingClientRect();
-      // Vertical gap (positive = space between, negative = overlap)
       const vGap = Math.round(nr.top - r.bottom);
-      // Horizontal gap
       const hGap = Math.round(nr.left - r.right);
-      // Show whichever axis has a meaningful gap
-      if (Math.abs(vGap) < 400 && r.bottom <= nr.top + 2) gapToNext = { axis: 'V ↕', px: vGap };
-      else if (Math.abs(hGap) < 400 && r.right  <= nr.left + 2) gapToNext = { axis: 'H ↔', px: hGap };
+      if (Math.abs(vGap) < 400 && r.bottom <= nr.top + 2)      gapToNext = { axis: 'V', px: vGap, sibRect: nr };
+      else if (Math.abs(hGap) < 400 && r.right <= nr.left + 2) gapToNext = { axis: 'H', px: hGap, sibRect: nr };
+    }
+    // ── Gap to previous sibling ──────────────────────────────────────────────
+    let gapToPrev = null;
+    const prev = el.previousElementSibling;
+    if (prev) {
+      const pr = prev.getBoundingClientRect();
+      const vGap2 = Math.round(r.top - pr.bottom);
+      const hGap2 = Math.round(r.left - pr.right);
+      if (Math.abs(vGap2) < 400 && pr.bottom <= r.top + 2)     gapToPrev = { axis: 'V', px: vGap2, sibRect: pr };
+      else if (Math.abs(hGap2) < 400 && pr.right <= r.left + 2) gapToPrev = { axis: 'H', px: hGap2, sibRect: pr };
     }
 
     return {
@@ -653,7 +661,63 @@
       fontFamily:  primaryFont,
       lineHeight:  cs.lineHeight,
       gapToNext,
+      gapToPrev,
     };
+  }
+
+  // ── Gap-box helpers (visual inter-element spacing lines) ─────────────────
+  function makeGapBox(id) {
+    let el = document.getElementById(id);
+    if (!el) {
+      el = document.createElement('div');
+      el.id = id;
+      Object.assign(el.style, {
+        position: 'fixed', pointerEvents: 'none', zIndex: '2147483643',
+        boxSizing: 'border-box', background: 'rgba(255,70,70,0.08)',
+        border: '1px dashed rgba(255,70,70,0.65)', display: 'none',
+      });
+      document.documentElement.appendChild(el);
+    }
+    return el;
+  }
+
+  function positionGapBox(boxId, labelId, gap, elRect) {
+    const box = makeGapBox(boxId);
+    if (!gap || gap.px <= 0) {
+      box.style.display = 'none';
+      const lbl = document.getElementById(labelId);
+      if (lbl) lbl.style.display = 'none';
+      return;
+    }
+    const sr = gap.sibRect;
+    const er = elRect;
+    let top, left, width, height;
+    if (gap.axis === 'V') {
+      const upper = er.bottom <= sr.top ? er : sr;
+      const lower = er.bottom <= sr.top ? sr : er;
+      top = upper.bottom;
+      height = lower.top - upper.bottom;
+      const xL = Math.max(er.left, sr.left);
+      const xR = Math.min(er.right, sr.right);
+      if (xR > xL) { left = xL; width = xR - xL; }
+      else { left = Math.min(er.left, sr.left); width = Math.max(er.right, sr.right) - left; }
+    } else {
+      const lft = er.right <= sr.left ? er : sr;
+      const rgt = er.right <= sr.left ? sr : er;
+      left  = lft.right;
+      width = rgt.left - lft.right;
+      const yT = Math.max(er.top, sr.top);
+      const yB = Math.min(er.bottom, sr.bottom);
+      if (yB > yT) { top = yT; height = yB - yT; }
+      else { top = Math.min(er.top, sr.top); height = Math.max(er.bottom, sr.bottom) - top; }
+    }
+    if (width < 1 || height < 1) { box.style.display = 'none'; return; }
+    Object.assign(box.style, {
+      top: top + 'px', left: left + 'px',
+      width: width + 'px', height: height + 'px',
+      display: 'block',
+    });
+    posLabel(labelId, gap.px + 'px', left + width / 2, top + height / 2, 'rgba(220,50,50,0.92)', '#fff', 'center');
   }
 
   function positionSpacing(el) {
@@ -702,6 +766,10 @@
     if (s.pl) posLabel('__q-dim-pl', s.pl+'px', r.left+s.bl+s.pl/2, r.top+r.height/2-6, 'rgba(130,100,255,0.95)', '#fff', 'center');
     if (s.pr) posLabel('__q-dim-pr', s.pr+'px', r.right-s.br-s.pr/2, r.top+r.height/2-6, 'rgba(130,100,255,0.95)', '#fff', 'center');
 
+    // Gap boxes — show spacing between this element and its adjacent siblings
+    positionGapBox('__q-gap-prev', '__q-gap-prev-lbl', s.gapToPrev, r);
+    positionGapBox('__q-gap-next', '__q-gap-next-lbl', s.gapToNext, r);
+
     // Build panel
     renderSpacingPanel(s, r);
   }
@@ -748,9 +816,12 @@
       '<div style="padding:8px 10px;display:flex;flex-direction:column;gap:4px;">' +
         // Size
         sRow('W × H', s.w + ' × ' + s.h + ' px', '#00e5a0') +
-        // Gap to next sibling
-        (s.gapToNext !== null
-          ? sRow('Gap ' + s.gapToNext.axis, s.gapToNext.px + ' px', '#ffd166')
+        // Gaps between adjacent siblings
+        (s.gapToPrev !== null || s.gapToNext !== null
+          ? '<div style="border-top:1px solid rgba(255,255,255,.07);margin:3px 0 1px;padding-top:4px;">' +
+            (s.gapToPrev !== null ? sRow((s.gapToPrev.axis === 'V' ? '↑' : '←') + ' Gap to prev', s.gapToPrev.px + ' px', '#ff6b6b') : '') +
+            (s.gapToNext !== null ? sRow((s.gapToNext.axis === 'V' ? '↓' : '→') + ' Gap to next', s.gapToNext.px + ' px', '#ff6b6b') : '') +
+            '</div>'
           : '') +
         // Padding
         (s.pt||s.pb||s.pl||s.pr
