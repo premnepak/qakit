@@ -54,6 +54,14 @@
     /The [`']organizationEndpoints[`'] options was not explicitly set/,
     // Kampyle / Medallia onsite SDK
     /MODAL_DIALOGS will be deprecated! Please, use in future KAMPYLE_ONSITE_SDK/,
+    // React / Relay hydration noise from page frameworks
+    /No [`']HydrateFallback[`'] element provided to render during initial hydration/,
+    // Jira interactive-feature update noise
+    /Failed to update content with interactions/,
+    // Browser IndexedDB timeout (page storage, not extension)
+    /IndexedDB timed out/,
+    // Jira rule-engine expression warning
+    /BooleanExpression with operator .* had an expression that evaluated to null/,
   ];
 
   function dispatch(type, message, sourceUrl) {
