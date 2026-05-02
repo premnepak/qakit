@@ -280,21 +280,29 @@
         return el.tagName.toLowerCase() + '[' + attr + '="' + v.replace(/"/g, '\\"') + '"]';
       }
     }
+    // Semantic attrs stable enough for test automation
+    const tag = el.tagName.toLowerCase();
+    const nameAttr = el.getAttribute('name');
+    if (nameAttr) return tag + '[name="' + nameAttr.replace(/"/g, '\\"') + '"]';
+    const ariaLabel = el.getAttribute('aria-label');
+    if (ariaLabel) return tag + '[aria-label="' + ariaLabel.replace(/"/g, '\\"') + '"]';
+    const phAttr = el.getAttribute('placeholder');
+    if (phAttr) return tag + '[placeholder="' + phAttr.replace(/"/g, '\\"') + '"]';
     function seg(node) {
-      const tag = node.tagName.toLowerCase();
+      const t = node.tagName.toLowerCase();
       if (node.id && /^[a-zA-Z][\w-]*$/.test(node.id)) return '#' + node.id;
       const cls = Array.from(node.classList).find(c => /^[a-zA-Z][a-zA-Z0-9_-]{1,30}$/.test(c) && !/^\d+$/.test(c));
       if (cls) {
         const p = node.parentElement;
-        if (p && p.querySelectorAll(tag + '.' + cls).length === 1) return tag + '.' + cls;
+        if (p && p.querySelectorAll(t + '.' + cls).length === 1) return t + '.' + cls;
       }
       const p = node.parentElement;
       if (p) {
         const sibs = Array.from(p.children).filter(c => c.tagName === node.tagName);
-        if (sibs.length === 1) return tag;
-        return tag + ':nth-of-type(' + (sibs.indexOf(node) + 1) + ')';
+        if (sibs.length === 1) return t;
+        return t + ':nth-of-type(' + (sibs.indexOf(node) + 1) + ')';
       }
-      return tag;
+      return t;
     }
     const parts = []; let node = el;
     while (node && node !== document.documentElement && parts.length < 6) {
@@ -308,15 +316,69 @@
 
   function generateXPath(el) {
     if (!el || el === document.body) return '//body';
+    const TEST_ATTRS = ['data-testid','data-qa','data-test','data-cy','data-automation-id','data-test-id','data-pw'];
+    function esc(v) { return v.replace(/"/g, '&quot;'); }
+
+    // 1. id on element
     if (el.id && /^[a-zA-Z][\w-]*$/.test(el.id)) return '//*[@id="' + el.id + '"]';
+
+    // 2. Test automation attribute on element
+    for (const attr of TEST_ATTRS) {
+      if (el.hasAttribute(attr)) return '//*[@' + attr + '="' + esc(el.getAttribute(attr)) + '"]';
+    }
+
+    const tag = el.tagName.toLowerCase();
+
+    // 3. name attr (form elements)
+    const nameAttr = el.getAttribute('name');
+    if (nameAttr) return '//' + tag + '[@name="' + esc(nameAttr) + '"]';
+
+    // 4. aria-label
+    const ariaLabel = el.getAttribute('aria-label');
+    if (ariaLabel) return '//' + tag + '[@aria-label="' + esc(ariaLabel) + '"]';
+
+    // 5. placeholder
+    const phAttr = el.getAttribute('placeholder');
+    if (phAttr) return '//' + tag + '[@placeholder="' + esc(phAttr) + '"]';
+
+    // 6. Short visible text for interactive/structural elements
+    if (['button','a','label','th','h1','h2','h3','h4','h5','h6'].includes(tag)) {
+      const txt = (el.textContent || '').trim().replace(/\s+/g, ' ');
+      if (txt && txt.length <= 40 && !txt.includes('"')) {
+        return '//' + tag + '[normalize-space()="' + txt + '"]';
+      }
+    }
+
+    // 7. type+value for submit/button/reset inputs
+    if (tag === 'input') {
+      const type = el.getAttribute('type');
+      const val  = el.getAttribute('value');
+      if ((type === 'submit' || type === 'button' || type === 'reset') && val) {
+        return '//input[@type="' + type + '" and @value="' + esc(val) + '"]';
+      }
+    }
+
+    // 8. Walk up — anchor to nearest ancestor with id or test-attr, build short path down
+    function seg(node) {
+      const t = node.tagName.toLowerCase();
+      const p = node.parentElement;
+      if (!p) return t;
+      const sibs = Array.from(p.children).filter(c => c.tagName === node.tagName);
+      return sibs.length > 1 ? t + '[' + (sibs.indexOf(node) + 1) + ']' : t;
+    }
     const parts = []; let node = el;
     while (node && node.nodeType === 1 && node !== document.documentElement) {
-      const tag = node.tagName.toLowerCase();
-      const p = node.parentElement;
-      if (p) {
-        const sibs = Array.from(p.children).filter(c => c.tagName === node.tagName);
-        parts.unshift(sibs.length > 1 ? tag + '[' + (sibs.indexOf(node) + 1) + ']' : tag);
-      } else { parts.unshift(tag); }
+      if (node !== el) {
+        if (node.id && /^[a-zA-Z][\w-]*$/.test(node.id)) {
+          return '//*[@id="' + node.id + '"]/' + parts.join('/');
+        }
+        for (const attr of TEST_ATTRS) {
+          if (node.hasAttribute(attr)) {
+            return '//*[@' + attr + '="' + esc(node.getAttribute(attr)) + '"]/' + parts.join('/');
+          }
+        }
+      }
+      parts.unshift(seg(node));
       node = node.parentElement;
     }
     return '//' + parts.join('/');

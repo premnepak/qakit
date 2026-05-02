@@ -228,22 +228,50 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
       await chrome.scripting.executeScript({
         target: { tabId: tab.id, frameIds: info.frameId !== undefined ? [info.frameId] : undefined }, world: 'MAIN',
         func: () => {
-          // Prefer the target captured by our contextmenu listener — it's the
-          // actual right-clicked element. Fallback to activeElement only if
-          // the listener somehow hasn't fired (shouldn't happen in practice).
           const el = window.__qkitLastContextTarget || document.activeElement;
           if (!el || !el.tagName) return;
-          const parts = [];
-          let curr = el;
-          while (curr && curr !== document.documentElement) {
-            let sel = curr.tagName.toLowerCase();
-            if (curr.id) { sel = '#' + curr.id; parts.unshift(sel); break; }
-            const siblings = [...(curr.parentElement?.children || [])].filter(c => c.tagName === curr.tagName);
-            if (siblings.length > 1) sel += ':nth-of-type(' + (siblings.indexOf(curr) + 1) + ')';
-            parts.unshift(sel);
-            curr = curr.parentElement;
+
+          // Semantic/relative CSS selector (test-automation friendly)
+          const TEST_A = ['data-testid','data-test','data-cy','data-qa','data-pw','data-automation-id','data-test-id'];
+          function buildCss(elem) {
+            if (!elem || elem === document.body) return 'body';
+            if (elem.id && /^[a-zA-Z][\w-]*$/.test(elem.id)) return '#' + elem.id;
+            for (const a of TEST_A) {
+              if (elem.hasAttribute(a)) {
+                return elem.tagName.toLowerCase() + '[' + a + '="' + elem.getAttribute(a) + '"]';
+              }
+            }
+            const tag = elem.tagName.toLowerCase();
+            const nm = elem.getAttribute('name');
+            if (nm) return tag + '[name="' + nm + '"]';
+            const al = elem.getAttribute('aria-label');
+            if (al) return tag + '[aria-label="' + al + '"]';
+            const ph = elem.getAttribute('placeholder');
+            if (ph) return tag + '[placeholder="' + ph + '"]';
+            function seg(node) {
+              const t = node.tagName.toLowerCase();
+              if (node.id && /^[a-zA-Z][\w-]*$/.test(node.id)) return '#' + node.id;
+              const cls = Array.from(node.classList).find(c => /^[a-zA-Z][a-zA-Z0-9_-]{1,30}$/.test(c) && !/^\d+$/.test(c));
+              if (cls && node.parentElement && node.parentElement.querySelectorAll(t + '.' + cls).length === 1) return t + '.' + cls;
+              const p = node.parentElement;
+              if (p) {
+                const sibs = Array.from(p.children).filter(c => c.tagName === node.tagName);
+                if (sibs.length === 1) return t;
+                return t + ':nth-of-type(' + (sibs.indexOf(node) + 1) + ')';
+              }
+              return t;
+            }
+            const parts = []; let node = elem;
+            while (node && node !== document.documentElement && parts.length < 6) {
+              parts.unshift(seg(node));
+              const cand = parts.join(' > ');
+              try { if (document.querySelectorAll(cand).length === 1) return cand; } catch(_) {}
+              node = node.parentElement;
+            }
+            return parts.join(' > ');
           }
-          const selector = parts.join(' > ');
+
+          const selector = buildCss(el);
           navigator.clipboard.writeText(selector).then(() => {
             const t = document.createElement('div');
             t.style.cssText = 'position:fixed;bottom:20px;right:20px;z-index:2147483647;background:#0a6e51;color:#fff;padding:8px 14px;border-radius:6px;font-family:sans-serif;font-size:13px;font-weight:600;max-width:360px;word-break:break-all';
@@ -261,16 +289,55 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
         func: () => {
           const el = window.__qkitLastContextTarget || document.activeElement;
           if (!el || !el.tagName) return;
-          const parts = [];
-          let curr = el;
-          while (curr && curr.nodeType === 1) {
-            let tag = curr.tagName.toLowerCase();
-            const siblings = [...(curr.parentElement?.children || [])].filter(c => c.tagName === curr.tagName);
-            if (siblings.length > 1) tag += '[' + (siblings.indexOf(curr) + 1) + ']';
-            parts.unshift(tag);
-            curr = curr.parentElement;
+
+          // Semantic/relative XPath (test-automation friendly)
+          const TEST_A = ['data-testid','data-qa','data-test','data-cy','data-automation-id','data-test-id','data-pw'];
+          function esc(v) { return v.replace(/"/g, '&quot;'); }
+          function buildXPath(elem) {
+            if (!elem || elem === document.body) return '//body';
+            if (elem.id && /^[a-zA-Z][\w-]*$/.test(elem.id)) return '//*[@id="' + elem.id + '"]';
+            for (const a of TEST_A) {
+              if (elem.hasAttribute(a)) return '//*[@' + a + '="' + esc(elem.getAttribute(a)) + '"]';
+            }
+            const tag = elem.tagName.toLowerCase();
+            const nm = elem.getAttribute('name');
+            if (nm) return '//' + tag + '[@name="' + esc(nm) + '"]';
+            const al = elem.getAttribute('aria-label');
+            if (al) return '//' + tag + '[@aria-label="' + esc(al) + '"]';
+            const ph = elem.getAttribute('placeholder');
+            if (ph) return '//' + tag + '[@placeholder="' + esc(ph) + '"]';
+            if (['button','a','label','th','h1','h2','h3','h4','h5','h6'].includes(tag)) {
+              const txt = (elem.textContent || '').trim().replace(/\s+/g, ' ');
+              if (txt && txt.length <= 40 && !txt.includes('"')) return '//' + tag + '[normalize-space()="' + txt + '"]';
+            }
+            if (tag === 'input') {
+              const type = elem.getAttribute('type'), val = elem.getAttribute('value');
+              if ((type === 'submit' || type === 'button' || type === 'reset') && val) {
+                return '//input[@type="' + type + '" and @value="' + esc(val) + '"]';
+              }
+            }
+            function seg(node) {
+              const t = node.tagName.toLowerCase();
+              const p = node.parentElement;
+              if (!p) return t;
+              const sibs = Array.from(p.children).filter(c => c.tagName === node.tagName);
+              return sibs.length > 1 ? t + '[' + (sibs.indexOf(node) + 1) + ']' : t;
+            }
+            const parts = []; let node = elem;
+            while (node && node.nodeType === 1 && node !== document.documentElement) {
+              if (node !== elem) {
+                if (node.id && /^[a-zA-Z][\w-]*$/.test(node.id)) return '//*[@id="' + node.id + '"]/' + parts.join('/');
+                for (const a of TEST_A) {
+                  if (node.hasAttribute(a)) return '//*[@' + a + '="' + esc(node.getAttribute(a)) + '"]/' + parts.join('/');
+                }
+              }
+              parts.unshift(seg(node));
+              node = node.parentElement;
+            }
+            return '//' + parts.join('/');
           }
-          const xpath = '/' + parts.join('/');
+
+          const xpath = buildXPath(el);
           navigator.clipboard.writeText(xpath).then(() => {
             const t = document.createElement('div');
             t.style.cssText = 'position:fixed;bottom:20px;right:20px;z-index:2147483647;background:#0a6e51;color:#fff;padding:8px 14px;border-radius:6px;font-family:sans-serif;font-size:13px;font-weight:600;max-width:360px;word-break:break-all';
