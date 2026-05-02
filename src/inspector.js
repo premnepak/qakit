@@ -673,8 +673,7 @@
       el.id = id;
       Object.assign(el.style, {
         position: 'fixed', pointerEvents: 'none', zIndex: '2147483643',
-        boxSizing: 'border-box', background: 'rgba(255,70,70,0.08)',
-        border: '1px dashed rgba(255,70,70,0.65)', display: 'none',
+        boxSizing: 'border-box', display: 'none',
       });
       document.documentElement.appendChild(el);
     }
@@ -712,10 +711,18 @@
       else { top = Math.min(er.top, sr.top); height = Math.max(er.bottom, sr.bottom) - top; }
     }
     if (width < 1 || height < 1) { box.style.display = 'none'; return; }
+    const lc = 'rgba(230,60,60,0.85)';
+    const bg = gap.axis === 'V'
+      ? `linear-gradient(to bottom,${lc},${lc}) center/1px 100% no-repeat,` +
+        `linear-gradient(to right,${lc},${lc}) 0 0/100% 1px no-repeat,` +
+        `linear-gradient(to right,${lc},${lc}) 0 100%/100% 1px no-repeat`
+      : `linear-gradient(to right,${lc},${lc}) 0 center/100% 1px no-repeat,` +
+        `linear-gradient(to bottom,${lc},${lc}) 0 0/1px 100% no-repeat,` +
+        `linear-gradient(to bottom,${lc},${lc}) 100% 0/1px 100% no-repeat`;
     Object.assign(box.style, {
       top: top + 'px', left: left + 'px',
       width: width + 'px', height: height + 'px',
-      display: 'block',
+      display: 'block', background: bg, border: 'none',
     });
     posLabel(labelId, gap.px + 'px', left + width / 2, top + height / 2, 'rgba(220,50,50,0.92)', '#fff', 'center');
   }
