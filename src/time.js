@@ -1,4 +1,4 @@
-// time.js — QAKit v1.0.1
+// time.js — QAKit
 // Two sub-tabs: 🌍 World Clock (default) + ⏱ Epoch & Timezone (combined)
 
 const WORLD_CITIES = [

@@ -1,4 +1,4 @@
-// inspector.js — QAKit v1.0.1 Element Inspector + Spacing Inspector
+// inspector.js — QAKit Element Inspector + Spacing Inspector
 // Injected into MAIN world via chrome.scripting.executeScript
 
 (function installInspector() {

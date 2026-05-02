@@ -1,4 +1,4 @@
-// network-mock.js — QAKit v1.0.1 Network Mock tab logic
+// network-mock.js — QAKit Network Mock tab logic
 
 // ── State ─────────────────────────────────────────────────────────────────────
 let netRules      = [];   // [{id, name, pattern, matchType, responseStatus, responseBody, active}]

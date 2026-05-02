@@ -1,4 +1,4 @@
-// popup.js — QAKit v1.0.1
+// popup.js — QAKit
 
 const CATEGORY_COLORS = {
   // DOM events (content.js)
@@ -2068,6 +2068,11 @@ document.getElementById('spacingBtn').addEventListener('click', async () => {
 });
 
 // ── Init all modules ─────────────────────────────────────────────────────────
+// Set version from manifest (single source of truth)
+(function() {
+  const vEl = document.querySelector('.logo-version');
+  if (vEl) vEl.textContent = 'v' + chrome.runtime.getManifest().version;
+})();
 try {
   if (typeof initPageTools === 'function') initPageTools();
 } catch(e) {

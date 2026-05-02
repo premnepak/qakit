@@ -1,4 +1,4 @@
-// text-compare.js — QAKit v1.0.1
+// text-compare.js — QAKit
 'use strict';
 const TC_KEY = 'qakit_text_compare_workspace';
 async function tcLoad() { try { const s = await chrome.storage.local.get(TC_KEY); return s[TC_KEY]||{}; } catch { return {}; } }
@@ -399,6 +399,10 @@ function scheduleLive(){
 
 // ── Init ─────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded',async()=>{
+  // Version from manifest
+  const vEl = document.querySelector('.tc-version');
+  if (vEl) vEl.textContent = 'v' + chrome.runtime.getManifest().version;
+
   const lEl=document.getElementById('tcLeft');
   const rEl=document.getElementById('tcRight');
 

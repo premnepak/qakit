@@ -1,4 +1,4 @@
-// settings.js — QAKit v1.0.1 Settings
+// settings.js — QAKit Settings
 // Manages: allowed domains, analytics filter, test tag attr, LS keys, cookie keys, visible tabs
 
 const SETTINGS_KEY = 'qa_tools_settings';

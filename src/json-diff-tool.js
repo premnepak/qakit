@@ -550,6 +550,10 @@ function syncTextScroll() {
 // WIRE UP
 // ═══════════════════════════════════════════════════════════════════════════
 document.addEventListener('DOMContentLoaded', async () => {
+  // Version from manifest
+  const vEl = document.querySelector('.qd-version');
+  if (vEl) vEl.textContent = 'v' + chrome.runtime.getManifest().version;
+
   // Mode switch
   document.querySelectorAll('.qd-mode').forEach(btn => {
     btn.addEventListener('click', () => switchMode(btn.dataset.mode));

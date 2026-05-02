@@ -160,9 +160,25 @@ PYEOF
 if [ $? -ne 0 ]; then FAIL=1; fi
 
 # ─────────────────────────────────────────────────────────────
-# 4. Brand consistency
+# 4. Version consistency
 # ─────────────────────────────────────────────────────────────
-section "4. Brand consistency"
+section "4. Version consistency"
+python3 << PYEOF
+import json, sys
+manifest_ver = json.load(open('$SRC_DIR/manifest.json'))['version']
+pkg_ver = json.load(open('package.json')).get('version','')
+if manifest_ver == pkg_ver:
+    print(f'  ✓ manifest.json and package.json both at v{manifest_ver}')
+else:
+    print(f'  ✗ version mismatch: manifest={manifest_ver}, package.json={pkg_ver}')
+    sys.exit(1)
+PYEOF
+if [ $? -ne 0 ]; then FAIL=1; fi
+
+# ─────────────────────────────────────────────────────────────
+# 5. Brand consistency
+# ─────────────────────────────────────────────────────────────
+section "5. Brand consistency"
 if grep -rli "kahulogic\|qantas" "$SRC_DIR" 2>/dev/null | grep -v spell-bundle.js > /dev/null; then
   fail "Found legacy brand references (kahulogic/qantas):"
   grep -rli "kahulogic\|qantas" "$SRC_DIR" 2>/dev/null | grep -v spell-bundle.js | sed 's/^/    /'
@@ -177,9 +193,9 @@ else
 fi
 
 # ─────────────────────────────────────────────────────────────
-# 5. Critical guards present
+# 6. Critical guards present
 # ─────────────────────────────────────────────────────────────
-section "5. Critical guards"
+section "6. Critical guards"
 
 # Inspector race condition guard
 if grep -q "if (!window.__qInspectorActive) { hideAll(); return; }" "$SRC_DIR/inspector.js" 2>/dev/null; then

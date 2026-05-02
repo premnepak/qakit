@@ -1,4 +1,4 @@
-// console-shim.js — QAKit v1.0.1
+// console-shim.js — QAKit
 // Injected into MAIN world by background.js on every page load.
 // Wraps console.error and dispatches CustomEvents picked up by content.js.
 // Paths are configurable via window.__qConsolePaths (set before injection).

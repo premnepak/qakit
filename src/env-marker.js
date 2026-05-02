@@ -1,4 +1,4 @@
-// env-marker.js — QAKit v1.0.1
+// env-marker.js — QAKit
 // Injected in MAIN world. Reads window.__qkitEnvMarker and renders a label.
 // Variants: bar (top/bottom only), pill / ribbon (4 corners only).
 

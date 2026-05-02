@@ -1,4 +1,4 @@
-// page-audit.js — QAKit v1.0.1 Page Auditor
+// page-audit.js — QAKit Page Auditor
 
 // ── Custom spell dictionary ───────────────────────────────────────────────────
 // Words the user has chosen to accept — persisted in chrome.storage.local
@@ -2095,7 +2095,7 @@ function exportAuditAsText() {
 
   const line = '═'.repeat(54);
   let txt = line + '\n';
-  txt += '  QAKit — Page Audit Report  v1.0.1\n';
+  txt += '  QAKit — Page Audit Report  v' + chrome.runtime.getManifest().version + '\n';
   txt += line + '\n';
   txt += 'Page:    ' + (pi.title || '(no title)') + '\n';
   txt += 'URL:     ' + (pi.url   || '') + '\n';
