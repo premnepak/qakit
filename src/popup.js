@@ -2095,11 +2095,25 @@ if (typeof initSettings      === 'function') initSettings();
   // Floating home button removed (Fix 55) — ← Home in panel nav is sole back nav
 })();
 
-// ── Sub-tab switching (Time, Utils) ───────────────────────────────────────
+// ── Sub-tab switching (Time, Utils, Tools) ────────────────────────────────
 function initSubTabs(tabClass, subClass) {
-  document.querySelectorAll('.' + tabClass).forEach(btn => {
+  const buttons = document.querySelectorAll('.' + tabClass);
+  // Activate first button + pane on init (ensures correct highlight on first
+  // visit and after any cross-panel active-class stripping).
+  const firstBtn = buttons[0];
+  if (firstBtn) {
+    buttons.forEach(b => b.classList.remove('active'));
+    firstBtn.classList.add('active');
+    const firstSub = firstBtn.dataset.sub;
+    document.querySelectorAll('.' + subClass).forEach(p => {
+      const isFirst = p.id.endsWith('-' + firstSub);
+      p.style.display = isFirst ? 'flex' : 'none';
+      p.classList.toggle('active', isFirst);
+    });
+  }
+  buttons.forEach(btn => {
     btn.addEventListener('click', () => {
-      document.querySelectorAll('.' + tabClass).forEach(b => b.classList.remove('active'));
+      buttons.forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
       const sub = btn.dataset.sub;
       document.querySelectorAll('.' + subClass).forEach(p => {
