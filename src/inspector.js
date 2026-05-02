@@ -45,8 +45,7 @@
   Object.assign(badge.style, {
     position: 'fixed', zIndex: '2147483647', pointerEvents: 'none',
     fontFamily: 'ui-monospace,"SF Mono",Menlo,Consolas,"Courier New",monospace',
-    fontSize: '12px', lineHeight: '1.6',
-    borderRadius: '8px', background: 'rgba(15,15,20,0.97)',
+    fontSize: '13px', lineHeight: '1.6',
     border: '1.5px solid rgba(0,229,160,0.6)', color: '#e8e8f0',
     maxWidth: '360px', minWidth: '220px',
     boxShadow: '0 8px 32px rgba(0,0,0,.7)', display: 'none', overflow: 'hidden',
@@ -115,7 +114,7 @@
   Object.assign(spacingPanel.style, {
     position: 'fixed', pointerEvents: 'none', zIndex: '2147483647',
     fontFamily: 'ui-monospace,"SF Mono",Menlo,Consolas,monospace',
-    fontSize: '11px', lineHeight: '1.6',
+    fontSize: '12px', lineHeight: '1.6',
     borderRadius: '8px', background: 'rgba(10,10,20,0.97)',
     border: '1.5px solid rgba(130,100,255,0.7)', color: '#e8e8f0',
     maxWidth: '260px', minWidth: '180px',
@@ -325,9 +324,9 @@
   function row(key, val, keyColor, valColor, bold) {
     return (
       '<div style="display:flex;align-items:flex-start;gap:5px;min-width:0;padding:1px 2px;">' +
-        '<span style="color:' + keyColor + ';font-weight:' + (bold?'700':'500') + ';font-size:10px;flex-shrink:0;min-width:76px;">' + key + '</span>' +
-        '<span style="color:rgba(255,255,255,.25);font-size:10px;flex-shrink:0;">=</span>' +
-        '<span style="color:' + valColor + ';font-size:10px;word-break:break-word;flex:1;">' + val + '</span>' +
+        '<span style="color:' + keyColor + ';font-weight:' + (bold?'700':'500') + ';font-size:11px;flex-shrink:0;min-width:76px;">' + key + '</span>' +
+        '<span style="color:rgba(255,255,255,.25);font-size:11px;flex-shrink:0;">=</span>' +
+        '<span style="color:' + valColor + ';font-size:11px;word-break:break-word;flex:1;">' + val + '</span>' +
       '</div>'
     );
   }
@@ -343,12 +342,12 @@
           'style="display:flex;align-items:flex-start;gap:5px;min-width:0;padding:2px 2px;' +
           'border-radius:3px;cursor:default;position:relative" ' +
           'title="Click ⎘ to copy">' +
-        '<span style="color:' + keyColor + ';font-weight:500;font-size:10px;flex-shrink:0;min-width:76px;">' + key + '</span>' +
-        '<span style="color:rgba(255,255,255,.25);font-size:10px;flex-shrink:0;">=</span>' +
-        '<span style="color:' + valColor + ';font-size:10px;word-break:break-word;flex:1;">' + displayVal + '</span>' +
+        '<span style="color:' + keyColor + ';font-weight:500;font-size:11px;flex-shrink:0;min-width:76px;">' + key + '</span>' +
+        '<span style="color:rgba(255,255,255,.25);font-size:11px;flex-shrink:0;">=</span>' +
+        '<span style="color:' + valColor + ';font-size:11px;word-break:break-word;flex:1;">' + displayVal + '</span>' +
         '<button class="__q-copy-btn" data-copy="' + dataVal + '" ' +
           'style="flex-shrink:0;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.18);' +
-          'border-radius:3px;color:rgba(255,255,255,.5);font-size:8px;padding:0 5px;cursor:pointer;' +
+          'border-radius:3px;color:rgba(255,255,255,.5);font-size:9px;padding:0 5px;cursor:pointer;' +
           'line-height:14px;height:16px;margin-left:2px;transition:all .12s" ' +
           'title="Copy ' + key + ' to clipboard">⎘</button>' +
       '</div>'
@@ -445,7 +444,7 @@
         cur = cur.parentElement;
         hops++;
       }
-      crumbsHtml = '<div class="__q-crumbs" style="padding:5px 11px;background:rgba(255,255,255,.03);border-bottom:1px solid rgba(255,255,255,.05);overflow-x:auto;white-space:nowrap;font-size:10.5px;line-height:1.3;scrollbar-width:thin">';
+      crumbsHtml = '<div class="__q-crumbs" style="padding:5px 11px;background:rgba(255,255,255,.03);border-bottom:1px solid rgba(255,255,255,.05);overflow-x:auto;white-space:nowrap;font-size:11.5px;line-height:1.3;scrollbar-width:thin">';
       chain.forEach((crumb, i) => {
         const isLast = i === chain.length - 1;
         if (i > 0) crumbsHtml += '<span style="color:rgba(255,255,255,.25);margin:0 3px">›</span>';
@@ -462,8 +461,8 @@
 
     let html =
       '<div style="background:rgba(0,229,160,.12);border-bottom:1px solid rgba(0,229,160,.2);padding:6px 11px;display:flex;align-items:center;justify-content:space-between;gap:6px">' +
-        '<span style="font-size:11px;color:rgba(0,229,160,.95);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;font-weight:600">&lt;' + tag + ctx + '&gt;</span>' +
-        '<span id="__q-pin-label" style="font-size:9.5px;color:rgba(255,255,255,.5);cursor:pointer;padding:2px 7px;border-radius:3px;border:1px solid rgba(255,255,255,.15);flex-shrink:0" ' +
+        '<span style="font-size:12px;color:rgba(0,229,160,.95);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;font-weight:600">&lt;' + tag + ctx + '&gt;</span>' +
+        '<span id="__q-pin-label" style="font-size:10.5px;color:rgba(255,255,255,.5);cursor:pointer;padding:2px 7px;border-radius:3px;border:1px solid rgba(255,255,255,.15);flex-shrink:0" ' +
           'title="Click to pin / unpin (P)">📌 Pin</span>' +
       '</div>' +
       crumbsHtml +
@@ -496,13 +495,13 @@
       // FIX 2b: use copyRow instead of row so testid values are copyable
       html += copyRow(tl.attr, '"' + tl.value + '"', '#00e5a0', '#fff');
       if (attrs.locatorInherited && attrs.locatorInheritedTag) {
-        html += '<div style="font-size:9px;color:rgba(255,255,255,.5);margin:1px 0 0 2px">↑ inherited from &lt;' + attrs.locatorInheritedTag + '&gt;</div>';
+        html += '<div style="font-size:10px;color:rgba(255,255,255,.5);margin:1px 0 0 2px">↑ inherited from &lt;' + attrs.locatorInheritedTag + '&gt;</div>';
       }
     } else if (tl && tl.isSuggested) {
-      html += '<div style="font-size:9.5px;color:#ff9f43;margin-bottom:3px">⚠ No test attr — best available:</div>';
+      html += '<div style="font-size:10.5px;color:#ff9f43;margin-bottom:3px">⚠ No test attr — best available:</div>';
       html += copyRow(tl.attr, '"' + tl.value + '"', '#ff9f43', '#ffe0a0');
     } else {
-      html += '<div style="font-size:9.5px;color:rgba(255,100,100,.85);margin-bottom:3px">⚠ No test locator found</div>';
+      html += '<div style="font-size:10.5px;color:rgba(255,100,100,.85);margin-bottom:3px">⚠ No test locator found</div>';
     }
     html += '</div>';
 
@@ -527,7 +526,7 @@
       html += '</div>';
     }
 
-    html += '<div style="font-size:8.5px;color:rgba(255,255,255,.35);margin-top:4px;text-align:right;padding:0 2px">⎘ copy · 📌 pin · ⌥ click = drill in · click crumb above</div>';
+    html += '<div style="font-size:9.5px;color:rgba(255,255,255,.35);margin-top:4px;text-align:right;padding:0 2px">⎘ copy · 📌 pin · ⌥ click = drill in · click crumb above</div>';
     html += '</div>';
     badge.innerHTML = html;
     // Wire copy buttons via event delegation (must happen after innerHTML set)
@@ -807,7 +806,7 @@
 
     function colorRow(label, hex, color) {
       if (!hex) return '';
-      return '<div style="display:flex;justify-content:space-between;gap:8px;font-size:10px;align-items:center;">' +
+      return '<div style="display:flex;justify-content:space-between;gap:8px;font-size:11px;align-items:center;">' +
         '<span style="color:rgba(255,255,255,.45)">' + label + '</span>' +
         '<span style="color:' + color + ';font-weight:700;display:flex;align-items:center">' +
           swatch(hex) + hex +
@@ -817,7 +816,7 @@
 
     spacingPanel.innerHTML =
       // Header
-      '<div style="background:rgba(130,100,255,.2);border-bottom:1px solid rgba(130,100,255,.3);padding:5px 10px;font-size:10px;color:rgba(130,100,255,1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' +
+      '<div style="background:rgba(130,100,255,.2);border-bottom:1px solid rgba(130,100,255,.3);padding:5px 10px;font-size:11px;color:rgba(130,100,255,1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' +
         '&lt;' + s.tag + (s.testId ? ' ' + s.testId : '') + '&gt;' +
       '</div>' +
       '<div style="padding:8px 10px;display:flex;flex-direction:column;gap:4px;">' +
@@ -884,7 +883,7 @@
 
   function sRow(key, val, color) {
     return (
-      '<div style="display:flex;justify-content:space-between;gap:12px;font-size:11px;">' +
+      '<div style="display:flex;justify-content:space-between;gap:12px;font-size:12px;">' +
         '<span style="color:rgba(255,255,255,.45);">' + key + '</span>' +
         '<span style="color:' + color + ';font-weight:700;">' + val + '</span>' +
       '</div>'
