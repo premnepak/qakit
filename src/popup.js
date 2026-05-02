@@ -299,7 +299,7 @@ function renderDDL() {
     return;
   }
 
-  filtered.slice(-80).reverse().forEach(evt => {
+  filtered.slice(-300).reverse().forEach(evt => {
     const color   = CATEGORY_COLORS[evt.category] || '#888';
     const fullStr = fmtFullJSON(evt.data);
 
@@ -1804,12 +1804,14 @@ document.getElementById('searchInput').addEventListener('input', (e) => {
 try {
   chrome.storage.local.get('qakit_ddl_search').then(s => {
     const saved = s.qakit_ddl_search;
-    if (saved) {
+    if (saved != null) {
       const inp = document.getElementById('searchInput');
       if (inp) {
         inp.value = saved;
         searchQuery = saved.trim().toLowerCase();
         searchParsed = parseSearchQuery(searchQuery);
+        if (activeTab === 'ddl') renderDDL();
+        updateStats();
       }
     }
   }).catch(() => {});

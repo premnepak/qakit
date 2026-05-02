@@ -4,12 +4,38 @@
 const state = {
   events: [],
   paused: false,
-  maxEvents: 2000,
+  maxEvents: 3000,
   consoleErrorCount: 0,
   pendingRegionTabId: null,
   storedRegionScreenshot: null,
   _lastViewportOpen: 0,
 };
+
+// ── Per-category event caps ────────────────────────────────────────────────
+// High-frequency categories are capped low so they don't crowd out signal.
+// All other categories default to DEFAULT_CAT_CAP.
+const CATEGORY_CAPS = {
+  scroll:   20,
+  keyboard: 20,
+};
+const DEFAULT_CAT_CAP = 200;
+
+// Remove the oldest event of `category` if its count now exceeds the cap.
+// Called immediately after pushing a new event, so we're at most 1 over.
+function enforceCategoryCap(events, category) {
+  const cap = CATEGORY_CAPS[category] ?? DEFAULT_CAT_CAP;
+  let count = 0;
+  for (let i = 0; i < events.length; i++) {
+    if (events[i].category === category) count++;
+  }
+  if (count <= cap) return;
+  for (let i = 0; i < events.length; i++) {
+    if (events[i].category === category) {
+      events.splice(i, 1);
+      break;
+    }
+  }
+}
 
 // ── Restore persisted events on service worker startup ─────────────────────
 async function restoreFromStorage() {
@@ -432,6 +458,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   if (msg.action === 'EVENT') {
     const evt = { ...msg.payload, tabId: sender.tab?.id };
     state.events.push(evt);
+    if (evt.category) enforceCategoryCap(state.events, evt.category);
     if (state.events.length > state.maxEvents) state.events.shift();
 
     // Persist after every new event
