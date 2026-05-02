@@ -46,6 +46,7 @@
     position: 'fixed', zIndex: '2147483647', pointerEvents: 'none',
     fontFamily: 'ui-monospace,"SF Mono",Menlo,Consolas,"Courier New",monospace',
     fontSize: '13px', lineHeight: '1.6',
+    borderRadius: '8px', background: 'rgba(15,15,20,0.97)',
     border: '1.5px solid rgba(0,229,160,0.6)', color: '#e8e8f0',
     maxWidth: '360px', minWidth: '220px',
     boxShadow: '0 8px 32px rgba(0,0,0,.7)', display: 'none', overflow: 'hidden',
