@@ -1,4 +1,4 @@
-// popup.js — QAKit v1.0.0
+// popup.js — QAKit v1.0.1
 
 const CATEGORY_COLORS = {
   // DOM events (content.js)
@@ -168,17 +168,48 @@ function debounce(fn, wait) {
 }
 
 // ── UI Updates ────────────────────────────────────────────────────────────────
+
+// Category → provider key map — used by both updateStats and renderDDL.
+// 'click' / DOM-captured events are always shown (not in this map).
+const CATEGORY_TO_PROVIDER = {
+  'GTM':        'gtm',
+  'GTM/_dl':    'gtm',
+  'DDL':        'ddl',
+  'GA4':        'ga4',
+  'Adobe':      'adobe',
+  'Tealium':    'tealium',
+  'Meta Pixel': 'meta',
+  'Floodlight': 'floodlight',
+  'Segment':    'segment',
+};
+
+// Returns the Set of enabled provider keys from settings (or all if settings unavailable).
+function enabledProviderSet() {
+  const providers = (typeof getSettings === 'function' && getSettings().analyticsProviders)
+    || ['gtm','ga4','ddl','adobe','tealium','meta','floodlight','segment'];
+  return new Set(providers);
+}
+
 function updateStats() {
+  const providerSet = enabledProviderSet();
   const filtered = allEvents.filter(e => {
     if (!matchesSearchCriteria(e, searchParsed)) return false;
     if (platformQuery  && e.category !== platformQuery)  return false;
     if (eventTypeQuery && e.event    !== eventTypeQuery) return false;
+    const provider = CATEGORY_TO_PROVIDER[e.category];
+    if (provider && !providerSet.has(provider)) return false;
     return true;
   });
   const total      = filtered.length;
   const clickCount = filtered.filter(e => e.category === 'click').length;
   const errCount   = allEvents.filter(e => e.category === 'error' || e.category === 'console_error').length;
   const mockCount  = allEvents.filter(e => e.category === 'mock_intercept').length;
+
+  // Total visible events — what renderDDL would show with current provider set + no extra filters
+  const providerTotal = allEvents.filter(e => {
+    const p = CATEGORY_TO_PROVIDER[e.category];
+    return !p || providerSet.has(p);
+  }).length;
 
   // ── Tab badges — show counts directly on the tab label ───────────────────
   function setTabBadge(tabId, count, color) {
@@ -208,8 +239,8 @@ function updateStats() {
   if (ddlCountEl) {
     const hasFilters = (searchParsed.include.length || searchParsed.exclude.length) || platformQuery || eventTypeQuery;
     ddlCountEl.textContent = hasFilters
-      ? total + ' / ' + allEvents.length + ' events'
-      : allEvents.length + ' events' + (clickCount ? ' · ' + clickCount + ' clicks' : '');
+      ? total + ' / ' + providerTotal + ' events'
+      : providerTotal + ' events' + (clickCount ? ' · ' + clickCount + ' clicks' : '');
   }
 }
 
@@ -264,22 +295,8 @@ function renderDDL() {
   }
 
   // Category → provider map for the provider filter (settings.analyticsProviders)
-  const CATEGORY_TO_PROVIDER = {
-    'GTM':        'gtm',
-    'GTM/_dl':    'gtm',
-    'DDL':        'ddl',
-    'GA4':        'ga4',
-    'Adobe':      'adobe',
-    'Tealium':    'tealium',
-    'Meta Pixel': 'meta',
-    'Floodlight': 'floodlight',
-    'Segment':    'segment',
-    // 'click' events are DOM-captured (WAE-style) and always shown — not
-    // listed in settings.analyticsProviders.
-  };
-  const selectedProviders = (typeof getSettings === 'function' && getSettings().analyticsProviders)
-    || ['gtm','ga4','ddl','adobe','tealium','meta','floodlight','segment'];
-  const providerSet = new Set(selectedProviders);
+  // (CATEGORY_TO_PROVIDER and enabledProviderSet() are defined at module scope)
+  const providerSet = enabledProviderSet();
 
   const filtered = allEvents.filter(e => {
     if (!matchesSearchCriteria(e, searchParsed)) return false;
@@ -299,7 +316,7 @@ function renderDDL() {
     return;
   }
 
-  filtered.slice(-80).reverse().forEach(evt => {
+  filtered.slice(-300).reverse().forEach(evt => {
     const color   = CATEGORY_COLORS[evt.category] || '#888';
     const fullStr = fmtFullJSON(evt.data);
 
@@ -1804,12 +1821,14 @@ document.getElementById('searchInput').addEventListener('input', (e) => {
 try {
   chrome.storage.local.get('qakit_ddl_search').then(s => {
     const saved = s.qakit_ddl_search;
-    if (saved) {
+    if (saved != null) {
       const inp = document.getElementById('searchInput');
       if (inp) {
         inp.value = saved;
         searchQuery = saved.trim().toLowerCase();
         searchParsed = parseSearchQuery(searchQuery);
+        if (activeTab === 'ddl') renderDDL();
+        updateStats();
       }
     }
   }).catch(() => {});

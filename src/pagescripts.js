@@ -1,4 +1,4 @@
-// pagescripts.js — QAKit v1.0.0
+// pagescripts.js — QAKit v1.0.1
 // Injected into page MAIN world on demand.
 // Provides: region capture overlay, element capture overlay,
 //           ruler measurement, responsive preview overlay, CSS selector inspector.

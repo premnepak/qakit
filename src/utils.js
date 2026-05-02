@@ -1,4 +1,4 @@
-// utils.js — QAKit v1.0.0: JWT Decoder/Encoder, URL Encoder/Decoder, Base64
+// utils.js — QAKit v1.0.1: JWT Decoder/Encoder, URL Encoder/Decoder, Base64
 
 window.initUtils = function () {
 

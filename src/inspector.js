@@ -1,4 +1,4 @@
-// inspector.js — QAKit v1.0.0 Element Inspector + Spacing Inspector
+// inspector.js — QAKit v1.0.1 Element Inspector + Spacing Inspector
 // Injected into MAIN world via chrome.scripting.executeScript
 
 (function installInspector() {
@@ -45,7 +45,7 @@
   Object.assign(badge.style, {
     position: 'fixed', zIndex: '2147483647', pointerEvents: 'none',
     fontFamily: 'ui-monospace,"SF Mono",Menlo,Consolas,"Courier New",monospace',
-    fontSize: '12px', lineHeight: '1.6',
+    fontSize: '13px', lineHeight: '1.6',
     borderRadius: '8px', background: 'rgba(15,15,20,0.97)',
     border: '1.5px solid rgba(0,229,160,0.6)', color: '#e8e8f0',
     maxWidth: '360px', minWidth: '220px',
@@ -115,7 +115,7 @@
   Object.assign(spacingPanel.style, {
     position: 'fixed', pointerEvents: 'none', zIndex: '2147483647',
     fontFamily: 'ui-monospace,"SF Mono",Menlo,Consolas,monospace',
-    fontSize: '11px', lineHeight: '1.6',
+    fontSize: '12px', lineHeight: '1.6',
     borderRadius: '8px', background: 'rgba(10,10,20,0.97)',
     border: '1.5px solid rgba(130,100,255,0.7)', color: '#e8e8f0',
     maxWidth: '260px', minWidth: '180px',
@@ -129,7 +129,8 @@
       el.style.display = 'none';
     });
     ['__q-dim-w','__q-dim-h','__q-dim-pt','__q-dim-pb','__q-dim-pl','__q-dim-pr',
-     '__q-dim-mt','__q-dim-mb','__q-dim-ml','__q-dim-mr'].forEach(id => {
+     '__q-dim-mt','__q-dim-mb','__q-dim-ml','__q-dim-mr',
+     '__q-gap-prev','__q-gap-next','__q-gap-prev-lbl','__q-gap-next-lbl'].forEach(id => {
       const el = document.getElementById(id);
       if (el) el.style.display = 'none';
     });
@@ -324,9 +325,9 @@
   function row(key, val, keyColor, valColor, bold) {
     return (
       '<div style="display:flex;align-items:flex-start;gap:5px;min-width:0;padding:1px 2px;">' +
-        '<span style="color:' + keyColor + ';font-weight:' + (bold?'700':'500') + ';font-size:10px;flex-shrink:0;min-width:76px;">' + key + '</span>' +
-        '<span style="color:rgba(255,255,255,.25);font-size:10px;flex-shrink:0;">=</span>' +
-        '<span style="color:' + valColor + ';font-size:10px;word-break:break-word;flex:1;">' + val + '</span>' +
+        '<span style="color:' + keyColor + ';font-weight:' + (bold?'700':'500') + ';font-size:11px;flex-shrink:0;min-width:76px;">' + key + '</span>' +
+        '<span style="color:rgba(255,255,255,.25);font-size:11px;flex-shrink:0;">=</span>' +
+        '<span style="color:' + valColor + ';font-size:11px;word-break:break-word;flex:1;">' + val + '</span>' +
       '</div>'
     );
   }
@@ -342,12 +343,12 @@
           'style="display:flex;align-items:flex-start;gap:5px;min-width:0;padding:2px 2px;' +
           'border-radius:3px;cursor:default;position:relative" ' +
           'title="Click ⎘ to copy">' +
-        '<span style="color:' + keyColor + ';font-weight:500;font-size:10px;flex-shrink:0;min-width:76px;">' + key + '</span>' +
-        '<span style="color:rgba(255,255,255,.25);font-size:10px;flex-shrink:0;">=</span>' +
-        '<span style="color:' + valColor + ';font-size:10px;word-break:break-word;flex:1;">' + displayVal + '</span>' +
+        '<span style="color:' + keyColor + ';font-weight:500;font-size:11px;flex-shrink:0;min-width:76px;">' + key + '</span>' +
+        '<span style="color:rgba(255,255,255,.25);font-size:11px;flex-shrink:0;">=</span>' +
+        '<span style="color:' + valColor + ';font-size:11px;word-break:break-word;flex:1;">' + displayVal + '</span>' +
         '<button class="__q-copy-btn" data-copy="' + dataVal + '" ' +
           'style="flex-shrink:0;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.18);' +
-          'border-radius:3px;color:rgba(255,255,255,.5);font-size:8px;padding:0 5px;cursor:pointer;' +
+          'border-radius:3px;color:rgba(255,255,255,.5);font-size:9px;padding:0 5px;cursor:pointer;' +
           'line-height:14px;height:16px;margin-left:2px;transition:all .12s" ' +
           'title="Copy ' + key + ' to clipboard">⎘</button>' +
       '</div>'
@@ -444,7 +445,7 @@
         cur = cur.parentElement;
         hops++;
       }
-      crumbsHtml = '<div class="__q-crumbs" style="padding:5px 11px;background:rgba(255,255,255,.03);border-bottom:1px solid rgba(255,255,255,.05);overflow-x:auto;white-space:nowrap;font-size:10.5px;line-height:1.3;scrollbar-width:thin">';
+      crumbsHtml = '<div class="__q-crumbs" style="padding:5px 11px;background:rgba(255,255,255,.03);border-bottom:1px solid rgba(255,255,255,.05);overflow-x:auto;white-space:nowrap;font-size:11.5px;line-height:1.3;scrollbar-width:thin">';
       chain.forEach((crumb, i) => {
         const isLast = i === chain.length - 1;
         if (i > 0) crumbsHtml += '<span style="color:rgba(255,255,255,.25);margin:0 3px">›</span>';
@@ -461,8 +462,8 @@
 
     let html =
       '<div style="background:rgba(0,229,160,.12);border-bottom:1px solid rgba(0,229,160,.2);padding:6px 11px;display:flex;align-items:center;justify-content:space-between;gap:6px">' +
-        '<span style="font-size:11px;color:rgba(0,229,160,.95);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;font-weight:600">&lt;' + tag + ctx + '&gt;</span>' +
-        '<span id="__q-pin-label" style="font-size:9.5px;color:rgba(255,255,255,.5);cursor:pointer;padding:2px 7px;border-radius:3px;border:1px solid rgba(255,255,255,.15);flex-shrink:0" ' +
+        '<span style="font-size:12px;color:rgba(0,229,160,.95);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;font-weight:600">&lt;' + tag + ctx + '&gt;</span>' +
+        '<span id="__q-pin-label" style="font-size:10.5px;color:rgba(255,255,255,.5);cursor:pointer;padding:2px 7px;border-radius:3px;border:1px solid rgba(255,255,255,.15);flex-shrink:0" ' +
           'title="Click to pin / unpin (P)">📌 Pin</span>' +
       '</div>' +
       crumbsHtml +
@@ -495,13 +496,13 @@
       // FIX 2b: use copyRow instead of row so testid values are copyable
       html += copyRow(tl.attr, '"' + tl.value + '"', '#00e5a0', '#fff');
       if (attrs.locatorInherited && attrs.locatorInheritedTag) {
-        html += '<div style="font-size:9px;color:rgba(255,255,255,.5);margin:1px 0 0 2px">↑ inherited from &lt;' + attrs.locatorInheritedTag + '&gt;</div>';
+        html += '<div style="font-size:10px;color:rgba(255,255,255,.5);margin:1px 0 0 2px">↑ inherited from &lt;' + attrs.locatorInheritedTag + '&gt;</div>';
       }
     } else if (tl && tl.isSuggested) {
-      html += '<div style="font-size:9.5px;color:#ff9f43;margin-bottom:3px">⚠ No test attr — best available:</div>';
+      html += '<div style="font-size:10.5px;color:#ff9f43;margin-bottom:3px">⚠ No test attr — best available:</div>';
       html += copyRow(tl.attr, '"' + tl.value + '"', '#ff9f43', '#ffe0a0');
     } else {
-      html += '<div style="font-size:9.5px;color:rgba(255,100,100,.85);margin-bottom:3px">⚠ No test locator found</div>';
+      html += '<div style="font-size:10.5px;color:rgba(255,100,100,.85);margin-bottom:3px">⚠ No test locator found</div>';
     }
     html += '</div>';
 
@@ -526,7 +527,7 @@
       html += '</div>';
     }
 
-    html += '<div style="font-size:8.5px;color:rgba(255,255,255,.35);margin-top:4px;text-align:right;padding:0 2px">⎘ copy · 📌 pin · ⌥ click = drill in · click crumb above</div>';
+    html += '<div style="font-size:9.5px;color:rgba(255,255,255,.35);margin-top:4px;text-align:right;padding:0 2px">⎘ copy · 📌 pin · ⌥ click = drill in · click crumb above</div>';
     html += '</div>';
     badge.innerHTML = html;
     // Wire copy buttons via event delegation (must happen after innerHTML set)
@@ -607,18 +608,25 @@
     const rawFont = cs.fontFamily || '';
     const primaryFont = rawFont.split(',')[0].trim().replace(/['"]/g, '');
 
-    // ── Gap to next sibling (approximate) ──────────────────────────────────
+    // ── Gap to next sibling ──────────────────────────────────────────────────
     let gapToNext = null;
     const next = el.nextElementSibling;
     if (next) {
       const nr = next.getBoundingClientRect();
-      // Vertical gap (positive = space between, negative = overlap)
       const vGap = Math.round(nr.top - r.bottom);
-      // Horizontal gap
       const hGap = Math.round(nr.left - r.right);
-      // Show whichever axis has a meaningful gap
-      if (Math.abs(vGap) < 400 && r.bottom <= nr.top + 2) gapToNext = { axis: 'V ↕', px: vGap };
-      else if (Math.abs(hGap) < 400 && r.right  <= nr.left + 2) gapToNext = { axis: 'H ↔', px: hGap };
+      if (Math.abs(vGap) < 400 && r.bottom <= nr.top + 2)      gapToNext = { axis: 'V', px: vGap, sibRect: nr };
+      else if (Math.abs(hGap) < 400 && r.right <= nr.left + 2) gapToNext = { axis: 'H', px: hGap, sibRect: nr };
+    }
+    // ── Gap to previous sibling ──────────────────────────────────────────────
+    let gapToPrev = null;
+    const prev = el.previousElementSibling;
+    if (prev) {
+      const pr = prev.getBoundingClientRect();
+      const vGap2 = Math.round(r.top - pr.bottom);
+      const hGap2 = Math.round(r.left - pr.right);
+      if (Math.abs(vGap2) < 400 && pr.bottom <= r.top + 2)     gapToPrev = { axis: 'V', px: vGap2, sibRect: pr };
+      else if (Math.abs(hGap2) < 400 && pr.right <= r.left + 2) gapToPrev = { axis: 'H', px: hGap2, sibRect: pr };
     }
 
     return {
@@ -653,7 +661,70 @@
       fontFamily:  primaryFont,
       lineHeight:  cs.lineHeight,
       gapToNext,
+      gapToPrev,
     };
+  }
+
+  // ── Gap-box helpers (visual inter-element spacing lines) ─────────────────
+  function makeGapBox(id) {
+    let el = document.getElementById(id);
+    if (!el) {
+      el = document.createElement('div');
+      el.id = id;
+      Object.assign(el.style, {
+        position: 'fixed', pointerEvents: 'none', zIndex: '2147483643',
+        boxSizing: 'border-box', display: 'none',
+      });
+      document.documentElement.appendChild(el);
+    }
+    return el;
+  }
+
+  function positionGapBox(boxId, labelId, gap, elRect) {
+    const box = makeGapBox(boxId);
+    if (!gap || gap.px <= 0) {
+      box.style.display = 'none';
+      const lbl = document.getElementById(labelId);
+      if (lbl) lbl.style.display = 'none';
+      return;
+    }
+    const sr = gap.sibRect;
+    const er = elRect;
+    let top, left, width, height;
+    if (gap.axis === 'V') {
+      const upper = er.bottom <= sr.top ? er : sr;
+      const lower = er.bottom <= sr.top ? sr : er;
+      top = upper.bottom;
+      height = lower.top - upper.bottom;
+      const xL = Math.max(er.left, sr.left);
+      const xR = Math.min(er.right, sr.right);
+      if (xR > xL) { left = xL; width = xR - xL; }
+      else { left = Math.min(er.left, sr.left); width = Math.max(er.right, sr.right) - left; }
+    } else {
+      const lft = er.right <= sr.left ? er : sr;
+      const rgt = er.right <= sr.left ? sr : er;
+      left  = lft.right;
+      width = rgt.left - lft.right;
+      const yT = Math.max(er.top, sr.top);
+      const yB = Math.min(er.bottom, sr.bottom);
+      if (yB > yT) { top = yT; height = yB - yT; }
+      else { top = Math.min(er.top, sr.top); height = Math.max(er.bottom, sr.bottom) - top; }
+    }
+    if (width < 1 || height < 1) { box.style.display = 'none'; return; }
+    const lc = 'rgba(230,60,60,0.85)';
+    const bg = gap.axis === 'V'
+      ? `linear-gradient(to bottom,${lc},${lc}) center/1px 100% no-repeat,` +
+        `linear-gradient(to right,${lc},${lc}) 0 0/100% 1px no-repeat,` +
+        `linear-gradient(to right,${lc},${lc}) 0 100%/100% 1px no-repeat`
+      : `linear-gradient(to right,${lc},${lc}) 0 center/100% 1px no-repeat,` +
+        `linear-gradient(to bottom,${lc},${lc}) 0 0/1px 100% no-repeat,` +
+        `linear-gradient(to bottom,${lc},${lc}) 100% 0/1px 100% no-repeat`;
+    Object.assign(box.style, {
+      top: top + 'px', left: left + 'px',
+      width: width + 'px', height: height + 'px',
+      display: 'block', background: bg, border: 'none',
+    });
+    posLabel(labelId, gap.px + 'px', left + width / 2, top + height / 2, 'rgba(220,50,50,0.92)', '#fff', 'center');
   }
 
   function positionSpacing(el) {
@@ -702,6 +773,10 @@
     if (s.pl) posLabel('__q-dim-pl', s.pl+'px', r.left+s.bl+s.pl/2, r.top+r.height/2-6, 'rgba(130,100,255,0.95)', '#fff', 'center');
     if (s.pr) posLabel('__q-dim-pr', s.pr+'px', r.right-s.br-s.pr/2, r.top+r.height/2-6, 'rgba(130,100,255,0.95)', '#fff', 'center');
 
+    // Gap boxes — show spacing between this element and its adjacent siblings
+    positionGapBox('__q-gap-prev', '__q-gap-prev-lbl', s.gapToPrev, r);
+    positionGapBox('__q-gap-next', '__q-gap-next-lbl', s.gapToNext, r);
+
     // Build panel
     renderSpacingPanel(s, r);
   }
@@ -732,7 +807,7 @@
 
     function colorRow(label, hex, color) {
       if (!hex) return '';
-      return '<div style="display:flex;justify-content:space-between;gap:8px;font-size:10px;align-items:center;">' +
+      return '<div style="display:flex;justify-content:space-between;gap:8px;font-size:11px;align-items:center;">' +
         '<span style="color:rgba(255,255,255,.45)">' + label + '</span>' +
         '<span style="color:' + color + ';font-weight:700;display:flex;align-items:center">' +
           swatch(hex) + hex +
@@ -742,15 +817,18 @@
 
     spacingPanel.innerHTML =
       // Header
-      '<div style="background:rgba(130,100,255,.2);border-bottom:1px solid rgba(130,100,255,.3);padding:5px 10px;font-size:10px;color:rgba(130,100,255,1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' +
+      '<div style="background:rgba(130,100,255,.2);border-bottom:1px solid rgba(130,100,255,.3);padding:5px 10px;font-size:11px;color:rgba(130,100,255,1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' +
         '&lt;' + s.tag + (s.testId ? ' ' + s.testId : '') + '&gt;' +
       '</div>' +
       '<div style="padding:8px 10px;display:flex;flex-direction:column;gap:4px;">' +
         // Size
         sRow('W × H', s.w + ' × ' + s.h + ' px', '#00e5a0') +
-        // Gap to next sibling
-        (s.gapToNext !== null
-          ? sRow('Gap ' + s.gapToNext.axis, s.gapToNext.px + ' px', '#ffd166')
+        // Gaps between adjacent siblings
+        (s.gapToPrev !== null || s.gapToNext !== null
+          ? '<div style="border-top:1px solid rgba(255,255,255,.07);margin:3px 0 1px;padding-top:4px;">' +
+            (s.gapToPrev !== null ? sRow((s.gapToPrev.axis === 'V' ? '↑' : '←') + ' Gap to prev', s.gapToPrev.px + ' px', '#ff6b6b') : '') +
+            (s.gapToNext !== null ? sRow((s.gapToNext.axis === 'V' ? '↓' : '→') + ' Gap to next', s.gapToNext.px + ' px', '#ff6b6b') : '') +
+            '</div>'
           : '') +
         // Padding
         (s.pt||s.pb||s.pl||s.pr
@@ -806,7 +884,7 @@
 
   function sRow(key, val, color) {
     return (
-      '<div style="display:flex;justify-content:space-between;gap:12px;font-size:11px;">' +
+      '<div style="display:flex;justify-content:space-between;gap:12px;font-size:12px;">' +
         '<span style="color:rgba(255,255,255,.45);">' + key + '</span>' +
         '<span style="color:' + color + ';font-weight:700;">' + val + '</span>' +
       '</div>'
