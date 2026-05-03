@@ -399,34 +399,36 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
             label = '⎘ ' + ownAttr.attr;
           } else {
             // Best locator chain for the actual element.
-            // id is primary (green) — no warning label needed.
+            // Order: id (primary) → aria-label → name → role → short text →
+            //        ancestor test attr (promoted primary) → class/tag (last resort).
             const el  = startEl;
             const tag = el.tagName.toLowerCase();
             if (el.id) {
               copy  = '[id="' + el.id + '"]';
               label = '⎘ id';
-              // id is reliable — append inherited note only as info, not as warning
               if (inheritedNote) label += ' (parent also has: ' + inheritedNote + ')';
-            } else {
-              if (el.getAttribute('aria-label')) {
-                copy = '[aria-label="' + el.getAttribute('aria-label') + '"]'; label = '⎘ aria-label';
-              } else if (el.getAttribute('name')) {
-                copy = '[name="' + el.getAttribute('name') + '"]'; label = '⎘ name';
-              } else if (el.getAttribute('role')) {
-                copy = '[role="' + el.getAttribute('role') + '"]'; label = '⎘ role';
-              } else if (['a','button','label'].includes(tag)) {
-                const txt = (el.textContent || '').trim().replace(/\s+/g,' ');
-                if (txt && txt.length <= 40 && !txt.includes('"')) {
-                  copy = '//' + tag + '[normalize-space()="' + txt + '"]'; label = '⎘ text';
-                }
+            } else if (el.getAttribute('aria-label')) {
+              copy = '[aria-label="' + el.getAttribute('aria-label') + '"]'; label = '⎘ aria-label';
+            } else if (el.getAttribute('name')) {
+              copy = '[name="' + el.getAttribute('name') + '"]'; label = '⎘ name';
+            } else if (el.getAttribute('role')) {
+              copy = '[role="' + el.getAttribute('role') + '"]'; label = '⎘ role';
+            } else if (['a','button','label'].includes(tag)) {
+              const txt = (el.textContent || '').trim().replace(/\s+/g,' ');
+              if (txt && txt.length <= 40 && !txt.includes('"')) {
+                copy = '//' + tag + '[normalize-space()="' + txt + '"]'; label = '⎘ text';
               }
-              if (!copy) {
-                const cls = Array.from(el.classList).slice(0,3).join('.');
-                copy  = cls ? '.' + cls : tag;
-                label = '⎘ class';
-              }
-              if (inheritedNote) label += ' (no own test attr; parent: ' + inheritedNote + ')';
-              else label += ' (no test attr found)';
+            }
+            // Ancestor test attr — promoted to primary when element has no own good locator.
+            if (!copy && inheritedNote) {
+              // inheritedNote has format "[attr="value"] on <tag>" — extract the selector part
+              const m = inheritedNote.match(/^(\[[^\]]+\])/);
+              if (m) { copy = m[1]; label = '⎘ ' + copy + ' (nearest test-attr ancestor)'; }
+            }
+            if (!copy) {
+              const cls = Array.from(el.classList).slice(0,3).join('.');
+              copy  = cls ? '.' + cls : tag;
+              label = '⎘ class (no test attr found)';
             }
           }
 

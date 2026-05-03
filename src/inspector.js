@@ -224,9 +224,23 @@
         return { attr: 'text', value: txt, el, isSuggested: true, inheritedLocator };
       }
     }
+    // Ancestor test attr — promoted to PRIMARY (green) here because it is
+    // purpose-built for test automation and is more stable than class/tag.
+    // Only reached when the element has no own direct locator (id, aria, name,
+    // role, short text). e.g. a <p> inside <div data-testid="...">.
+    if (inheritedLocator) {
+      return {
+        attr:            inheritedLocator.attr,
+        value:           inheritedLocator.value,
+        el:              inheritedLocator.el,
+        isSuggested:     false,
+        fromAncestor:    true,
+        inheritedLocator: null,
+      };
+    }
     const classes = Array.from(el.classList).slice(0, 3);
-    if (classes.length) return { attr: 'class', value: classes.join(' '), el, isSuggested: true, inheritedLocator };
-    return { attr: 'tag', value: tag, el, isSuggested: true, inheritedLocator };
+    if (classes.length) return { attr: 'class', value: classes.join(' '), el, isSuggested: true, inheritedLocator: null };
+    return { attr: 'tag', value: tag, el, isSuggested: true, inheritedLocator: null };
   }
 
   function findAttrs(startEl, cursorX, cursorY) {
@@ -252,8 +266,16 @@
     // producing a confusing "highlights both buttons" effect.
     result.highlightEl = startEl;
 
-    // Inherited locator: now stored on the testLocator object itself
-    if (result.testLocator && result.testLocator.inheritedLocator) {
+    // Inherited locator handling
+    if (result.testLocator && result.testLocator.fromAncestor) {
+      // The locator IS the ancestor testid — record the ancestor element for the badge note
+      result.locatorInherited = true;
+      const anc = result.testLocator.el;
+      const ancTag = anc.tagName ? anc.tagName.toLowerCase() : '';
+      const ancCls = anc.classList && anc.classList.length ? '.' + anc.classList[0] : '';
+      result.locatorInheritedTag = ancTag + ancCls;
+    } else if (result.testLocator && result.testLocator.inheritedLocator) {
+      // Direct locator (id/aria/etc.) but a parent also has a test attr
       result.locatorInherited    = true;
       const il = result.testLocator.inheritedLocator;
       result.locatorInheritedTag = '[' + il.attr + '="' + il.value + '"]';
@@ -592,8 +614,14 @@
     // ── Test locator ──────────────────────────────────────────────────────
     html += '<div style="border-top:1px solid rgba(255,255,255,.07);margin:4px 0 1px;padding-top:5px;">';
     if (tl && !tl.isSuggested) {
-      // Own test attr or id on the element — green primary row
+      // Own test attr, own id, or promoted ancestor test attr — green primary row
       html += copyRow(tl.attr, '"' + tl.value + '"', '#00e5a0', '#fff', '[' + tl.attr + '="' + tl.value + '"]');
+      // Note which element the locator actually targets (only for ancestor promotions)
+      if (tl.fromAncestor && attrs.locatorInheritedTag) {
+        html += '<div style="font-size:10px;color:rgba(255,255,255,.5);margin:1px 0 0 2px">↑ targets &lt;' + attrs.locatorInheritedTag + '&gt; — nearest test-attr ancestor</div>';
+      } else if (!tl.fromAncestor && attrs.locatorInherited && attrs.locatorInheritedTag) {
+        html += '<div style="font-size:10px;color:rgba(255,255,255,.5);margin:1px 0 0 2px">↑ parent has ' + attrs.locatorInheritedTag + '</div>';
+      }
     } else if (tl && tl.isSuggested) {
       html += '<div style="font-size:10.5px;color:#ff9f43;margin-bottom:3px">⚠ No own test attr — best available:</div>';
       // Build clipboard-ready locator string appropriate for each suggestion type
