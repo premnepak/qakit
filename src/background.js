@@ -458,17 +458,34 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
               return "page.locator('" + sel.replace(/'/g, "\\'") + "')";
             }
             if (style === 'cypress') {
-              if (cand.type === 'xpath') return "cy.xpath('" + sel.replace(/'/g, "\\'") + "')";
+              // Cypress has no native cy.xpath() — translate text-based xpaths
+              // into cy.contains() (native) and skip ones we can't express.
+              if (cand.type === 'xpath') {
+                let m = /^(\[[^\]]+\]|#[\w-]+)\/\/(\w+)\[normalize-space\(\)="(.+)"\]$/.exec(sel);
+                if (m) {
+                  return "cy.get('" + m[1].replace(/'/g, "\\'") + "').contains('" + m[2] + "', '" + m[3].replace(/'/g, "\\'") + "')";
+                }
+                m = /^\/\/(\w+)\[normalize-space\(\)="(.+)"\]$/.exec(sel);
+                if (m) return "cy.contains('" + m[1] + "', '" + m[2].replace(/'/g, "\\'") + "')";
+                return null;
+              }
               return "cy.get('" + sel.replace(/'/g, "\\'") + "')";
             }
             return sel;
           }
 
           const candidates = buildCandidates(startEl);
-          const best = candidates[0];
-          let copy, label;
+          // Pick the best candidate that the active output style can express
+          // natively. In Cypress mode an XPath that isn't a text query yields
+          // null from format(), so we walk down the ranked list until one
+          // sticks.
+          let best = null, copy = null;
+          for (const c of candidates) {
+            const formatted = format(c, outStyle);
+            if (formatted != null) { best = c; copy = formatted; break; }
+          }
+          let label;
           if (best) {
-            copy = format(best, outStyle);
             const u = best.isUnique ? '✓' : '⚠ ' + best.count + '×';
             label = '⎘ ' + best.label + ' ' + u;
           } else {

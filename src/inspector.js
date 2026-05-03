@@ -414,7 +414,28 @@
       return "page.locator('" + sel.replace(/'/g, "\\'") + "')";
     }
     if (style === 'cypress') {
-      if (cand.type === 'xpath') return "cy.xpath('" + sel.replace(/'/g, "\\'") + "')";
+      // Cypress has no native cy.xpath() — that requires the cypress-xpath
+      // plugin. We translate text-based XPaths into cy.contains() (native)
+      // and return null for any XPath we can't express natively, so the
+      // caller can skip / fall back to the next candidate.
+      if (cand.type === 'xpath') {
+        // Anchored text xpath:  [anchor]//tag[normalize-space()="text"]
+        let m = /^(\[[^\]]+\]|#[\w-]+)\/\/(\w+)\[normalize-space\(\)="(.+)"\]$/.exec(sel);
+        if (m) {
+          const anc = m[1].replace(/'/g, "\\'");
+          const txt = m[3].replace(/'/g, "\\'");
+          return "cy.get('" + anc + "').contains('" + m[2] + "', '" + txt + "')";
+        }
+        // Own text xpath:  //tag[normalize-space()="text"]
+        m = /^\/\/(\w+)\[normalize-space\(\)="(.+)"\]$/.exec(sel);
+        if (m) {
+          return "cy.contains('" + m[1] + "', '" + m[2].replace(/'/g, "\\'") + "')";
+        }
+        // Anything else (rare — only emitted for xpath-only candidates we
+        // can't express as a native Cypress chain) returns null so the UI
+        // can hide / skip this candidate in Cypress mode.
+        return null;
+      }
       let m = /^\[data-testid="(.+)"\]$/.exec(sel);
       if (m) return "cy.get('[data-testid=\"" + m[1] + "\"]')";
       return "cy.get('" + sel.replace(/'/g, "\\'") + "')";
@@ -934,7 +955,14 @@
     } else {
       // Show top 4 ranked candidates
       const TIER_COLORS = { 1: '#00e5a0', 2: '#7dd3a0', 3: '#ff9f43', 4: '#ff9f43', 5: '#ffb27a', 6: '#ff7575' };
-      const top = candidates.slice(0, 4);
+      // Filter out candidates that can't be expressed natively in the active
+      // output style (e.g. Cypress + non-text XPath). formatForOutput returns
+      // null in that case.
+      const renderable = candidates.filter(c => formatForOutput(c, outStyle) != null);
+      const top = renderable.slice(0, 4);
+      if (top.length === 0) {
+        html += '<div style="font-size:10.5px;color:rgba(255,100,100,.85);margin-bottom:3px">⚠ No native ' + outStyle + ' locator found</div>';
+      }
       top.forEach((c, idx) => {
         const color  = TIER_COLORS[c.tier] || '#999';
         const formatted = formatForOutput(c, outStyle);
@@ -960,7 +988,7 @@
         '</div>';
       });
       // Note for anchored selectors
-      const bestC = candidates[0];
+      const bestC = top[0];
       if (bestC && bestC.anchor) {
         html += '<div style="font-size:10px;color:rgba(255,255,255,.5);margin:2px 0 0 2px">↑ anchored on ancestor [' + bestC.anchor + '=…]</div>';
       }
