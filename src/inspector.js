@@ -173,6 +173,8 @@
     if (ownResult) return { ...ownResult, isSuggested: false, inheritedLocator: null };
 
     // Also check same-layer elements at the cursor (z-index overlap) for their OWN attr.
+    // Explicitly exclude ancestors of startEl — elementsFromPoint returns the full stack
+    // including parents, and we must not treat a parent's test attr as "own" for the child.
     try {
       const cx = cursorX !== undefined ? cursorX : startEl.getBoundingClientRect().left + startEl.getBoundingClientRect().width / 2;
       const cy = cursorY !== undefined ? cursorY : startEl.getBoundingClientRect().top  + startEl.getBoundingClientRect().height / 2;
@@ -181,6 +183,8 @@
         if (candidate === startEl) continue;
         if (candidate === document.documentElement) break;
         if (candidate.id && candidate.id.startsWith('__q-')) continue;
+        // Skip anything that is an ancestor of startEl — those belong to Phase 2 only
+        if (candidate.contains(startEl)) continue;
         const r = ownAttr(candidate);
         if (r) return { ...r, isSuggested: false, inheritedLocator: null };
       }

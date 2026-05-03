@@ -350,9 +350,10 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
       break;
 
     case 'qakit-copy-testid': {
-      // Read user's custom test-id attr(s) from settings, then walk up from
-      // the right-clicked element looking for the best available test locator.
-      // Falls back to id → aria-label → name → role → CSS when none found.
+      // Own-element-first: only a test attr on the right-clicked element itself
+      // counts as a primary locator. If none, suggest the best alternative that
+      // directly targets this element (id → aria-label → name → role → text → class).
+      // Any ancestor test attr is noted in the toast but NOT copied.
       let customAttrs = '';
       try {
         const s = await chrome.storage.local.get('qa_tools_settings');
@@ -361,7 +362,7 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
       await chrome.scripting.executeScript({
         target: { tabId: tab.id, frameIds: info.frameId !== undefined ? [info.frameId] : undefined }, world: 'MAIN',
         func: (customAttrsStr) => {
-          const DEFAULTS = ['data-testid','data-qa','data-test','data-cy','data-automation-id','data-test-id'];
+          const DEFAULTS = ['data-testid','data-qa','data-test','data-cy','data-automation-id','data-test-id','data-pw'];
           const custom = (customAttrsStr || '').split(',').map(s => s.trim()).filter(Boolean);
           const attrs = [...custom];
           DEFAULTS.forEach(a => { if (!attrs.includes(a)) attrs.push(a); });
@@ -369,51 +370,66 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
           const startEl = window.__qkitLastContextTarget || document.activeElement;
           if (!startEl || !startEl.tagName) return;
 
-          // Walk up to find first ancestor with any of the test attrs
-          let locator = null;
-          let node = startEl;
-          for (let i = 0; i < 30 && node && node.tagName && node !== document.documentElement; i++) {
-            for (const a of attrs) {
-              if (node.hasAttribute(a)) {
-                locator = {
-                  attr: a,
-                  value: node.getAttribute(a),
-                  fromAncestor: node !== startEl,
-                  ancestorTag: node !== startEl ? (node.tagName.toLowerCase() +
-                    (node.id ? '#' + node.id : '') +
-                    (node.classList.length ? '.' + node.classList[0] : '')) : null,
-                };
-                break;
+          // Phase 1: own element only
+          let ownAttr = null;
+          for (const a of attrs) {
+            if (startEl.hasAttribute(a)) { ownAttr = { attr: a, value: startEl.getAttribute(a) }; break; }
+          }
+
+          // Phase 2 (note only): walk ancestors for inherited test attr
+          let inheritedNote = null;
+          if (!ownAttr) {
+            let node = startEl.parentElement;
+            for (let i = 0; i < 30 && node && node.tagName && node !== document.documentElement; i++) {
+              for (const a of attrs) {
+                if (node.hasAttribute(a)) {
+                  inheritedNote = '[' + a + '="' + node.getAttribute(a) + '"] on <' +
+                    node.tagName.toLowerCase() + (node.id ? '#' + node.id : '') + '>';
+                  break;
+                }
               }
+              if (inheritedNote) break;
+              node = node.parentElement;
             }
-            if (locator) break;
-            node = node.parentElement;
           }
 
           let copy, label;
-          if (locator) {
-            copy  = '[' + locator.attr + '="' + locator.value + '"]';
-            label = '⎘ ' + locator.attr + (locator.fromAncestor ? ' (↑ ' + locator.ancestorTag + ')' : '');
+          if (ownAttr) {
+            copy  = '[' + ownAttr.attr + '="' + ownAttr.value + '"]';
+            label = '⎘ ' + ownAttr.attr;
           } else {
-            // Graceful fallback chain
-            const el = startEl;
-            if (el.id)                      { copy = '#' + el.id;                                 label = '⎘ id (no test attr found)'; }
-            else if (el.getAttribute('aria-label')) { copy = '[aria-label="' + el.getAttribute('aria-label') + '"]'; label = '⎘ aria-label (no test attr)'; }
-            else if (el.getAttribute('name'))       { copy = '[name="' + el.getAttribute('name') + '"]';     label = '⎘ name (no test attr)'; }
-            else if (el.getAttribute('role'))       { copy = '[role="' + el.getAttribute('role') + '"]';     label = '⎘ role (no test attr)'; }
-            else {
-              const cls = Array.from(el.classList).slice(0, 2).join('.');
-              copy = el.tagName.toLowerCase() + (cls ? '.' + cls : '');
-              label = '⎘ CSS (no test attr found)';
+            // Best locator chain for the actual element
+            const el  = startEl;
+            const tag = el.tagName.toLowerCase();
+            if (el.id) {
+              copy = '#' + el.id; label = '⎘ id';
+            } else if (el.getAttribute('aria-label')) {
+              copy = '[aria-label="' + el.getAttribute('aria-label') + '"]'; label = '⎘ aria-label';
+            } else if (el.getAttribute('name')) {
+              copy = '[name="' + el.getAttribute('name') + '"]'; label = '⎘ name';
+            } else if (el.getAttribute('role')) {
+              copy = '[role="' + el.getAttribute('role') + '"]'; label = '⎘ role';
+            } else if (['a','button','label'].includes(tag)) {
+              const txt = (el.textContent || '').trim().replace(/\s+/g,' ');
+              if (txt && txt.length <= 40 && !txt.includes('"')) {
+                copy = '//' + tag + '[normalize-space()="' + txt + '"]'; label = '⎘ text';
+              }
             }
+            if (!copy) {
+              const cls = Array.from(el.classList).slice(0,3).join('.');
+              copy  = cls ? '.' + cls : tag;
+              label = '⎘ class';
+            }
+            if (inheritedNote) label += ' (no own test attr; parent: ' + inheritedNote + ')';
+            else label += ' (no test attr found)';
           }
 
           navigator.clipboard.writeText(copy).then(() => {
             const t = document.createElement('div');
-            t.style.cssText = 'position:fixed;bottom:20px;right:20px;z-index:2147483647;background:#0a6e51;color:#fff;padding:8px 14px;border-radius:6px;font-family:sans-serif;font-size:13px;font-weight:600;max-width:360px;word-break:break-all';
+            t.style.cssText = 'position:fixed;bottom:20px;right:20px;z-index:2147483647;background:#0a6e51;color:#fff;padding:8px 14px;border-radius:6px;font-family:sans-serif;font-size:13px;font-weight:600;max-width:400px;word-break:break-all';
             t.textContent = label + '  →  ' + (copy.length > 80 ? copy.slice(0, 80) + '…' : copy);
             document.body.appendChild(t);
-            setTimeout(() => t.remove(), 2500);
+            setTimeout(() => t.remove(), 3000);
           }).catch(() => {});
         },
         args: [customAttrs],
