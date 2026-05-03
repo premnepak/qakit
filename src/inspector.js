@@ -786,7 +786,17 @@
       width: width + 'px', height: height + 'px',
       display: 'block', background: bg, border: 'none',
     });
-    posLabel(labelId, gap.px + 'px', left + width / 2, top + height / 2, 'rgba(220,50,50,0.92)', '#fff', 'center');
+    // Nudge gap labels off the dead-centre line so they don't land exactly on
+    // pcy (for H gaps) or pcx (for V gaps) — the same axis where the padding
+    // labels are also placed.  A small offset of ~12 px (capped at 25% of the
+    // gap dimension) is enough to visually separate them.
+    const gLabelCx = gap.axis === 'V'
+      ? left + width / 2 + Math.min(12, width  * 0.25)   // shift right of pcx
+      : left + width / 2;
+    const gLabelCy = gap.axis === 'H'
+      ? top  + height / 2 - Math.min(12, height * 0.25)  // shift above pcy
+      : top  + height / 2;
+    posLabel(labelId, gap.px + 'px', gLabelCx, gLabelCy, 'rgba(220,50,50,0.92)', '#fff', 'center');
     // Give gap labels a white border so they punch through the red indicator line.
     // If the gap is very thin, nudge the label just outside the gap box.
     const lbl = document.getElementById(labelId);
