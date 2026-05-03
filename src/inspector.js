@@ -206,9 +206,11 @@
     }
 
     // Phase 3: Suggest the best locator that directly targets the hovered element.
+    // id is treated as primary (green) — it uniquely identifies the element just
+    // as reliably as a test attr. Everything below id is amber (suggested).
     const el = startEl;
     const tag = el.tagName.toLowerCase();
-    if (el.id) return { attr: 'id', value: el.id, el, isSuggested: true, inheritedLocator };
+    if (el.id) return { attr: 'id', value: el.id, el, isSuggested: false, inheritedLocator };
     const aria = el.getAttribute('aria-label');
     if (aria) return { attr: 'aria-label', value: aria, el, isSuggested: true, inheritedLocator };
     const name = el.getAttribute('name');
@@ -590,7 +592,7 @@
     // ── Test locator ──────────────────────────────────────────────────────
     html += '<div style="border-top:1px solid rgba(255,255,255,.07);margin:4px 0 1px;padding-top:5px;">';
     if (tl && !tl.isSuggested) {
-      // Own test attr on the element itself — green primary row
+      // Own test attr or id on the element — green primary row
       html += copyRow(tl.attr, '"' + tl.value + '"', '#00e5a0', '#fff', '[' + tl.attr + '="' + tl.value + '"]');
     } else if (tl && tl.isSuggested) {
       html += '<div style="font-size:10.5px;color:#ff9f43;margin-bottom:3px">⚠ No own test attr — best available:</div>';
