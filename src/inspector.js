@@ -158,61 +158,69 @@
   }
 
   function findBestLocator(startEl, cursorX, cursorY) {
-    // Strategy: use document.elementsFromPoint to get ALL elements stacked at
-    // the cursor position, then search each one and its ancestors for test attrs.
-    // This handles:
-    //   1. Deep ancestor walk (data-testid on a distant parent)
-    //   2. Overlapping/sibling elements (e.g. positioned overlay on top of testid element)
-    //   3. z-index stacking where the hover target is not a descendant of testid element
     const testAttrs = getTestAttrs();
 
-    // First try: walk up from the directly hovered element (fastest path)
-    function walkUp(el, limit) {
-      let node = el;
-      for (let i = 0; i < limit && node && node.tagName && node !== document.documentElement; i++) {
-        for (const attr of testAttrs) {
-          if (node.hasAttribute(attr)) {
-            return { attr, value: node.getAttribute(attr), el: node, isSuggested: false };
-          }
-        }
-        node = node.parentElement;
+    // Phase 1: Check the hovered element ONLY (depth = 1, no ancestor walk).
+    // Only an own test attr counts as a primary (non-suggested) locator,
+    // so copying it targets exactly the element the user is hovering.
+    function ownAttr(el) {
+      for (const attr of testAttrs) {
+        if (el.hasAttribute(attr)) return { attr, value: el.getAttribute(attr), el };
       }
       return null;
     }
+    const ownResult = ownAttr(startEl);
+    if (ownResult) return { ...ownResult, isSuggested: false, inheritedLocator: null };
 
-    // Try direct ancestor walk first (depth 30)
-    const directResult = walkUp(startEl, 30);
-    if (directResult) return directResult;
-
-    // Second try: check ALL elements under the cursor via elementsFromPoint.
-    // This catches overlapping elements where e.target is the wrong layer.
+    // Also check same-layer elements at the cursor (z-index overlap) for their OWN attr.
     try {
-      const allEls = document.elementsFromPoint(
-        cursorX !== undefined ? cursorX : startEl.getBoundingClientRect().left + startEl.getBoundingClientRect().width / 2,
-        cursorY !== undefined ? cursorY : startEl.getBoundingClientRect().top  + startEl.getBoundingClientRect().height / 2
-      );
-
+      const cx = cursorX !== undefined ? cursorX : startEl.getBoundingClientRect().left + startEl.getBoundingClientRect().width / 2;
+      const cy = cursorY !== undefined ? cursorY : startEl.getBoundingClientRect().top  + startEl.getBoundingClientRect().height / 2;
+      const allEls = document.elementsFromPoint(cx, cy);
       for (const candidate of allEls) {
-        if (candidate === startEl) continue;              // already checked
-        if (candidate === document.documentElement) break;// stop at root
-        if (candidate.id && candidate.id.startsWith('__q-')) continue; // skip our own overlays
-        const result = walkUp(candidate, 30);
-        if (result) return result;
+        if (candidate === startEl) continue;
+        if (candidate === document.documentElement) break;
+        if (candidate.id && candidate.id.startsWith('__q-')) continue;
+        const r = ownAttr(candidate);
+        if (r) return { ...r, isSuggested: false, inheritedLocator: null };
       }
     } catch (_) {}
 
-    // Nothing found anywhere — suggest the best locator for the hovered element
+    // Phase 2: Walk ancestors — record any inherited test attr as a note only.
+    // It is NOT returned as the primary locator (it targets the parent, not this element).
+    let inheritedLocator = null;
+    let node = startEl.parentElement;
+    for (let i = 0; i < 30 && node && node.tagName && node !== document.documentElement; i++) {
+      for (const attr of testAttrs) {
+        if (node.hasAttribute(attr)) {
+          inheritedLocator = { attr, value: node.getAttribute(attr), el: node };
+          break;
+        }
+      }
+      if (inheritedLocator) break;
+      node = node.parentElement;
+    }
+
+    // Phase 3: Suggest the best locator that directly targets the hovered element.
     const el = startEl;
-    if (el.id) return { attr: 'id', value: el.id, el, isSuggested: true };
-    const aria = el.getAttribute('aria-label') || el.getAttribute('aria-labelledby');
-    if (aria) return { attr: 'aria-label', value: aria, el, isSuggested: true };
-    const name = el.getAttribute('name');
-    if (name) return { attr: 'name', value: name, el, isSuggested: true };
-    const role = el.getAttribute('role');
-    if (role) return { attr: 'role', value: role, el, isSuggested: true };
     const tag = el.tagName.toLowerCase();
-    const classes = Array.from(el.classList).slice(0, 2).join('.');
-    return { attr: 'css', value: classes ? tag + '.' + classes : tag, el, isSuggested: true };
+    if (el.id) return { attr: 'id', value: el.id, el, isSuggested: true, inheritedLocator };
+    const aria = el.getAttribute('aria-label');
+    if (aria) return { attr: 'aria-label', value: aria, el, isSuggested: true, inheritedLocator };
+    const name = el.getAttribute('name');
+    if (name) return { attr: 'name', value: name, el, isSuggested: true, inheritedLocator };
+    const role = el.getAttribute('role');
+    if (role) return { attr: 'role', value: role, el, isSuggested: true, inheritedLocator };
+    // Visible text for interactive/structural elements (≤40 chars, no double-quotes)
+    if (['a','button','label','th','h1','h2','h3','h4','h5','h6'].includes(tag)) {
+      const txt = (el.textContent || '').trim().replace(/\s+/g, ' ');
+      if (txt && txt.length <= 40 && !txt.includes('"')) {
+        return { attr: 'text', value: txt, el, isSuggested: true, inheritedLocator };
+      }
+    }
+    const classes = Array.from(el.classList).slice(0, 3);
+    if (classes.length) return { attr: 'class', value: classes.join(' '), el, isSuggested: true, inheritedLocator };
+    return { attr: 'tag', value: tag, el, isSuggested: true, inheritedLocator };
   }
 
   function findAttrs(startEl, cursorX, cursorY) {
@@ -238,13 +246,11 @@
     // producing a confusing "highlights both buttons" effect.
     result.highlightEl = startEl;
 
-    if (result.testLocator && result.testLocator.el && result.testLocator.el !== startEl) {
-      result.locatorInherited = true;
-      const anc = result.testLocator.el;
-      const ancTag = anc.tagName ? anc.tagName.toLowerCase() : '';
-      const ancId  = anc.id ? '#' + anc.id : '';
-      const ancCls = anc.classList && anc.classList.length ? '.' + anc.classList[0] : '';
-      result.locatorInheritedTag = ancTag + ancId + ancCls;
+    // Inherited locator: now stored on the testLocator object itself
+    if (result.testLocator && result.testLocator.inheritedLocator) {
+      result.locatorInherited    = true;
+      const il = result.testLocator.inheritedLocator;
+      result.locatorInheritedTag = '[' + il.attr + '="' + il.value + '"]';
     }
 
     // Walk up for WAE event (unchanged behavior — WAE events are commonly on
@@ -340,6 +346,28 @@
     // 5. placeholder
     const phAttr = el.getAttribute('placeholder');
     if (phAttr) return '//' + tag + '[@placeholder="' + esc(phAttr) + '"]';
+
+    // 5b. Full class string (exact match) — uniqueness verified via XPath count().
+    //     Falls back to contains(@class, 'first-token') if exact isn't unique.
+    if (el.classList && el.classList.length) {
+      const fullCls = el.className.trim();
+      if (fullCls && !fullCls.includes('"')) {
+        const exactXP = '//' + tag + '[@class="' + fullCls + '"]';
+        try {
+          const cnt = document.evaluate('count(' + exactXP + ')', document, null, XPathResult.NUMBER_TYPE, null).numberValue;
+          if (cnt === 1) return exactXP;
+        } catch(_) {}
+        // Fallback: contains() on first class token
+        const firstCls = fullCls.split(/\s+/)[0];
+        if (firstCls) {
+          const containsXP = '//' + tag + '[contains(@class,"' + firstCls + '")]';
+          try {
+            const cnt2 = document.evaluate('count(' + containsXP + ')', document, null, XPathResult.NUMBER_TYPE, null).numberValue;
+            if (cnt2 === 1) return containsXP;
+          } catch(_) {}
+        }
+      }
+    }
 
     // 6. Short visible text for interactive/structural elements
     if (['button','a','label','th','h1','h2','h3','h4','h5','h6'].includes(tag)) {
@@ -558,16 +586,26 @@
     // ── Test locator ──────────────────────────────────────────────────────
     html += '<div style="border-top:1px solid rgba(255,255,255,.07);margin:4px 0 1px;padding-top:5px;">';
     if (tl && !tl.isSuggested) {
-      // FIX 2b: use copyRow instead of row so testid values are copyable
+      // Own test attr on the element itself — green primary row
       html += copyRow(tl.attr, '"' + tl.value + '"', '#00e5a0', '#fff', '[' + tl.attr + '="' + tl.value + '"]');
-      if (attrs.locatorInherited && attrs.locatorInheritedTag) {
-        html += '<div style="font-size:10px;color:rgba(255,255,255,.5);margin:1px 0 0 2px">↑ inherited from &lt;' + attrs.locatorInheritedTag + '&gt;</div>';
-      }
     } else if (tl && tl.isSuggested) {
-      html += '<div style="font-size:10.5px;color:#ff9f43;margin-bottom:3px">⚠ No test attr — best available:</div>';
-      html += copyRow(tl.attr, '"' + tl.value + '"', '#ff9f43', '#ffe0a0', '[' + tl.attr + '="' + tl.value + '"]');
+      html += '<div style="font-size:10.5px;color:#ff9f43;margin-bottom:3px">⚠ No own test attr — best available:</div>';
+      // Build clipboard-ready locator string appropriate for each suggestion type
+      let suggestCopy;
+      const suggestTag = tl.el ? tl.el.tagName.toLowerCase() : '*';
+      if      (tl.attr === 'id')    suggestCopy = '#' + tl.value;
+      else if (tl.attr === 'text')  suggestCopy = '//' + suggestTag + '[normalize-space()="' + tl.value + '"]';
+      else if (tl.attr === 'class') suggestCopy = '.' + tl.value.trim().split(/\s+/).join('.');
+      else if (tl.attr === 'tag')   suggestCopy = tl.value;
+      else                          suggestCopy = '[' + tl.attr + '="' + tl.value + '"]';
+      html += copyRow(tl.attr, '"' + tl.value + '"', '#ff9f43', '#ffe0a0', suggestCopy);
     } else {
       html += '<div style="font-size:10.5px;color:rgba(255,100,100,.85);margin-bottom:3px">⚠ No test locator found</div>';
+    }
+    // Inherited test-attr note — shown whenever a parent has a test attr.
+    // Tells the tester the parent testid exists but targets the parent, not this element.
+    if (attrs.locatorInherited && attrs.locatorInheritedTag) {
+      html += '<div style="font-size:10px;color:rgba(255,255,255,.5);margin:1px 0 0 2px">↑ parent has ' + attrs.locatorInheritedTag + '</div>';
     }
     html += '</div>';
 
