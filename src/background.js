@@ -350,88 +350,131 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
       break;
 
     case 'qakit-copy-testid': {
-      // Own-element-first: only a test attr on the right-clicked element itself
-      // counts as a primary locator. If none, suggest the best alternative that
-      // directly targets this element (id → aria-label → name → role → text → class).
-      // Any ancestor test attr is noted in the toast but NOT copied.
+      // Ranked candidate engine — same as inspector.js. Picks the best
+      // verified-unique selector that targets the right-clicked element,
+      // then formats it for the user's chosen output style.
       let customAttrs = '';
+      let outputStyle = 'css';
       try {
         const s = await chrome.storage.local.get('qa_tools_settings');
         customAttrs = s.qa_tools_settings?.testIdAttr || '';
+        outputStyle = s.qa_tools_settings?.locatorOutput || 'css';
       } catch (_) {}
       await chrome.scripting.executeScript({
         target: { tabId: tab.id, frameIds: info.frameId !== undefined ? [info.frameId] : undefined }, world: 'MAIN',
-        func: (customAttrsStr) => {
+        func: (customAttrsStr, outStyle) => {
           const DEFAULTS = ['data-testid','data-qa','data-test','data-cy','data-automation-id','data-test-id','data-pw'];
           const custom = (customAttrsStr || '').split(',').map(s => s.trim()).filter(Boolean);
-          const attrs = [...custom];
-          DEFAULTS.forEach(a => { if (!attrs.includes(a)) attrs.push(a); });
+          const testAttrs = [...custom];
+          DEFAULTS.forEach(a => { if (!testAttrs.includes(a)) testAttrs.push(a); });
 
           const startEl = window.__qkitLastContextTarget || document.activeElement;
           if (!startEl || !startEl.tagName) return;
 
-          // Phase 1: own element only
-          let ownAttr = null;
-          for (const a of attrs) {
-            if (startEl.hasAttribute(a)) { ownAttr = { attr: a, value: startEl.getAttribute(a) }; break; }
-          }
-
-          // Phase 2 (note only): walk ancestors for inherited test attr
-          let inheritedNote = null;
-          if (!ownAttr) {
-            let node = startEl.parentElement;
-            for (let i = 0; i < 30 && node && node.tagName && node !== document.documentElement; i++) {
-              for (const a of attrs) {
-                if (node.hasAttribute(a)) {
-                  inheritedNote = '[' + a + '="' + node.getAttribute(a) + '"] on <' +
-                    node.tagName.toLowerCase() + (node.id ? '#' + node.id : '') + '>';
-                  break;
-                }
+          const JUNK = /^(?:css-[a-z0-9]+|mui-[a-z0-9]+|MuiBox-[a-z0-9]+|sc-[a-z0-9]+|jsx-\d+|emotion-[a-z0-9]+|chakra-[a-z0-9]+|ant-[a-z]+(?:-\w*)?-\d+|_[a-zA-Z0-9_]{6,}|[a-z]+-[0-9a-f]{6,}|[a-z]{1,3}\d{4,})$/;
+          const isStable = c => c && c.length >= 2 && c.length <= 40 && /^[a-zA-Z][\w-]*$/.test(c) && !JUNK.test(c);
+          const cleanCls = el => el && el.classList ? Array.from(el.classList).filter(isStable) : [];
+          const escA = v => String(v).replace(/"/g, '\\"');
+          const escX = v => String(v).replace(/"/g, '&quot;');
+          const verifyCss = sel => { try { const n = document.querySelectorAll(sel).length; return { count: n, isUnique: n === 1 }; } catch (_) { return { count: 0, isUnique: false }; } };
+          const verifyXp  = xp  => { try { const n = Math.round(document.evaluate('count(' + xp + ')', document, null, XPathResult.NUMBER_TYPE, null).numberValue); return { count: n, isUnique: n === 1 }; } catch (_) { return { count: 0, isUnique: false }; } };
+          const matches = (sel, type, el) => {
+            try {
+              if (type === 'xpath') {
+                const it = document.evaluate(sel, document, null, XPathResult.UNORDERED_NODE_ITERATOR_TYPE, null);
+                let n = it.iterateNext();
+                while (n) { if (n === el) return true; n = it.iterateNext(); }
+                return false;
               }
-              if (inheritedNote) break;
-              node = node.parentElement;
+              return Array.from(document.querySelectorAll(sel)).indexOf(el) !== -1;
+            } catch (_) { return false; }
+          };
+          function findAnchor(el) {
+            let n = el.parentElement;
+            while (n && n !== document.documentElement && n.tagName) {
+              for (const a of testAttrs) { if (n.hasAttribute(a)) { const v = n.getAttribute(a); return { el: n, attr: a, sel: '[' + a + '="' + escA(v) + '"]', xp: '//*[@' + a + '="' + escX(v) + '"]' }; } }
+              if (n.id && /^[a-zA-Z][\w-]*$/.test(n.id)) return { el: n, attr: 'id', sel: '#' + n.id, xp: '//*[@id="' + n.id + '"]' };
+              n = n.parentElement;
             }
+            return null;
           }
-
-          let copy, label;
-          if (ownAttr) {
-            copy  = '[' + ownAttr.attr + '="' + ownAttr.value + '"]';
-            label = '⎘ ' + ownAttr.attr;
-          } else {
-            // Best locator chain for the actual element.
-            // Order: id (primary) → aria-label → name → role → short text →
-            //        ancestor test attr (promoted primary) → class/tag (last resort).
-            const el  = startEl;
+          function buildCandidates(el) {
+            const cs = [];
             const tag = el.tagName.toLowerCase();
-            if (el.id) {
-              copy  = '[id="' + el.id + '"]';
-              label = '⎘ id';
-              if (inheritedNote) label += ' (parent also has: ' + inheritedNote + ')';
-            } else if (el.getAttribute('aria-label')) {
-              copy = '[aria-label="' + el.getAttribute('aria-label') + '"]'; label = '⎘ aria-label';
-            } else if (el.getAttribute('name')) {
-              copy = '[name="' + el.getAttribute('name') + '"]'; label = '⎘ name';
-            } else if (el.getAttribute('role')) {
-              copy = '[role="' + el.getAttribute('role') + '"]'; label = '⎘ role';
-            } else if (['a','button','label'].includes(tag)) {
-              const txt = (el.textContent || '').trim().replace(/\s+/g,' ');
-              if (txt && txt.length <= 40 && !txt.includes('"')) {
-                copy = '//' + tag + '[normalize-space()="' + txt + '"]'; label = '⎘ text';
+            const push = c => {
+              const v = c.type === 'xpath' ? verifyXp(c.selector) : verifyCss(c.selector);
+              c.count = v.count; c.isUnique = v.isUnique;
+              if (c.count === 0) return;
+              if (!matches(c.selector, c.type, el)) return;
+              if (cs.some(x => x.selector === c.selector)) return;
+              cs.push(c);
+            };
+            // Tier 1
+            for (const a of testAttrs) { if (el.hasAttribute(a)) push({ tier: 1, label: a, type: 'css', selector: '[' + a + '="' + escA(el.getAttribute(a)) + '"]' }); }
+            if (el.id && /^[a-zA-Z][\w-]*$/.test(el.id)) push({ tier: 1, label: 'id', type: 'css', selector: '#' + el.id });
+            const anchor = findAnchor(el);
+            // Tier 2
+            if (anchor) {
+              const aria = el.getAttribute('aria-label');
+              if (aria) push({ tier: 2, label: 'anchor:aria', type: 'css', anchor: anchor.attr, selector: anchor.sel + ' ' + tag + '[aria-label="' + escA(aria) + '"]' });
+              if (['a','button','label','th','h1','h2','h3','h4','h5','h6','span','p','strong','em','li'].includes(tag)) {
+                const txt = (el.textContent || '').trim().replace(/\s+/g, ' ');
+                if (txt && txt.length <= 50 && !txt.includes('"')) push({ tier: 2, label: 'anchor:text', type: 'xpath', anchor: anchor.attr, selector: anchor.xp + '//' + tag + '[normalize-space()="' + txt + '"]' });
               }
             }
-            // Ancestor test attr — promoted to primary when element has no own good locator.
-            if (!copy && inheritedNote) {
-              // inheritedNote has format "[attr="value"] on <tag>" — extract the selector part
-              const m = inheritedNote.match(/^(\[[^\]]+\])/);
-              if (m) { copy = m[1]; label = '⎘ ' + copy + ' (nearest test-attr ancestor)'; }
+            // Tier 3
+            const aria = el.getAttribute('aria-label'); if (aria) push({ tier: 3, label: 'aria-label', type: 'css', selector: tag + '[aria-label="' + escA(aria) + '"]' });
+            const nm = el.getAttribute('name'); if (nm) push({ tier: 3, label: 'name', type: 'css', selector: tag + '[name="' + escA(nm) + '"]' });
+            const role = el.getAttribute('role'); if (role) push({ tier: 3, label: 'role', type: 'css', selector: tag + '[role="' + escA(role) + '"]' });
+            if (['a','button','label','th','h1','h2','h3','h4','h5','h6'].includes(tag)) {
+              const txt = (el.textContent || '').trim().replace(/\s+/g, ' ');
+              if (txt && txt.length <= 40 && !txt.includes('"')) push({ tier: 3, label: 'text', type: 'xpath', selector: '//' + tag + '[normalize-space()="' + txt + '"]' });
             }
-            if (!copy) {
-              const cls = Array.from(el.classList).slice(0,3).join('.');
-              copy  = cls ? '.' + cls : tag;
-              label = '⎘ class (no test attr found)';
+            // Tier 4
+            if (anchor) {
+              push({ tier: 4, label: 'anchor:tag', type: 'css', anchor: anchor.attr, selector: anchor.sel + ' ' + tag });
+              const cc = cleanCls(el);
+              if (cc.length) push({ tier: 4, label: 'anchor:class', type: 'css', anchor: anchor.attr, selector: anchor.sel + ' ' + tag + '.' + cc[0] });
+              const par = el.parentElement;
+              if (par) { const sibs = Array.from(par.children).filter(c => c.tagName === el.tagName); if (sibs.length > 1) push({ tier: 4, label: 'anchor:nth', type: 'css', anchor: anchor.attr, selector: anchor.sel + ' ' + tag + ':nth-of-type(' + (sibs.indexOf(el) + 1) + ')' }); }
             }
+            // Tier 5
+            const ph = el.getAttribute('placeholder'); if (ph) push({ tier: 5, label: 'placeholder', type: 'css', selector: tag + '[placeholder="' + escA(ph) + '"]' });
+            const cc2 = cleanCls(el); if (cc2.length) push({ tier: 5, label: 'class', type: 'css', selector: tag + '.' + cc2[0] });
+            cs.sort((a, b) => (a.isUnique !== b.isUnique) ? (a.isUnique ? -1 : 1) : (a.tier !== b.tier ? a.tier - b.tier : a.selector.length - b.selector.length));
+            return cs;
+          }
+          function format(cand, style) {
+            if (!cand) return '';
+            const sel = cand.selector;
+            if (style === 'playwright') {
+              let m = /^\[data-testid="(.+)"\]$/.exec(sel);
+              if (m) return "page.getByTestId('" + m[1].replace(/'/g, "\\'") + "')";
+              m = /^\w+\[aria-label="(.+)"\]$/.exec(sel);
+              if (m) return "page.getByLabel('" + m[1].replace(/'/g, "\\'") + "')";
+              m = /^\w+\[role="(.+)"\]$/.exec(sel);
+              if (m) return "page.getByRole('" + m[1].replace(/'/g, "\\'") + "')";
+              if (cand.type === 'xpath') return "page.locator('xpath=" + sel.replace(/'/g, "\\'") + "')";
+              return "page.locator('" + sel.replace(/'/g, "\\'") + "')";
+            }
+            if (style === 'cypress') {
+              if (cand.type === 'xpath') return "cy.xpath('" + sel.replace(/'/g, "\\'") + "')";
+              return "cy.get('" + sel.replace(/'/g, "\\'") + "')";
+            }
+            return sel;
           }
 
+          const candidates = buildCandidates(startEl);
+          const best = candidates[0];
+          let copy, label;
+          if (best) {
+            copy = format(best, outStyle);
+            const u = best.isUnique ? '✓' : '⚠ ' + best.count + '×';
+            label = '⎘ ' + best.label + ' ' + u;
+          } else {
+            copy  = startEl.tagName.toLowerCase();
+            label = '⎘ tag (no locator found)';
+          }
           navigator.clipboard.writeText(copy).then(() => {
             const t = document.createElement('div');
             t.style.cssText = 'position:fixed;bottom:20px;right:20px;z-index:2147483647;background:#0a6e51;color:#fff;padding:8px 14px;border-radius:6px;font-family:sans-serif;font-size:13px;font-weight:600;max-width:400px;word-break:break-all';
@@ -440,7 +483,7 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
             setTimeout(() => t.remove(), 3000);
           }).catch(() => {});
         },
-        args: [customAttrs],
+        args: [customAttrs, outputStyle],
       }).catch(() => {});
       break;
     }

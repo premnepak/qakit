@@ -11,6 +11,9 @@ const DEFAULT_SETTINGS = {
   cookieFilter:       '',
   consolePaths:       '/scripts/,/blocks/',
   theme:              'light',
+  // Locator output style for context-menu copy: 'css' | 'xpath' | 'playwright' | 'cypress'.
+  // Inspector badge has its own per-session toggle; this default seeds it.
+  locatorOutput:      'css',
   // Default visible 6 = Home + Page Kit + Page Audit + Analytics + Net Mock + Tools.
   // Order in this array determines primary/overflow: first 6 visible items
   // (after Home) become the tab strip, rest go to ⋯ overflow.
@@ -119,6 +122,8 @@ function renderSettingsPanel() {
   document.getElementById('settingLsKeys').value          = s.lsKeys || '';
   document.getElementById('settingCookieFilter').value    = s.cookieFilter || '';
   document.getElementById('settingConsolePaths').value    = s.consolePaths || DEFAULT_SETTINGS.consolePaths;
+  const lo = document.getElementById('settingLocatorOutput');
+  if (lo) lo.value = s.locatorOutput || DEFAULT_SETTINGS.locatorOutput;
 
   // Analytics providers checkboxes
   const providers = s.analyticsProviders || DEFAULT_SETTINGS.analyticsProviders;
@@ -159,6 +164,7 @@ async function handleSaveSettings() {
 
   const consolePaths = document.getElementById('settingConsolePaths').value.trim();
   const theme = _settings.theme || 'light';
+  const locatorOutput = (document.getElementById('settingLocatorOutput')?.value || 'css').trim();
 
   // Read selected analytics providers
   const analyticsProviders = [...document.querySelectorAll('#settingProviders input[type=checkbox]:checked')]
@@ -171,7 +177,7 @@ async function handleSaveSettings() {
     }
   }
 
-  await saveSettings({ domains, analyticsFilter, testIdAttr, lsKeys, cookieFilter, consolePaths, theme, visibleTabs, analyticsProviders });
+  await saveSettings({ domains, analyticsFilter, testIdAttr, lsKeys, cookieFilter, consolePaths, theme, visibleTabs, analyticsProviders, locatorOutput });
 
   // Apply immediately
   applySettingsToUI();

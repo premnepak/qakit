@@ -157,90 +157,367 @@
     return merged;
   }
 
-  function findBestLocator(startEl, cursorX, cursorY) {
-    const testAttrs = getTestAttrs();
+  // ════════════════════════════════════════════════════════════════════════
+  // LOCATOR ENGINE — ranked candidate list with live uniqueness check
+  // ════════════════════════════════════════════════════════════════════════
+  // Reject CSS-in-JS hashes, MUI/Chakra/Ant generated, Tailwind utility hashes,
+  // and obviously generated tokens. Keep BEM and component-style names.
+  const JUNK_CLASS_RE = /^(?:css-[a-z0-9]+|mui-[a-z0-9]+|MuiBox-[a-z0-9]+|sc-[a-z0-9]+|jsx-\d+|emotion-[a-z0-9]+|chakra-[a-z0-9]+|ant-[a-z]+(?:-\w*)?-\d+|_[a-zA-Z0-9_]{6,}|[a-z]+-[0-9a-f]{6,}|[a-z]{1,3}\d{4,})$/;
+  function isStableClass(c) {
+    if (!c || c.length < 2 || c.length > 40) return false;
+    if (!/^[a-zA-Z][\w-]*$/.test(c)) return false;
+    if (JUNK_CLASS_RE.test(c)) return false;
+    return true;
+  }
+  function cleanClasses(el) {
+    if (!el || !el.classList) return [];
+    return Array.from(el.classList).filter(isStableClass);
+  }
 
-    // Phase 1: Check the hovered element ONLY (depth = 1, no ancestor walk).
-    // Only an own test attr counts as a primary (non-suggested) locator,
-    // so copying it targets exactly the element the user is hovering.
-    function ownAttr(el) {
-      for (const attr of testAttrs) {
-        if (el.hasAttribute(attr)) return { attr, value: el.getAttribute(attr), el };
+  function escAttr(v)   { return String(v).replace(/"/g, '\\"'); }
+  function escXpAttr(v) { return String(v).replace(/"/g, '&quot;'); }
+
+  // Verify selector uniqueness
+  function verifyCss(sel) {
+    try {
+      const n = document.querySelectorAll(sel).length;
+      return { count: n, isUnique: n === 1 };
+    } catch (_) { return { count: 0, isUnique: false }; }
+  }
+  function verifyXPath(xp) {
+    try {
+      const r = document.evaluate('count(' + xp + ')', document, null, XPathResult.NUMBER_TYPE, null).numberValue;
+      const n = Math.round(r);
+      return { count: n, isUnique: n === 1 };
+    } catch (_) { return { count: 0, isUnique: false }; }
+  }
+
+  // Confirm a selector actually matches the target element
+  function selectorMatches(sel, type, el) {
+    try {
+      if (type === 'xpath') {
+        const it = document.evaluate(sel, document, null, XPathResult.UNORDERED_NODE_ITERATOR_TYPE, null);
+        let n = it.iterateNext();
+        while (n) { if (n === el) return true; n = it.iterateNext(); }
+        return false;
       }
-      return null;
-    }
-    const ownResult = ownAttr(startEl);
-    if (ownResult) return { ...ownResult, isSuggested: false, inheritedLocator: null };
+      return Array.from(document.querySelectorAll(sel)).indexOf(el) !== -1;
+    } catch (_) { return false; }
+  }
 
-    // Also check same-layer elements at the cursor (z-index overlap) for their OWN attr.
-    // Explicitly exclude ancestors of startEl — elementsFromPoint returns the full stack
-    // including parents, and we must not treat a parent's test attr as "own" for the child.
+  // Find nearest ancestor with id or test-attr — used as anchor for relative selectors
+  function findAnchorAncestor(el, testAttrs) {
+    let node = el.parentElement;
+    while (node && node !== document.documentElement && node.tagName) {
+      for (const a of testAttrs) {
+        if (node.hasAttribute(a)) {
+          const v = node.getAttribute(a);
+          return {
+            el: node, kind: a, attr: a, value: v,
+            sel: '[' + a + '="' + escAttr(v) + '"]',
+            xp:  '//*[@' + a + '="' + escXpAttr(v) + '"]',
+          };
+        }
+      }
+      if (node.id && /^[a-zA-Z][\w-]*$/.test(node.id)) {
+        return {
+          el: node, kind: 'id', attr: 'id', value: node.id,
+          sel: '#' + node.id,
+          xp:  '//*[@id="' + node.id + '"]',
+        };
+      }
+      node = node.parentElement;
+    }
+    return null;
+  }
+
+  // Build a ranked list of candidate locators that target `el` directly.
+  // Tier scale (lower = better):
+  //   1 = own test attr / own id           (green, most stable)
+  //   2 = anchored: ancestor + text/aria   (green, semantic)
+  //   3 = own aria-label / role / text     (amber, semantic on element)
+  //   4 = anchored: ancestor + tag/nth/class (amber, structural with anchor)
+  //   5 = class chain / placeholder         (amber, brittle)
+  //   6 = nth-of-type absolute              (red, last resort)
+  function buildLocatorCandidates(el) {
+    const cands = [];
+    if (!el || !el.tagName) return cands;
+    const testAttrs = getTestAttrs();
+    const tag = el.tagName.toLowerCase();
+
+    function push(c) {
+      const v = c.type === 'xpath' ? verifyXPath(c.selector) : verifyCss(c.selector);
+      c.count = v.count;
+      c.isUnique = v.isUnique;
+      if (c.count === 0) return;
+      if (!selectorMatches(c.selector, c.type, el)) return;
+      // Dedup by selector
+      if (cands.some(x => x.selector === c.selector)) return;
+      cands.push(c);
+    }
+
+    // ── Tier 1: own test attr / own id ──────────────────────────────────
+    for (const a of testAttrs) {
+      if (el.hasAttribute(a)) {
+        const v = el.getAttribute(a);
+        push({ tier: 1, kind: a, label: a, type: 'css',
+               selector: '[' + a + '="' + escAttr(v) + '"]' });
+      }
+    }
+    if (el.id && /^[a-zA-Z][\w-]*$/.test(el.id)) {
+      push({ tier: 1, kind: 'id', label: 'id', type: 'css',
+             selector: '#' + el.id });
+    }
+
+    // ── Find anchor ancestor for relative selectors ─────────────────────
+    const anchor = findAnchorAncestor(el, testAttrs);
+
+    // ── Tier 2: anchored + text / aria (most reliable relative form) ────
+    if (anchor) {
+      const aria = el.getAttribute('aria-label');
+      if (aria) {
+        push({ tier: 2, kind: anchor.attr + ' › aria-label', label: 'anchor:aria',
+               type: 'css', anchor: anchor.kind,
+               selector: anchor.sel + ' ' + tag + '[aria-label="' + escAttr(aria) + '"]' });
+      }
+      if (['a','button','label','th','h1','h2','h3','h4','h5','h6','span','p','strong','em','li'].includes(tag)) {
+        const txt = (el.textContent || '').trim().replace(/\s+/g, ' ');
+        if (txt && txt.length <= 50 && !txt.includes('"')) {
+          push({ tier: 2, kind: anchor.attr + ' › text', label: 'anchor:text',
+                 type: 'xpath', anchor: anchor.kind,
+                 selector: anchor.xp + '//' + tag + '[normalize-space()="' + txt + '"]' });
+        }
+      }
+    }
+
+    // ── Tier 3: own semantic attrs ──────────────────────────────────────
+    const aria = el.getAttribute('aria-label');
+    if (aria) {
+      push({ tier: 3, kind: 'aria-label', label: 'aria-label', type: 'css',
+             selector: tag + '[aria-label="' + escAttr(aria) + '"]' });
+    }
+    const nameAttr = el.getAttribute('name');
+    if (nameAttr) {
+      push({ tier: 3, kind: 'name', label: 'name', type: 'css',
+             selector: tag + '[name="' + escAttr(nameAttr) + '"]' });
+    }
+    const role = el.getAttribute('role');
+    if (role) {
+      push({ tier: 3, kind: 'role', label: 'role', type: 'css',
+             selector: tag + '[role="' + escAttr(role) + '"]' });
+    }
+    if (['a','button','label','th','h1','h2','h3','h4','h5','h6'].includes(tag)) {
+      const txt = (el.textContent || '').trim().replace(/\s+/g, ' ');
+      if (txt && txt.length <= 40 && !txt.includes('"')) {
+        push({ tier: 3, kind: 'text', label: 'text', type: 'xpath',
+               selector: '//' + tag + '[normalize-space()="' + txt + '"]' });
+      }
+    }
+    if (tag === 'input') {
+      const type = el.getAttribute('type'), val = el.getAttribute('value');
+      if ((type === 'submit' || type === 'button' || type === 'reset') && val) {
+        push({ tier: 3, kind: 'input[value]', label: 'input', type: 'css',
+               selector: 'input[type="' + type + '"][value="' + escAttr(val) + '"]' });
+      }
+    }
+
+    // ── Tier 4: anchored + structural ───────────────────────────────────
+    if (anchor) {
+      // simple tag descendant
+      push({ tier: 4, kind: anchor.attr + ' › ' + tag, label: 'anchor:tag',
+             type: 'css', anchor: anchor.kind,
+             selector: anchor.sel + ' ' + tag });
+      // anchor + tag + clean class
+      const cleanCls = cleanClasses(el);
+      if (cleanCls.length) {
+        push({ tier: 4, kind: anchor.attr + ' › ' + tag + '.class', label: 'anchor:class',
+               type: 'css', anchor: anchor.kind,
+               selector: anchor.sel + ' ' + tag + '.' + cleanCls[0] });
+      }
+      // anchor + tag + nth-of-type
+      const parent = el.parentElement;
+      if (parent) {
+        const sibs = Array.from(parent.children).filter(c => c.tagName === el.tagName);
+        if (sibs.length > 1) {
+          const idx = sibs.indexOf(el) + 1;
+          push({ tier: 4, kind: anchor.attr + ' › ' + tag + ':nth', label: 'anchor:nth',
+                 type: 'css', anchor: anchor.kind,
+                 selector: anchor.sel + ' ' + tag + ':nth-of-type(' + idx + ')' });
+        }
+      }
+    }
+
+    // ── Tier 5: own placeholder / class chain ───────────────────────────
+    const ph = el.getAttribute('placeholder');
+    if (ph) {
+      push({ tier: 5, kind: 'placeholder', label: 'placeholder', type: 'css',
+             selector: tag + '[placeholder="' + escAttr(ph) + '"]' });
+    }
+    const cleanCls2 = cleanClasses(el);
+    if (cleanCls2.length) {
+      push({ tier: 5, kind: 'class', label: 'class', type: 'css',
+             selector: tag + '.' + cleanCls2[0] });
+      if (cleanCls2.length > 1) {
+        push({ tier: 5, kind: 'class+', label: 'class+', type: 'css',
+               selector: tag + '.' + cleanCls2.slice(0, 2).join('.') });
+      }
+    }
+
+    // ── Tier 6: nth-of-type absolute (last resort) ──────────────────────
+    function seg(node) {
+      const t = node.tagName.toLowerCase();
+      const p = node.parentElement;
+      if (!p) return t;
+      const sibs = Array.from(p.children).filter(c => c.tagName === node.tagName);
+      return sibs.length > 1 ? t + ':nth-of-type(' + (sibs.indexOf(node) + 1) + ')' : t;
+    }
+    const parts = []; let cur = el;
+    while (cur && cur !== document.documentElement && parts.length < 8) {
+      parts.unshift(seg(cur));
+      cur = cur.parentElement;
+    }
+    if (parts.length) {
+      push({ tier: 6, kind: 'path', label: 'path', type: 'css',
+             selector: parts.join(' > ') });
+    }
+
+    // Sort: unique first, then tier asc, then shorter selector
+    cands.sort((a, b) => {
+      if (a.isUnique !== b.isUnique) return a.isUnique ? -1 : 1;
+      if (a.tier !== b.tier) return a.tier - b.tier;
+      return a.selector.length - b.selector.length;
+    });
+
+    return cands;
+  }
+
+  // Format a candidate for the active output style
+  function formatForOutput(cand, style) {
+    if (!cand) return '';
+    const sel = cand.selector;
+    if (style === 'playwright') {
+      // Use idiomatic getBy* helpers when possible
+      let m = /^\[data-testid="(.+)"\]$/.exec(sel);
+      if (m) return "page.getByTestId('" + m[1].replace(/'/g, "\\'") + "')";
+      m = /^\w+\[aria-label="(.+)"\]$/.exec(sel);
+      if (m) return "page.getByLabel('" + m[1].replace(/'/g, "\\'") + "')";
+      m = /^\w+\[role="(.+)"\]$/.exec(sel);
+      if (m) return "page.getByRole('" + m[1].replace(/'/g, "\\'") + "')";
+      m = /^\w+\[placeholder="(.+)"\]$/.exec(sel);
+      if (m) return "page.getByPlaceholder('" + m[1].replace(/'/g, "\\'") + "')";
+      // anchored:text or own text xpath →  use getByText when not anchored
+      if (cand.type === 'xpath') {
+        m = /^\/\/(\w+)\[normalize-space\(\)="(.+)"\]$/.exec(sel);
+        if (m) return "page.getByRole('" + (m[1] === 'button' || m[1] === 'a' ? m[1] : 'generic') + "', { name: '" + m[2].replace(/'/g, "\\'") + "' })";
+        return "page.locator('xpath=" + sel.replace(/'/g, "\\'") + "')";
+      }
+      return "page.locator('" + sel.replace(/'/g, "\\'") + "')";
+    }
+    if (style === 'cypress') {
+      if (cand.type === 'xpath') return "cy.xpath('" + sel.replace(/'/g, "\\'") + "')";
+      let m = /^\[data-testid="(.+)"\]$/.exec(sel);
+      if (m) return "cy.get('[data-testid=\"" + m[1] + "\"]')";
+      return "cy.get('" + sel.replace(/'/g, "\\'") + "')";
+    }
+    if (style === 'xpath') {
+      // Prefer xpath form if we have one, else convert via simple wrap
+      if (cand.type === 'xpath') return sel;
+      // For css selectors, just return as-is — caller can switch candidates
+      return sel;
+    }
+    // 'css' or default — raw selector
+    return sel;
+  }
+
+  function getOutputStyle() {
+    return window.__qLocatorOutputStyle || 'css';
+  }
+  function setOutputStyle(style) {
+    window.__qLocatorOutputStyle = style;
+    try { localStorage.setItem('__qakit_locator_output', style); } catch (_) {}
+  }
+  // Init from localStorage on first load
+  (function initOutputStyle() {
+    if (window.__qLocatorOutputStyle) return;
+    try {
+      const stored = localStorage.getItem('__qakit_locator_output');
+      if (stored && ['css','xpath','playwright','cypress'].includes(stored)) {
+        window.__qLocatorOutputStyle = stored;
+      }
+    } catch (_) {}
+  })();
+
+  function findBestLocator(startEl, cursorX, cursorY) {
+    // Phase 0: Build ranked candidate list.
+    // The first candidate is the verified-unique winner.
+    const candidates = buildLocatorCandidates(startEl);
+    const best = candidates[0] || null;
+
+    // Same-layer z-index check for OWN test attrs on overlapping elements.
+    // Kept from the previous implementation so a hovered element with a
+    // sibling overlay still surfaces the sibling's testid.
+    let zCandidate = null;
     try {
       const cx = cursorX !== undefined ? cursorX : startEl.getBoundingClientRect().left + startEl.getBoundingClientRect().width / 2;
       const cy = cursorY !== undefined ? cursorY : startEl.getBoundingClientRect().top  + startEl.getBoundingClientRect().height / 2;
       const allEls = document.elementsFromPoint(cx, cy);
-      for (const candidate of allEls) {
-        if (candidate === startEl) continue;
-        if (candidate === document.documentElement) break;
-        if (candidate.id && candidate.id.startsWith('__q-')) continue;
-        // Skip anything that is an ancestor of startEl — those belong to Phase 2 only
-        if (candidate.contains(startEl)) continue;
-        const r = ownAttr(candidate);
-        if (r) return { ...r, isSuggested: false, inheritedLocator: null };
+      const testAttrs = getTestAttrs();
+      for (const cand of allEls) {
+        if (cand === startEl) continue;
+        if (cand === document.documentElement) break;
+        if (cand.id && cand.id.startsWith('__q-')) continue;
+        if (cand.contains(startEl)) continue;
+        for (const a of testAttrs) {
+          if (cand.hasAttribute(a)) {
+            zCandidate = { attr: a, value: cand.getAttribute(a), el: cand };
+            break;
+          }
+        }
+        if (zCandidate) break;
       }
     } catch (_) {}
 
-    // Phase 2: Walk ancestors — record any inherited test attr as a note only.
-    // It is NOT returned as the primary locator (it targets the parent, not this element).
+    // Walk ancestors for an inheritedLocator note (display only).
     let inheritedLocator = null;
-    let node = startEl.parentElement;
-    for (let i = 0; i < 30 && node && node.tagName && node !== document.documentElement; i++) {
-      for (const attr of testAttrs) {
-        if (node.hasAttribute(attr)) {
-          inheritedLocator = { attr, value: node.getAttribute(attr), el: node };
-          break;
+    {
+      const testAttrs = getTestAttrs();
+      let node = startEl.parentElement;
+      for (let i = 0; i < 30 && node && node.tagName && node !== document.documentElement; i++) {
+        for (const attr of testAttrs) {
+          if (node.hasAttribute(attr)) {
+            inheritedLocator = { attr, value: node.getAttribute(attr), el: node };
+            break;
+          }
         }
+        if (inheritedLocator) break;
+        node = node.parentElement;
       }
-      if (inheritedLocator) break;
-      node = node.parentElement;
     }
 
-    // Phase 3: Suggest the best locator that directly targets the hovered element.
-    // id is treated as primary (green) — it uniquely identifies the element just
-    // as reliably as a test attr. Everything below id is amber (suggested).
-    const el = startEl;
-    const tag = el.tagName.toLowerCase();
-    if (el.id) return { attr: 'id', value: el.id, el, isSuggested: false, inheritedLocator };
-    const aria = el.getAttribute('aria-label');
-    if (aria) return { attr: 'aria-label', value: aria, el, isSuggested: true, inheritedLocator };
-    const name = el.getAttribute('name');
-    if (name) return { attr: 'name', value: name, el, isSuggested: true, inheritedLocator };
-    const role = el.getAttribute('role');
-    if (role) return { attr: 'role', value: role, el, isSuggested: true, inheritedLocator };
-    // Visible text for interactive/structural elements (≤40 chars, no double-quotes)
-    if (['a','button','label','th','h1','h2','h3','h4','h5','h6'].includes(tag)) {
-      const txt = (el.textContent || '').trim().replace(/\s+/g, ' ');
-      if (txt && txt.length <= 40 && !txt.includes('"')) {
-        return { attr: 'text', value: txt, el, isSuggested: true, inheritedLocator };
-      }
+    // Map best-candidate back to the legacy {attr,value,el,isSuggested,fromAncestor} shape
+    // so the rest of the code (badge, copy logic) keeps working.
+    if (zCandidate) {
+      return { ...zCandidate, isSuggested: false, inheritedLocator: null, candidates };
     }
-    // Ancestor test attr — promoted to PRIMARY (green) here because it is
-    // purpose-built for test automation and is more stable than class/tag.
-    // Only reached when the element has no own direct locator (id, aria, name,
-    // role, short text). e.g. a <p> inside <div data-testid="...">.
-    if (inheritedLocator) {
-      return {
-        attr:            inheritedLocator.attr,
-        value:           inheritedLocator.value,
-        el:              inheritedLocator.el,
-        isSuggested:     false,
-        fromAncestor:    true,
-        inheritedLocator: null,
-      };
+    if (!best) {
+      // No candidates at all — degenerate fallback
+      return { attr: 'tag', value: startEl.tagName.toLowerCase(), el: startEl,
+               isSuggested: true, inheritedLocator, candidates: [] };
     }
-    const classes = Array.from(el.classList).slice(0, 3);
-    if (classes.length) return { attr: 'class', value: classes.join(' '), el, isSuggested: true, inheritedLocator: null };
-    return { attr: 'tag', value: tag, el, isSuggested: true, inheritedLocator: null };
+    // Tier 1 = own attr/id → primary (green); other tiers = suggested (amber).
+    const isPrimary = best.tier === 1;
+    // Detect anchored-to-ancestor candidates so the badge can show the note.
+    const fromAncestor = !!best.anchor;
+    return {
+      attr:  best.kind,           // human label, e.g. "data-testid" or "data-testid › p"
+      value: best.selector,       // full ready-to-paste selector
+      el:    startEl,
+      isSuggested: !isPrimary && !fromAncestor,
+      fromAncestor,
+      inheritedLocator,
+      best,                       // raw candidate object
+      candidates,                 // full ranked list
+    };
   }
 
   function findAttrs(startEl, cursorX, cursorY) {
@@ -325,7 +602,7 @@
     function seg(node) {
       const t = node.tagName.toLowerCase();
       if (node.id && /^[a-zA-Z][\w-]*$/.test(node.id)) return '#' + node.id;
-      const cls = Array.from(node.classList).find(c => /^[a-zA-Z][a-zA-Z0-9_-]{1,30}$/.test(c) && !/^\d+$/.test(c));
+      const cls = Array.from(node.classList).find(c => isStableClass(c));
       if (cls) {
         const p = node.parentElement;
         if (p && p.querySelectorAll(t + '.' + cls).length === 1) return t + '.' + cls;
@@ -498,6 +775,22 @@
         pinBtn.style.borderColor = window.__qInspectorPinned ? '#f9c74f' : 'rgba(255,255,255,.15)';
         return;
       }
+      // Output-style toggle (CSS / XPath / Playwright / Cypress)
+      const styleBtn = e.target.closest('.__q-outstyle-btn');
+      if (styleBtn) {
+        e.stopPropagation();
+        const newStyle = styleBtn.dataset.style;
+        if (newStyle && newStyle !== getOutputStyle()) {
+          setOutputStyle(newStyle);
+          // Re-render badge with the same element so all rows update
+          const cur = window.__qPinnedEl || lastTarget;
+          if (cur) {
+            const newAttrs = findAttrs(cur);
+            renderInspectBadge(newAttrs);
+          }
+        }
+        return;
+      }
       const btn = e.target.closest('.__q-copy-btn');
       if (!btn) return;
       e.stopPropagation(); // Don't trigger pin toggle
@@ -611,34 +904,69 @@
       if (aria) html += copyRow('ARIA', aria, 'rgba(255,255,255,.5)', '#fde68a', '[aria-label="' + aria + '"]');
     }
 
-    // ── Test locator ──────────────────────────────────────────────────────
+    // ── Test locator (ranked candidate list) ─────────────────────────────
     html += '<div style="border-top:1px solid rgba(255,255,255,.07);margin:4px 0 1px;padding-top:5px;">';
-    if (tl && !tl.isSuggested) {
-      // Own test attr, own id, or promoted ancestor test attr — green primary row
-      html += copyRow(tl.attr, '"' + tl.value + '"', '#00e5a0', '#fff', '[' + tl.attr + '="' + tl.value + '"]');
-      // Note which element the locator actually targets (only for ancestor promotions)
-      if (tl.fromAncestor && attrs.locatorInheritedTag) {
-        html += '<div style="font-size:10px;color:rgba(255,255,255,.5);margin:1px 0 0 2px">↑ targets &lt;' + attrs.locatorInheritedTag + '&gt; — nearest test-attr ancestor</div>';
-      } else if (!tl.fromAncestor && attrs.locatorInherited && attrs.locatorInheritedTag) {
-        html += '<div style="font-size:10px;color:rgba(255,255,255,.5);margin:1px 0 0 2px">↑ parent has ' + attrs.locatorInheritedTag + '</div>';
-      }
-    } else if (tl && tl.isSuggested) {
-      html += '<div style="font-size:10.5px;color:#ff9f43;margin-bottom:3px">⚠ No own test attr — best available:</div>';
-      // Build clipboard-ready locator string appropriate for each suggestion type
-      let suggestCopy;
-      const suggestTag = tl.el ? tl.el.tagName.toLowerCase() : '*';
-      if      (tl.attr === 'id')    suggestCopy = '[id="' + tl.value + '"]';
-      else if (tl.attr === 'text')  suggestCopy = '//' + suggestTag + '[normalize-space()="' + tl.value + '"]';
-      else if (tl.attr === 'class') suggestCopy = '.' + tl.value.trim().split(/\s+/).join('.');
-      else if (tl.attr === 'tag')   suggestCopy = tl.value;
-      else                          suggestCopy = '[' + tl.attr + '="' + tl.value + '"]';
-      html += copyRow(tl.attr, '"' + tl.value + '"', '#ff9f43', '#ffe0a0', suggestCopy);
+    const candidates = (tl && Array.isArray(tl.candidates)) ? tl.candidates : [];
+    const outStyle   = getOutputStyle();
+
+    // Output-style toggle pill row
+    const styles = [
+      { id: 'css',        label: 'CSS' },
+      { id: 'xpath',      label: 'XPath' },
+      { id: 'playwright', label: 'PW' },
+      { id: 'cypress',    label: 'Cy' },
+    ];
+    html += '<div style="display:flex;align-items:center;justify-content:space-between;gap:6px;margin-bottom:4px;padding:0 1px">' +
+      '<span style="font-size:10px;color:rgba(255,255,255,.4);font-weight:600;letter-spacing:.5px">BEST LOCATORS</span>' +
+      '<div class="__q-outstyle" style="display:flex;gap:2px;background:rgba(255,255,255,.05);border-radius:4px;padding:1px">';
+    styles.forEach(st => {
+      const active = st.id === outStyle;
+      html += '<button class="__q-outstyle-btn" data-style="' + st.id + '" ' +
+        'style="background:' + (active ? 'rgba(0,229,160,.25)' : 'transparent') + ';' +
+        'color:' + (active ? '#00e5a0' : 'rgba(255,255,255,.55)') + ';' +
+        'border:none;padding:1px 6px;font-size:10px;font-weight:' + (active ? '700' : '500') + ';' +
+        'border-radius:3px;cursor:pointer;font-family:inherit">' + st.label + '</button>';
+    });
+    html += '</div></div>';
+
+    if (candidates.length === 0) {
+      html += '<div style="font-size:10.5px;color:rgba(255,100,100,.85);margin-bottom:3px">⚠ No locator found</div>';
     } else {
-      html += '<div style="font-size:10.5px;color:rgba(255,100,100,.85);margin-bottom:3px">⚠ No test locator found</div>';
+      // Show top 4 ranked candidates
+      const TIER_COLORS = { 1: '#00e5a0', 2: '#7dd3a0', 3: '#ff9f43', 4: '#ff9f43', 5: '#ffb27a', 6: '#ff7575' };
+      const top = candidates.slice(0, 4);
+      top.forEach((c, idx) => {
+        const color  = TIER_COLORS[c.tier] || '#999';
+        const formatted = formatForOutput(c, outStyle);
+        const dispVal   = formatted.length > 80 ? formatted.slice(0, 80) + '…' : formatted;
+        const countBadge = c.isUnique
+          ? '<span style="color:#00e5a0;font-size:9.5px;background:rgba(0,229,160,.12);padding:0 4px;border-radius:3px;margin-right:4px;flex-shrink:0">✓ unique</span>'
+          : '<span style="color:#ff9f43;font-size:9.5px;background:rgba(255,159,67,.12);padding:0 4px;border-radius:3px;margin-right:4px;flex-shrink:0">⚠ ' + c.count + '×</span>';
+        const isPrimary = idx === 0;
+        const dataVal = String(formatted).replace(/&/g,'&amp;').replace(/"/g,'&quot;');
+        const dispEsc = String(dispVal).replace(/</g,'&lt;').replace(/>/g,'&gt;');
+        html += '<div class="__q-copy-row" data-copy="' + dataVal + '" ' +
+          'style="display:flex;align-items:center;gap:5px;min-width:0;padding:2px 2px;border-radius:3px;' +
+          (isPrimary ? 'background:rgba(0,229,160,.06);' : '') + '">' +
+          '<span style="color:' + color + ';font-size:10px;font-weight:' + (isPrimary ? '700' : '500') +
+            ';flex-shrink:0;min-width:64px;letter-spacing:.2px">' + c.label + '</span>' +
+          countBadge +
+          '<span style="color:' + (isPrimary ? '#fff' : '#d0d8e8') + ';font-size:11px;' +
+            'word-break:break-all;flex:1;font-family:ui-monospace,monospace">' + dispEsc + '</span>' +
+          '<button class="__q-copy-btn" data-copy="' + dataVal + '" ' +
+            'style="flex-shrink:0;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.18);' +
+            'border-radius:3px;color:rgba(255,255,255,.5);font-size:9px;padding:0 5px;cursor:pointer;' +
+            'line-height:14px;height:16px;margin-left:2px" title="Copy">⎘</button>' +
+        '</div>';
+      });
+      // Note for anchored selectors
+      const bestC = candidates[0];
+      if (bestC && bestC.anchor) {
+        html += '<div style="font-size:10px;color:rgba(255,255,255,.5);margin:2px 0 0 2px">↑ anchored on ancestor [' + bestC.anchor + '=…]</div>';
+      }
     }
-    // Inherited test-attr note — shown whenever a parent has a test attr.
-    // Tells the tester the parent testid exists but targets the parent, not this element.
-    if (attrs.locatorInherited && attrs.locatorInheritedTag) {
+    // Inherited test-attr note when present and not already shown via anchor
+    if (attrs.locatorInherited && attrs.locatorInheritedTag && !(candidates[0] && candidates[0].anchor)) {
       html += '<div style="font-size:10px;color:rgba(255,255,255,.5);margin:1px 0 0 2px">↑ parent has ' + attrs.locatorInheritedTag + '</div>';
     }
     html += '</div>';

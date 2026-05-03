@@ -2246,6 +2246,17 @@
     </div>
 
     <div class="setting-group">
+      <div class="setting-group-title">📋 Locator Output Style</div>
+      <div class="setting-desc">Format used when copying locators from the right-click menu and as the inspector badge default. The badge has a per-session toggle to switch on the fly.</div>
+      <select class="net-input" id="settingLocatorOutput">
+        <option value="css">CSS Selector</option>
+        <option value="xpath">XPath</option>
+        <option value="playwright">Playwright (page.getBy* / page.locator)</option>
+        <option value="cypress">Cypress (cy.get / cy.xpath)</option>
+      </select>
+    </div>
+
+    <div class="setting-group">
       <div class="setting-group-title">🗄 Local Storage Keys</div>
       <div class="setting-desc">Comma-separated keys to track. Leave blank to show all keys.</div>
       <textarea class="net-textarea" id="settingLsKeys" rows="2" placeholder="dismissed_alerts,redirectPopupSelection"></textarea>

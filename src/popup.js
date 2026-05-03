@@ -1943,14 +1943,18 @@ async function activateInspector(mode) {
     const sCustomAttr = (typeof getSettings === 'function')
       ? (getSettings().testIdAttr || '')
       : '';
+    const sLocatorOutput = (typeof getSettings === 'function')
+      ? (getSettings().locatorOutput || 'css')
+      : 'css';
 
     await chrome.scripting.executeScript({
       target: { tabId: tab.id },
       world: 'MAIN',
-      func: (m, customAttr) => {
+      func: (m, customAttr, locatorOutput) => {
         window.__qInspectorMode     = m;
         window.__qInspectorActive   = true;
         window.__qCustomTestAttr    = customAttr || ''; // used by getTestAttrs() in inspector
+        window.__qLocatorOutputStyle = locatorOutput || 'css';
         if (window.__qInspectorInstalled) {
           document.documentElement.style.cursor = 'crosshair';
           // Hide stale overlays from previous mode
@@ -1963,7 +1967,7 @@ async function activateInspector(mode) {
           });
         }
       },
-      args: [mode, sCustomAttr],
+      args: [mode, sCustomAttr, sLocatorOutput],
     });
 
     // First time: inject full script
