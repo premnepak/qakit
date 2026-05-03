@@ -841,11 +841,6 @@
       r.left + r.width/2, wLabelY,
       'rgba(0,229,160,0.95)', '#000', 'center');
 
-    // Height label — right of element, centred vertically
-    posLabel('__q-dim-h', s.h+'px',
-      r.right + 6, r.top + r.height/2,
-      'rgba(0,229,160,0.95)', '#000', 'left');
-
     // Padding labels (only if non-zero)
     // Place each label at 1/3 or 1/4 from the respective edge (not at the centroid)
     // so top/bottom labels don't collide when the element is short, and
@@ -877,8 +872,23 @@
     positionGapBox('__q-gap-prev', '__q-gap-prev-lbl', s.gapToPrev, r);
     positionGapBox('__q-gap-next', '__q-gap-next-lbl', s.gapToNext, r);
 
-    // Build panel
-    renderSpacingPanel(s, r);
+    // Build panel first so we know which side it lands on
+    const panelLeft = renderSpacingPanel(s, r);
+
+    // Height label — placed on the side opposite the panel to avoid overlap.
+    // Prefer right; fall back to left when panel is on the right.
+    const hLabelCy = r.top + r.height / 2;
+    if (panelLeft > r.right) {
+      // Panel is on the right — put H label on the left
+      posLabel('__q-dim-h', s.h+'px',
+        r.left - 6, hLabelCy,
+        'rgba(0,229,160,0.95)', '#000', 'right');
+    } else {
+      // Panel is on the left (or centred fallback) — put H label on the right
+      posLabel('__q-dim-h', s.h+'px',
+        r.right + 6, hLabelCy,
+        'rgba(0,229,160,0.95)', '#000', 'left');
+    }
   }
 
   function posLabel(id, text, cx, cy, bg, fg, align) {
@@ -887,7 +897,10 @@
     el.style.left = '0px'; el.style.top = '0px';
     const w = el.offsetWidth;
     const h = el.offsetHeight;
-    let left = align === 'center' ? cx - w/2 : cx;
+    let left;
+    if (align === 'center') left = cx - w / 2;
+    else if (align === 'right') left = cx - w - 2; // cx is the right edge
+    else left = cx;
     left = Math.max(4, Math.min(left, window.innerWidth - w - 4));
     el.style.left = left + 'px';
     el.style.top  = Math.max(4, cy - h/2) + 'px';
@@ -970,16 +983,17 @@
     const pw = spacingPanel.offsetWidth;
     const ph = spacingPanel.offsetHeight;
 
-    // Position panel: prefer below+right, clamp to viewport
-    let left = r.right + 12;
+    // Position panel: prefer right side, then left, with increased gap from element
+    let left = r.right + 20;
     let top  = r.top;
-    if (left + pw > vw - 8) left = r.left - pw - 12;
+    if (left + pw > vw - 8) left = r.left - pw - 20;
     if (left < 8) left = 8;
     if (top + ph > vh - 8) top = vh - ph - 8;
     if (top < 8) top = 8;
 
     spacingPanel.style.left = left + 'px';
     spacingPanel.style.top  = top + 'px';
+    return left; // caller uses this to decide H label side
   }
 
   function sRow(key, val, color) {
