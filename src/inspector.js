@@ -787,6 +787,22 @@
       display: 'block', background: bg, border: 'none',
     });
     posLabel(labelId, gap.px + 'px', left + width / 2, top + height / 2, 'rgba(220,50,50,0.92)', '#fff', 'center');
+    // Give gap labels a white border so they punch through the red indicator line.
+    // If the gap is very thin, nudge the label just outside the gap box.
+    const lbl = document.getElementById(labelId);
+    if (lbl) {
+      lbl.style.outline = '1.5px solid rgba(180,0,0,0.7)';
+      const lblH = lbl.offsetHeight;
+      const lblW = lbl.offsetWidth;
+      if (gap.axis === 'V' && height < lblH + 4) {
+        // Push label above the gap box
+        lbl.style.top = Math.max(4, top - lblH - 3) + 'px';
+      } else if (gap.axis === 'H' && width < lblW + 4) {
+        // Push label to the right of the gap box
+        const newLeft = Math.min(left + width + 3, window.innerWidth - lblW - 4);
+        lbl.style.left = Math.max(4, newLeft) + 'px';
+      }
+    }
   }
 
   function positionSpacing(el) {
@@ -819,9 +835,10 @@
     });
 
     // Dimension labels
-    // Width label — above element, centred
+    // Width label — above element; pushed further up when top padding label would overlap
+    const wLabelY = s.pt ? r.top - 26 : r.top - 18;
     posLabel('__q-dim-w', s.w+'px',
-      r.left + r.width/2, r.top - 18,
+      r.left + r.width/2, wLabelY,
       'rgba(0,229,160,0.95)', '#000', 'center');
 
     // Height label — right of element, centred vertically
@@ -830,10 +847,31 @@
       'rgba(0,229,160,0.95)', '#000', 'left');
 
     // Padding labels (only if non-zero)
-    if (s.pt) posLabel('__q-dim-pt', s.pt+'px', r.left+r.width/2, r.top+s.bt+s.pt/2-6, 'rgba(130,100,255,0.95)', '#fff', 'center');
-    if (s.pb) posLabel('__q-dim-pb', s.pb+'px', r.left+r.width/2, r.bottom-s.bb-s.pb/2-6, 'rgba(130,100,255,0.95)', '#fff', 'center');
-    if (s.pl) posLabel('__q-dim-pl', s.pl+'px', r.left+s.bl+s.pl/2, r.top+r.height/2-6, 'rgba(130,100,255,0.95)', '#fff', 'center');
-    if (s.pr) posLabel('__q-dim-pr', s.pr+'px', r.right-s.br-s.pr/2, r.top+r.height/2-6, 'rgba(130,100,255,0.95)', '#fff', 'center');
+    // Place each label at 1/3 or 1/4 from the respective edge (not at the centroid)
+    // so top/bottom labels don't collide when the element is short, and
+    // left/right labels don't collide with the W label or with each other.
+    const pcx = r.left + r.width / 2;  // horizontal centre
+    const pcy = r.top  + r.height / 2; // vertical centre
+    // Top padding: 1/3 from top edge (inside content area), never overlapping W label
+    if (s.pt) {
+      const ptY = r.top + Math.min(Math.max(s.pt / 2, 8), r.height * 0.35);
+      posLabel('__q-dim-pt', s.pt+'px', pcx, ptY, 'rgba(130,100,255,0.95)', '#fff', 'center');
+    }
+    // Bottom padding: 1/3 from bottom edge
+    if (s.pb) {
+      const pbY = r.bottom - Math.min(Math.max(s.pb / 2, 8), r.height * 0.35);
+      posLabel('__q-dim-pb', s.pb+'px', pcx, pbY, 'rgba(130,100,255,0.95)', '#fff', 'center');
+    }
+    // Left padding: 1/3 from left, biased toward top quarter so it misses W+H labels
+    if (s.pl) {
+      const plX = r.left + Math.min(Math.max(s.pl / 2, 8), r.width * 0.3);
+      posLabel('__q-dim-pl', s.pl+'px', plX, pcy, 'rgba(130,100,255,0.95)', '#fff', 'center');
+    }
+    // Right padding: 1/3 from right
+    if (s.pr) {
+      const prX = r.right - Math.min(Math.max(s.pr / 2, 8), r.width * 0.3);
+      posLabel('__q-dim-pr', s.pr+'px', prX, pcy, 'rgba(130,100,255,0.95)', '#fff', 'center');
+    }
 
     // Gap boxes — show spacing between this element and its adjacent siblings
     positionGapBox('__q-gap-prev', '__q-gap-prev-lbl', s.gapToPrev, r);
