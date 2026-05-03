@@ -282,7 +282,7 @@
   // ── Generate shortest unique CSS selector ────────────────────────────────
   function generateCssSelector(el) {
     if (!el || el === document.body) return 'body';
-    if (el.id && /^[a-zA-Z][\w-]*$/.test(el.id)) return '#' + el.id;
+    if (el.id && /^[a-zA-Z][\w-]*$/.test(el.id)) return '[id="' + el.id + '"]';
     const testAttrs = getTestAttrs();
     for (const attr of testAttrs) {
       if (el.hasAttribute(attr)) {
@@ -597,7 +597,7 @@
       // Build clipboard-ready locator string appropriate for each suggestion type
       let suggestCopy;
       const suggestTag = tl.el ? tl.el.tagName.toLowerCase() : '*';
-      if      (tl.attr === 'id')    suggestCopy = '#' + tl.value;
+      if      (tl.attr === 'id')    suggestCopy = '[id="' + tl.value + '"]';
       else if (tl.attr === 'text')  suggestCopy = '//' + suggestTag + '[normalize-space()="' + tl.value + '"]';
       else if (tl.attr === 'class') suggestCopy = '.' + tl.value.trim().split(/\s+/).join('.');
       else if (tl.attr === 'tag')   suggestCopy = tl.value;

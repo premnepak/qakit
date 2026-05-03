@@ -402,7 +402,7 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
             const el  = startEl;
             const tag = el.tagName.toLowerCase();
             if (el.id) {
-              copy = '#' + el.id; label = '⎘ id';
+              copy = '[id="' + el.id + '"]'; label = '⎘ id';
             } else if (el.getAttribute('aria-label')) {
               copy = '[aria-label="' + el.getAttribute('aria-label') + '"]'; label = '⎘ aria-label';
             } else if (el.getAttribute('name')) {
