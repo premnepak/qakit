@@ -396,10 +396,13 @@
 
   // Copyable row — uses data-copy attribute + event delegation (no inline onclick)
   // A small ⎘ copy button appears on the right, and hovering the row shows a tooltip
-  function copyRow(key, val, keyColor, valColor) {
+  // copyVal (optional) overrides what goes to the clipboard — lets us display a short
+  // friendly value while copying a full test-automation-ready locator string.
+  function copyRow(key, val, keyColor, valColor, copyVal) {
     // Escape val for display and for data attribute
     const displayVal = String(val).replace(/</g,'&lt;').replace(/>/g,'&gt;');
-    const dataVal    = String(val).replace(/&/g,'&amp;').replace(/"/g,'&quot;');
+    const rawCopy    = copyVal !== undefined ? copyVal : val;
+    const dataVal    = String(rawCopy).replace(/&/g,'&amp;').replace(/"/g,'&quot;');
     return (
       '<div class="__q-copy-row" data-copy="' + dataVal + '" ' +
           'style="display:flex;align-items:flex-start;gap:5px;min-width:0;padding:2px 2px;' +
@@ -533,8 +536,8 @@
 
     // ── Element identity rows (only non-empty) ────────────────────────────
     html += row('TAG', tag, 'rgba(255,255,255,.5)', '#c0c8d8', false);
-    if (attrs.id) html += copyRow('ID', attrs.id, 'rgba(255,255,255,.5)', '#93c5fd');
-    if (attrs.classes.length) html += copyRow('CLASS', attrs.classes.join(' '), 'rgba(255,255,255,.5)', '#c084fc');
+    if (attrs.id) html += copyRow('ID', attrs.id, 'rgba(255,255,255,.5)', '#93c5fd', '#' + attrs.id);
+    if (attrs.classes.length) html += copyRow('CLASS', attrs.classes.join(' '), 'rgba(255,255,255,.5)', '#c084fc', '.' + attrs.classes.join('.'));
     if (el) {
       const name = el.getAttribute?.('name');
       const type = el.getAttribute?.('type');
@@ -543,26 +546,26 @@
       const alt  = el.getAttribute?.('alt');
       const role = el.getAttribute?.('role');
       const aria = el.getAttribute?.('aria-label');
-      if (name) html += copyRow('NAME', name, 'rgba(255,255,255,.5)', '#86efac');
-      if (type) html += copyRow('TYPE', type, 'rgba(255,255,255,.5)', '#86efac');
-      if (href) html += copyRow('HREF', href.length > 60 ? href.slice(0,60)+'…' : href, 'rgba(255,255,255,.5)', '#7dd3fc');
-      if (src)  html += copyRow('SRC', src.length > 60 ? src.slice(0,60)+'…' : src, 'rgba(255,255,255,.5)', '#7dd3fc');
-      if (alt)  html += copyRow('ALT', alt, 'rgba(255,255,255,.5)', '#fde68a');
-      if (role) html += copyRow('ROLE', role, 'rgba(255,255,255,.5)', '#fde68a');
-      if (aria) html += copyRow('ARIA', aria, 'rgba(255,255,255,.5)', '#fde68a');
+      if (name) html += copyRow('NAME', name, 'rgba(255,255,255,.5)', '#86efac', '[name="' + name + '"]');
+      if (type) html += copyRow('TYPE', type, 'rgba(255,255,255,.5)', '#86efac', '[type="' + type + '"]');
+      if (href) html += copyRow('HREF', href.length > 60 ? href.slice(0,60)+'…' : href, 'rgba(255,255,255,.5)', '#7dd3fc', href);
+      if (src)  html += copyRow('SRC',  src.length  > 60 ? src.slice(0,60)+'…'  : src,  'rgba(255,255,255,.5)', '#7dd3fc', src);
+      if (alt)  html += copyRow('ALT',  alt,  'rgba(255,255,255,.5)', '#fde68a', '[alt="' + alt + '"]');
+      if (role) html += copyRow('ROLE', role, 'rgba(255,255,255,.5)', '#fde68a', '[role="' + role + '"]');
+      if (aria) html += copyRow('ARIA', aria, 'rgba(255,255,255,.5)', '#fde68a', '[aria-label="' + aria + '"]');
     }
 
     // ── Test locator ──────────────────────────────────────────────────────
     html += '<div style="border-top:1px solid rgba(255,255,255,.07);margin:4px 0 1px;padding-top:5px;">';
     if (tl && !tl.isSuggested) {
       // FIX 2b: use copyRow instead of row so testid values are copyable
-      html += copyRow(tl.attr, '"' + tl.value + '"', '#00e5a0', '#fff');
+      html += copyRow(tl.attr, '"' + tl.value + '"', '#00e5a0', '#fff', '[' + tl.attr + '="' + tl.value + '"]');
       if (attrs.locatorInherited && attrs.locatorInheritedTag) {
         html += '<div style="font-size:10px;color:rgba(255,255,255,.5);margin:1px 0 0 2px">↑ inherited from &lt;' + attrs.locatorInheritedTag + '&gt;</div>';
       }
     } else if (tl && tl.isSuggested) {
       html += '<div style="font-size:10.5px;color:#ff9f43;margin-bottom:3px">⚠ No test attr — best available:</div>';
-      html += copyRow(tl.attr, '"' + tl.value + '"', '#ff9f43', '#ffe0a0');
+      html += copyRow(tl.attr, '"' + tl.value + '"', '#ff9f43', '#ffe0a0', '[' + tl.attr + '="' + tl.value + '"]');
     } else {
       html += '<div style="font-size:10.5px;color:rgba(255,100,100,.85);margin-bottom:3px">⚠ No test locator found</div>';
     }
