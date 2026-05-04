@@ -1,4 +1,4 @@
-// analytics-interceptor.js — QAKit v1.0.1
+// analytics-interceptor.js — QAKit
 // Runs in MAIN world (page context) — this is critical: content.js runs in an
 // isolated world where window.dataLayer / window.gtag / window.fbq / etc. are
 // different objects than what the page sees. Patching them there does nothing.

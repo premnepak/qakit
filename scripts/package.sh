@@ -54,36 +54,38 @@ fi
 echo ""
 echo -e "${BLUE}── Bumping version ${CURRENT_VERSION} → ${NEW_VERSION} ──${NC}"
 
-cd "$SRC_DIR"
+# 1. Update manifest.json (single source of truth)
+python3 -c "
+import json, sys
+with open('$SRC_DIR/manifest.json') as f: m = json.load(f)
+m['version'] = '$NEW_VERSION'
+with open('$SRC_DIR/manifest.json', 'w') as f: json.dump(m, f, indent=2)
+print('  ✓ manifest.json updated')
+"
 
-# Bump in JS, HTML, JSON files (excluding spell-bundle.js)
-for f in *.js *.html *.json; do
-  [ "$f" = "spell-bundle.js" ] && continue
-  [ -f "$f" ] || continue
-  sed -i.bak "s|v${CURRENT_VERSION}|v${NEW_VERSION}|g" "$f" 2>/dev/null || true
-  sed -i.bak "s|\"${CURRENT_VERSION}\"|\"${NEW_VERSION}\"|g" "$f" 2>/dev/null || true
-  sed -i.bak "s|Version ${CURRENT_VERSION}|Version ${NEW_VERSION}|g" "$f" 2>/dev/null || true
-  rm -f "$f.bak"
-done
+# 2. Update root package.json
+python3 -c "
+import json
+with open('package.json') as f: p = json.load(f)
+p['version'] = '$NEW_VERSION'
+with open('package.json', 'w') as f: json.dump(p, f, indent=2)
+print('  ✓ package.json updated')
+"
 
-# Update title tags specifically
-sed -i.bak "s|<title>QAKit v${CURRENT_VERSION}</title>|<title>QAKit v${NEW_VERSION}</title>|" popup.html 2>/dev/null || true
-rm -f popup.html.bak
+# 3. Targeted updates for static HTML pages (no JS runtime)
+#    privacy-policy.html — version appears in title, meta, and body text
+sed -i.bak "s|v${CURRENT_VERSION}|v${NEW_VERSION}|g; s|Version ${CURRENT_VERSION}|Version ${NEW_VERSION}|g" "$SRC_DIR/privacy-policy.html" && rm -f "$SRC_DIR/privacy-policy.html.bak"
+echo "  ✓ privacy-policy.html updated"
 
-# Verify no stale version refs
-STALE=$(grep -rln "${CURRENT_VERSION}" *.js *.html *.json 2>/dev/null | grep -v spell-bundle || true)
-if [ -n "$STALE" ]; then
-  echo -e "${YELLOW}⚠ Stale version refs in:${NC}"
-  echo "$STALE" | sed 's/^/    /'
-fi
+#    popup.html <title> tag (Chrome uses it for window/tab title)
+sed -i.bak "s|<title>QAKit v${CURRENT_VERSION}</title>|<title>QAKit v${NEW_VERSION}</title>|" "$SRC_DIR/popup.html" && rm -f "$SRC_DIR/popup.html.bak"
+echo "  ✓ popup.html title updated"
 
-NEW_MANIFEST_VERSION=$(python3 -c "import json; print(json.load(open('manifest.json'))['version'])")
+NEW_MANIFEST_VERSION=$(python3 -c "import json; print(json.load(open('$SRC_DIR/manifest.json'))['version'])")
 if [ "$NEW_MANIFEST_VERSION" != "$NEW_VERSION" ]; then
   echo -e "${RED}ERROR: manifest version mismatch — got ${NEW_MANIFEST_VERSION}, expected ${NEW_VERSION}${NC}"
   exit 1
 fi
-
-cd ..
 
 echo -e "${GREEN}✓ Version bumped to ${NEW_VERSION}${NC}"
 

@@ -1,4 +1,4 @@
-// time.js — QAKit v1.0.1
+// time.js — QAKit
 // Two sub-tabs: 🌍 World Clock (default) + ⏱ Epoch & Timezone (combined)
 
 const WORLD_CITIES = [
@@ -357,9 +357,12 @@ window.initTime = function () {
 
   document.getElementById('clockFilter')?.addEventListener('input', renderWorldClock);
 
-  document.querySelectorAll('.time-subtab').forEach(btn => {
+  // Scope to panel-time only — audit sub-tabs also have .time-subtab class
+  // so a global querySelectorAll would interfere with them.
+  const timePanel = document.getElementById('panel-time');
+  timePanel?.querySelectorAll('.time-subtab').forEach(btn => {
     btn.addEventListener('click', () => {
-      document.querySelectorAll('.time-subtab').forEach(b => b.classList.remove('active'));
+      timePanel.querySelectorAll('.time-subtab').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
       document.querySelectorAll('.time-sub').forEach(p => {
         const isActive = p.id === 'timesub-' + btn.dataset.sub;

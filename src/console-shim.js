@@ -1,4 +1,4 @@
-// console-shim.js — QAKit v1.0.1
+// console-shim.js — QAKit
 // Injected into MAIN world by background.js on every page load.
 // Wraps console.error and dispatches CustomEvents picked up by content.js.
 // Paths are configurable via window.__qConsolePaths (set before injection).
@@ -35,9 +35,33 @@
   // page scripts so they don't pollute the Console Errors panel. Only filters
   // out specific exact-match patterns. All other warnings/errors flow through.
   const NOISE_PATTERNS = [
+    // QAKit internal (inspector/element tools)
     /New element is longer than 100 characters\. Skipping\./,
     /Hovered element is invalid or has no innerText\./,
     /New element is the same as the last element in the array\. Skipping\./,
+    // @babel/polyfill loaded multiple times — bundler/page issue, not actionable
+    /@babel\/polyfill is loaded more than once/,
+    // Atlassian AJS / Jira platform deprecation notices
+    /DEPRECATED JS - /,
+    /AJS's create element functionality has been deprecated/,
+    /Multiple versions of FeatureGateClients found/,
+    // iFrameResizer library deprecation
+    /\[iFrameSizer\].*Deprecated:/,
+    // Node-style MaxListeners warning surfaced from page bundled code
+    /MaxListenersExceededWarning: Possible EventEmitter memory leak/,
+    // Coveo search component configuration warnings
+    /The [`']platformUrl[`'] .* option will be deprecated/,
+    /The [`']organizationEndpoints[`'] options was not explicitly set/,
+    // Kampyle / Medallia onsite SDK
+    /MODAL_DIALOGS will be deprecated! Please, use in future KAMPYLE_ONSITE_SDK/,
+    // React / Relay hydration noise from page frameworks
+    /No [`']HydrateFallback[`'] element provided to render during initial hydration/,
+    // Jira interactive-feature update noise
+    /Failed to update content with interactions/,
+    // Browser IndexedDB timeout (page storage, not extension)
+    /IndexedDB timed out/,
+    // Jira rule-engine expression warning
+    /BooleanExpression with operator .* had an expression that evaluated to null/,
   ];
 
   function dispatch(type, message, sourceUrl) {

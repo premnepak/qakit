@@ -1,4 +1,4 @@
-// pagetools.js — QAKit v1.0.1
+// pagetools.js — QAKit
 // Page Kit tab logic: Inspector, Ruler, Responsive, Screenshot.
 
 const VP_STORAGE_KEY = 'qakit_viewport_presets';
@@ -21,9 +21,13 @@ window.initPageTools = function () {
   }
 
   // ── Sub-tab switching ─────────────────────────────────────────────────────
-  document.querySelectorAll('.pt-subtab').forEach(btn => {
+  // Scope to this panel only — do NOT use a global .pt-subtab selector here.
+  // Time/Utils/Tools panels also use .pt-subtab on their sub-tab buttons, and
+  // a global querySelectorAll would strip .active from them on every click.
+  const ptPanel = document.getElementById('panel-pagetools');
+  ptPanel?.querySelectorAll('.pt-subtab').forEach(btn => {
     btn.addEventListener('click', () => {
-      document.querySelectorAll('.pt-subtab').forEach(b => b.classList.remove('active'));
+      ptPanel.querySelectorAll('.pt-subtab').forEach(b => b.classList.remove('active'));
       document.querySelectorAll('.pt-sub').forEach(p => {
         p.style.display = 'none'; p.classList.remove('active');
       });

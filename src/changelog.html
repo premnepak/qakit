@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>QAKit v1.0.1 — What's New</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{font-family:-apple-system,"Segoe UI",Roboto,sans-serif;background:#f4f6f9;color:#12161c;line-height:1.65;font-size:14px}
+
+.hero{background:linear-gradient(135deg,#0f141d 0%,#0a4d37 100%);color:#fff;padding:40px 32px}
+.hero-inner{max-width:860px;margin:0 auto}
+.hero h1{font-size:30px;font-weight:900;letter-spacing:-.02em;display:flex;align-items:center;gap:14px;margin-bottom:8px}
+.hero-badge{background:#00e5a0;color:#0f141d;border-radius:8px;padding:5px 12px;font-size:14px;font-weight:800}
+.hero-sub{font-size:15px;opacity:.85;margin-bottom:4px}
+.hero-meta{font-size:12px;opacity:.55}
+.hero-back{display:inline-block;margin-top:14px;font-size:12px;color:#00e5a0;text-decoration:none;font-weight:700}
+.hero-back:hover{text-decoration:underline}
+
+.content{max-width:860px;margin:0 auto;padding:32px 24px 80px}
+
+.release{background:#fff;border:1px solid #d1d9e0;border-radius:12px;padding:24px 28px;margin-bottom:20px;box-shadow:0 1px 3px rgba(0,0,0,.04)}
+.release-head{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;border-bottom:2px solid #d1fae5;padding-bottom:12px;margin-bottom:16px}
+.release-version{font-size:22px;font-weight:800;color:#0a6e51}
+.release-date{font-size:13px;color:#6b7280;font-weight:500}
+.release-tag{background:#00e5a0;color:#0f141d;border-radius:14px;padding:2px 10px;font-size:11px;font-weight:800;letter-spacing:.04em;text-transform:uppercase}
+.release-tag.maint{background:#dbeafe;color:#1e40af}
+
+h3{font-size:14px;font-weight:800;color:#374151;margin:18px 0 8px;text-transform:uppercase;letter-spacing:.05em}
+h3 .icon{margin-right:6px}
+ul{padding-left:22px;margin-bottom:8px}
+li{font-size:14px;color:#374151;margin-bottom:6px;line-height:1.65}
+li strong{color:#0a6e51}
+code{background:#f0f4f8;border-radius:3px;padding:1px 6px;font-family:monospace;font-size:12px;color:#0a4d37;font-weight:600}
+
+.intro{background:#f0fdf4;border-left:4px solid #0a6e51;padding:14px 18px;border-radius:0 8px 8px 0;margin-bottom:24px;font-size:14px;color:#065f46}
+.intro strong{color:#047857}
+
+.footer{margin-top:40px;padding-top:24px;border-top:1px solid #d1d9e0;text-align:center;font-size:12px;color:#9ca3af}
+.footer a{color:#0a6e51;font-weight:600;text-decoration:none}
+.footer a:hover{text-decoration:underline}
+
+@media(max-width:600px){
+  .hero{padding:28px 20px}
+  .content{padding:20px 16px 60px}
+  .release{padding:18px 18px}
+  .release-version{font-size:18px}
+}
+</style>
+</head>
+<body>
+
+<div class="hero">
+  <div class="hero-inner">
+    <h1><span class="hero-badge">QK</span> What's New in QAKit</h1>
+    <div class="hero-sub">Release notes and feature highlights</div>
+    <div class="hero-meta">QAKit Extension · by Prem Nepak</div>
+    <a class="hero-back" href="help.html">← Back to Help &amp; User Guide</a>
+  </div>
+</div>
+
+<div class="content">
+
+  <div class="intro">
+    <strong>Welcome to QAKit 1.0.1.</strong> This page lists the user-facing changes in each release. For a full feature walk-through, see the <a href="help.html" style="color:#047857;font-weight:700">Help &amp; User Guide</a>.
+  </div>
+
+  <!-- ────────────────────────────────────────────────── 1.0.1 -->
+  <div class="release">
+    <div class="release-head">
+      <span class="release-version">1.0.1</span>
+      <span class="release-date">May 2026</span>
+      <span class="release-tag">Latest</span>
+    </div>
+
+    <h3><span class="icon">✨</span>New &amp; improved</h3>
+    <ul>
+      <li><strong>Smarter Best Test Locator</strong> — the Element Inspector now picks the most reliable selector for the element you hover over. It prefers, in order: an element's own test attribute (<code>data-testid</code>, <code>data-cy</code>, <code>data-test</code>, <code>data-qa</code>), its <code>id</code>, accessible attributes (<code>aria-label</code>, <code>name</code>, <code>role</code>), short visible text on links/buttons/labels, and finally a nearby ancestor's test attribute when nothing better is available.</li>
+      <li><strong>Framework-aware copy output</strong> — switch between <strong>CSS</strong>, <strong>XPath</strong>, <strong>Playwright</strong>, and <strong>Cypress</strong> output styles in the inspector overlay. Copy emits a ready-to-paste line for your test framework:
+        <ul style="margin-top:6px">
+          <li>Playwright → <code>page.locator('…')</code> / <code>getByTestId('…')</code> / <code>getByRole('…')</code></li>
+          <li>Cypress → <code>cy.get('…')</code> / <code>cy.contains(tag, text)</code> (uses native Cypress chains — no plugins required)</li>
+          <li>Selenium-friendly XPath and CSS strings for any other runner</li>
+        </ul>
+      </li>
+      <li><strong>Right-click context menu copies</strong> — right-click any element on the page and pick <strong>QAKit → ⎘ Copy Best Test Locator</strong>, <strong>⎘ Copy CSS Selector</strong>, <strong>⎘ Copy XPath</strong>, or <strong>⎘ Copy Outer HTML</strong>. Same logic as the inspector overlay, available without opening the popup.</li>
+      <li><strong>Spacing Inspector gap distance</strong> — when hovering an element, the Spacing tool now shows the exact pixel gap between the element and its sibling neighbours, with cleaner labels that no longer overlap on tight layouts.</li>
+      <li><strong>Robust XPath generation</strong> — XPath output uses exact class matches first, falls back to <code>contains()</code> for compound classes, and uses <code>normalize-space()</code> for text-based locators so they survive whitespace changes.</li>
+    </ul>
+
+    <h3><span class="icon">🛠</span>Quality &amp; reliability</h3>
+    <ul>
+      <li>End-to-end test suite added for the popup and inspector flows.</li>
+      <li>Inspector overlays remember your last-chosen output style between sessions.</li>
+      <li>Various small polish fixes across cookies, local storage, and page audit.</li>
+    </ul>
+  </div>
+
+  <!-- ────────────────────────────────────────────────── 1.0.0 -->
+  <div class="release">
+    <div class="release-head">
+      <span class="release-version">1.0.0</span>
+      <span class="release-date">April 2026</span>
+      <span class="release-tag maint">Initial release</span>
+    </div>
+
+    <h3><span class="icon">🚀</span>First public release</h3>
+    <ul>
+      <li><strong>Element Inspector</strong> with live tooltip showing tag, id, classes, test attributes, computed box model, and accessibility role.</li>
+      <li><strong>Spacing Inspector</strong> — visualises margin and padding around any element.</li>
+      <li><strong>Ruler</strong> for click-and-drag pixel measurements.</li>
+      <li><strong>Responsive preview</strong> — Mobile / Tablet / Laptop / Desktop / Wide presets plus custom width.</li>
+      <li><strong>Capture suite</strong> — Annotate, Region, Full Page, and Element screenshots, all delivered to the clipboard with a download toast.</li>
+      <li><strong>Analytics monitor</strong> — captures GTM, GA4, DDL, Adobe, Tealium, Meta Pixel, Floodlight, Segment, and WAE events with rich search and filter.</li>
+      <li><strong>Network Mock</strong> — intercept requests with wildcard URL patterns, custom JSON, status codes, redirects, blocks, and artificial latency.</li>
+      <li><strong>Headers Modifier</strong> — add, override, or remove request and response headers.</li>
+      <li><strong>Page Audit</strong> — performance, security, and accessibility scoring with Core Web Vitals and a persistent last-scan banner.</li>
+      <li><strong>Session &amp; environment tools</strong> — Environment Marker, Cookie Manager, Local Storage browser, and Console Errors capture.</li>
+      <li><strong>Utilities</strong> — Time &amp; Epoch, JWT / URL / Base64 encode-decode, Override Geolocation, Page Metadata extractor.</li>
+      <li><strong>Developer tools</strong> — JSON Viewer with tree view and search, Text Compare with side-by-side diff and minimap.</li>
+      <li><strong>Full keyboard shortcuts</strong> for Inspect, Spacing, Region, and Full Page screenshots.</li>
+      <li><strong>Light / Dark themes</strong>, allowed-domains scoping, exportable settings.</li>
+    </ul>
+
+    <h3><span class="icon">🔒</span>Privacy &amp; security</h3>
+    <ul>
+      <li>Zero remote code execution — every script ships inside the extension.</li>
+      <li>Zero telemetry or analytics collected by the extension itself.</li>
+      <li>All permissions documented and justified in the published privacy policy.</li>
+    </ul>
+  </div>
+
+  <div class="footer">
+    <p><strong>QAKit</strong> · Built by <strong>Prem Nepak</strong> · <a href="help.html">Help &amp; User Guide</a> · <a href="privacy-policy.html">Privacy Policy</a> · <a href="mailto:qakit.extension@gmail.com">qakit.extension@gmail.com</a></p>
+  </div>
+
+</div>
+
+</body>
+</html>

@@ -1,4 +1,4 @@
-// headers.js — QAKit v1.0.1: Header Modifier
+// headers.js — QAKit: Header Modifier
 // Uses chrome.declarativeNetRequest for add/modify/remove headers on matching requests.
 // Rules are stored in chrome.storage.local and applied via background.js.
 

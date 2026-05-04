@@ -97,7 +97,7 @@ tr:nth-child(even) td{background:#fafbfc}
   <div class="hero-inner">
     <h1><span class="hero-badge">QK</span> QAKit User Guide</h1>
     <div class="hero-sub">Your complete QA &amp; developer toolkit for testing web applications</div>
-    <div class="hero-meta">Version 1.0.1 · Built by Prem Nepak · QAKit Extension</div>
+    <div class="hero-meta">Version 1.0.1 · Built by Prem Nepak · QAKit Extension · <a href="changelog.html" style="color:#00e5a0;font-weight:700;text-decoration:none">What's new →</a></div>
     <div class="hero-chips">
       <span class="chip">Inspect &amp; Measure</span>
       <span class="chip">Screenshots</span>
@@ -224,6 +224,43 @@ tr:nth-child(even) td{background:#fafbfc}
   <div class="tip"><strong>Mutually exclusive:</strong> Only one inspection tool can be active at a time. Opening Spacing automatically closes Inspect and Ruler, and vice versa.</div>
 
   <div class="tip"><strong>Returns to Home:</strong> After triggering Inspect, Spacing, or Ruler from the Home tile, QAKit closes and the tool runs on the page. The next time you open QAKit you land on Home, not inside Page Kit.</div>
+
+  <h3>Best Test Locator</h3>
+  <p>While the Element Inspector is active, the overlay shows a <strong>Best locator</strong> chip — QAKit's pick of the most reliable selector for the element you're hovering. The chip is colour-coded:</p>
+  <ul>
+    <li><span class="badge">Green</span> — a stable, high-confidence locator (a test attribute or unique <code>id</code>)</li>
+    <li><span class="badge badge-amber">Amber</span> — a usable fallback (accessible attribute, short text, or class/tag)</li>
+  </ul>
+  <p>The pick order, from strongest to weakest, is:</p>
+  <ol>
+    <li>The element's own test attribute — <code>data-testid</code>, <code>data-cy</code>, <code>data-test</code>, or <code>data-qa</code> (the attribute name is configurable in Settings)</li>
+    <li>The element's own <code>id</code></li>
+    <li>An accessible attribute — <code>aria-label</code>, <code>name</code>, or <code>role</code></li>
+    <li>Short visible text on links, buttons, or labels (≤ 40 characters)</li>
+    <li>The nearest ancestor that carries a test attribute (the locator targets the original element via that ancestor)</li>
+    <li>A class or tag selector as a last resort</li>
+  </ol>
+
+  <h4>Output styles &amp; copy actions</h4>
+  <p>Use the style toggle in the inspector to switch between <strong>CSS</strong>, <strong>XPath</strong>, <strong>Playwright</strong>, and <strong>Cypress</strong>. The copy button emits a ready-to-paste line in the chosen style:</p>
+  <table>
+    <tr><th>Style</th><th>Example output</th></tr>
+    <tr><td>CSS</td><td><code>[data-testid="submit-btn"]</code></td></tr>
+    <tr><td>XPath</td><td><code>//button[normalize-space()="Submit"]</code></td></tr>
+    <tr><td>Playwright</td><td><code>page.getByTestId('submit-btn')</code> · <code>page.getByRole('button', {{ name: 'Submit' }})</code> · <code>page.locator('…')</code></td></tr>
+    <tr><td>Cypress</td><td><code>cy.get('[data-testid="submit-btn"]')</code> · <code>cy.contains('button', 'Submit')</code></td></tr>
+  </table>
+  <div class="info"><strong>Cypress without plugins:</strong> QAKit's Cypress output uses native chains only (<code>cy.get</code>, <code>cy.contains</code>) — no <code>cypress-xpath</code> plugin required. If a candidate cannot be expressed natively in Cypress (e.g. an arbitrary XPath), the badge skips that row in Cypress mode.</div>
+
+  <h3>Right-click context menu</h3>
+  <p>You don't have to open the popup or activate the inspector to grab a locator. Right-click any element on the page and choose from the <strong>QAKit</strong> submenu:</p>
+  <ul>
+    <li><strong>⎘ Copy Best Test Locator</strong> — applies the same priority chain as the inspector and copies the strongest available locator for the clicked element</li>
+    <li><strong>⎘ Copy CSS Selector</strong> — copies a robust CSS selector</li>
+    <li><strong>⎘ Copy XPath</strong> — copies a robust XPath (uses <code>normalize-space()</code> for text-based locators)</li>
+    <li><strong>⎘ Copy Outer HTML</strong> — copies the element's full outer HTML</li>
+  </ul>
+  <p>The same submenu also offers quick-launch actions for Inspect, Spacing, Region / Full Page / Element screenshots, Page Audit, Annotate, JSON Viewer, and Text Compare.</p>
 </div>
 
 <!-- ═══════════════════════════════════════════════════════════════════════ CAPTURE -->
@@ -746,7 +783,7 @@ tr:nth-child(even) td{background:#fafbfc}
 <div class="footer">
   <p><strong>QAKit v1.0.1</strong> · Built with passion for QAs &amp; developers<br>
   By <strong>Prem Nepak</strong> · QAKit Extension<br>
-  <span style="font-size:12px">Questions or feedback? <a href="mailto:qakit.extension@gmail.com" style="color:#0a6e51;font-weight:600">qakit.extension@gmail.com</a></span></p>
+  <span style="font-size:12px"><a href="changelog.html" style="color:#0a6e51;font-weight:600">What's new →</a> · <a href="privacy-policy.html" style="color:#0a6e51;font-weight:600">Privacy Policy</a> · Questions or feedback? <a href="mailto:qakit.extension@gmail.com" style="color:#0a6e51;font-weight:600">qakit.extension@gmail.com</a></span></p>
 </div>
 
 </div><!-- .content -->

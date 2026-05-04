@@ -1,4 +1,4 @@
-// envmarker.js — QAKit v1.0.1
+// envmarker.js — QAKit
 // Environment Marker panel: collapsed-row layout, drag reorder, position rules.
 
 const ENV_STORAGE_KEY = 'qakit_env_marker_envs';

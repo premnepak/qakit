@@ -1,4 +1,4 @@
-// Background service worker — QAKit v1.0.1
+// Background service worker — QAKit
 // Persists events to chrome.storage.local so they survive page loads/navigation
 
 const state = {
@@ -228,22 +228,50 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
       await chrome.scripting.executeScript({
         target: { tabId: tab.id, frameIds: info.frameId !== undefined ? [info.frameId] : undefined }, world: 'MAIN',
         func: () => {
-          // Prefer the target captured by our contextmenu listener — it's the
-          // actual right-clicked element. Fallback to activeElement only if
-          // the listener somehow hasn't fired (shouldn't happen in practice).
           const el = window.__qkitLastContextTarget || document.activeElement;
           if (!el || !el.tagName) return;
-          const parts = [];
-          let curr = el;
-          while (curr && curr !== document.documentElement) {
-            let sel = curr.tagName.toLowerCase();
-            if (curr.id) { sel = '#' + curr.id; parts.unshift(sel); break; }
-            const siblings = [...(curr.parentElement?.children || [])].filter(c => c.tagName === curr.tagName);
-            if (siblings.length > 1) sel += ':nth-of-type(' + (siblings.indexOf(curr) + 1) + ')';
-            parts.unshift(sel);
-            curr = curr.parentElement;
+
+          // Semantic/relative CSS selector (test-automation friendly)
+          const TEST_A = ['data-testid','data-test','data-cy','data-qa','data-pw','data-automation-id','data-test-id'];
+          function buildCss(elem) {
+            if (!elem || elem === document.body) return 'body';
+            if (elem.id && /^[a-zA-Z][\w-]*$/.test(elem.id)) return '#' + elem.id;
+            for (const a of TEST_A) {
+              if (elem.hasAttribute(a)) {
+                return elem.tagName.toLowerCase() + '[' + a + '="' + elem.getAttribute(a) + '"]';
+              }
+            }
+            const tag = elem.tagName.toLowerCase();
+            const nm = elem.getAttribute('name');
+            if (nm) return tag + '[name="' + nm + '"]';
+            const al = elem.getAttribute('aria-label');
+            if (al) return tag + '[aria-label="' + al + '"]';
+            const ph = elem.getAttribute('placeholder');
+            if (ph) return tag + '[placeholder="' + ph + '"]';
+            function seg(node) {
+              const t = node.tagName.toLowerCase();
+              if (node.id && /^[a-zA-Z][\w-]*$/.test(node.id)) return '#' + node.id;
+              const cls = Array.from(node.classList).find(c => /^[a-zA-Z][a-zA-Z0-9_-]{1,30}$/.test(c) && !/^\d+$/.test(c));
+              if (cls && node.parentElement && node.parentElement.querySelectorAll(t + '.' + cls).length === 1) return t + '.' + cls;
+              const p = node.parentElement;
+              if (p) {
+                const sibs = Array.from(p.children).filter(c => c.tagName === node.tagName);
+                if (sibs.length === 1) return t;
+                return t + ':nth-of-type(' + (sibs.indexOf(node) + 1) + ')';
+              }
+              return t;
+            }
+            const parts = []; let node = elem;
+            while (node && node !== document.documentElement && parts.length < 6) {
+              parts.unshift(seg(node));
+              const cand = parts.join(' > ');
+              try { if (document.querySelectorAll(cand).length === 1) return cand; } catch(_) {}
+              node = node.parentElement;
+            }
+            return parts.join(' > ');
           }
-          const selector = parts.join(' > ');
+
+          const selector = buildCss(el);
           navigator.clipboard.writeText(selector).then(() => {
             const t = document.createElement('div');
             t.style.cssText = 'position:fixed;bottom:20px;right:20px;z-index:2147483647;background:#0a6e51;color:#fff;padding:8px 14px;border-radius:6px;font-family:sans-serif;font-size:13px;font-weight:600;max-width:360px;word-break:break-all';
@@ -261,16 +289,55 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
         func: () => {
           const el = window.__qkitLastContextTarget || document.activeElement;
           if (!el || !el.tagName) return;
-          const parts = [];
-          let curr = el;
-          while (curr && curr.nodeType === 1) {
-            let tag = curr.tagName.toLowerCase();
-            const siblings = [...(curr.parentElement?.children || [])].filter(c => c.tagName === curr.tagName);
-            if (siblings.length > 1) tag += '[' + (siblings.indexOf(curr) + 1) + ']';
-            parts.unshift(tag);
-            curr = curr.parentElement;
+
+          // Semantic/relative XPath (test-automation friendly)
+          const TEST_A = ['data-testid','data-qa','data-test','data-cy','data-automation-id','data-test-id','data-pw'];
+          function esc(v) { return v.replace(/"/g, '&quot;'); }
+          function buildXPath(elem) {
+            if (!elem || elem === document.body) return '//body';
+            if (elem.id && /^[a-zA-Z][\w-]*$/.test(elem.id)) return '//*[@id="' + elem.id + '"]';
+            for (const a of TEST_A) {
+              if (elem.hasAttribute(a)) return '//*[@' + a + '="' + esc(elem.getAttribute(a)) + '"]';
+            }
+            const tag = elem.tagName.toLowerCase();
+            const nm = elem.getAttribute('name');
+            if (nm) return '//' + tag + '[@name="' + esc(nm) + '"]';
+            const al = elem.getAttribute('aria-label');
+            if (al) return '//' + tag + '[@aria-label="' + esc(al) + '"]';
+            const ph = elem.getAttribute('placeholder');
+            if (ph) return '//' + tag + '[@placeholder="' + esc(ph) + '"]';
+            if (['button','a','label','th','h1','h2','h3','h4','h5','h6'].includes(tag)) {
+              const txt = (elem.textContent || '').trim().replace(/\s+/g, ' ');
+              if (txt && txt.length <= 40 && !txt.includes('"')) return '//' + tag + '[normalize-space()="' + txt + '"]';
+            }
+            if (tag === 'input') {
+              const type = elem.getAttribute('type'), val = elem.getAttribute('value');
+              if ((type === 'submit' || type === 'button' || type === 'reset') && val) {
+                return '//input[@type="' + type + '" and @value="' + esc(val) + '"]';
+              }
+            }
+            function seg(node) {
+              const t = node.tagName.toLowerCase();
+              const p = node.parentElement;
+              if (!p) return t;
+              const sibs = Array.from(p.children).filter(c => c.tagName === node.tagName);
+              return sibs.length > 1 ? t + '[' + (sibs.indexOf(node) + 1) + ']' : t;
+            }
+            const parts = []; let node = elem;
+            while (node && node.nodeType === 1 && node !== document.documentElement) {
+              if (node !== elem) {
+                if (node.id && /^[a-zA-Z][\w-]*$/.test(node.id)) return '//*[@id="' + node.id + '"]/' + parts.join('/');
+                for (const a of TEST_A) {
+                  if (node.hasAttribute(a)) return '//*[@' + a + '="' + esc(node.getAttribute(a)) + '"]/' + parts.join('/');
+                }
+              }
+              parts.unshift(seg(node));
+              node = node.parentElement;
+            }
+            return '//' + parts.join('/');
           }
-          const xpath = '/' + parts.join('/');
+
+          const xpath = buildXPath(el);
           navigator.clipboard.writeText(xpath).then(() => {
             const t = document.createElement('div');
             t.style.cssText = 'position:fixed;bottom:20px;right:20px;z-index:2147483647;background:#0a6e51;color:#fff;padding:8px 14px;border-radius:6px;font-family:sans-serif;font-size:13px;font-weight:600;max-width:360px;word-break:break-all';
@@ -283,73 +350,157 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
       break;
 
     case 'qakit-copy-testid': {
-      // Read user's custom test-id attr(s) from settings, then walk up from
-      // the right-clicked element looking for the best available test locator.
-      // Falls back to id → aria-label → name → role → CSS when none found.
+      // Ranked candidate engine — same as inspector.js. Picks the best
+      // verified-unique selector that targets the right-clicked element,
+      // then formats it for the user's chosen output style.
       let customAttrs = '';
+      let outputStyle = 'css';
       try {
         const s = await chrome.storage.local.get('qa_tools_settings');
         customAttrs = s.qa_tools_settings?.testIdAttr || '';
+        outputStyle = s.qa_tools_settings?.locatorOutput || 'css';
       } catch (_) {}
       await chrome.scripting.executeScript({
         target: { tabId: tab.id, frameIds: info.frameId !== undefined ? [info.frameId] : undefined }, world: 'MAIN',
-        func: (customAttrsStr) => {
-          const DEFAULTS = ['data-testid','data-qa','data-test','data-cy','data-automation-id','data-test-id'];
+        func: (customAttrsStr, outStyle) => {
+          const DEFAULTS = ['data-testid','data-qa','data-test','data-cy','data-automation-id','data-test-id','data-pw'];
           const custom = (customAttrsStr || '').split(',').map(s => s.trim()).filter(Boolean);
-          const attrs = [...custom];
-          DEFAULTS.forEach(a => { if (!attrs.includes(a)) attrs.push(a); });
+          const testAttrs = [...custom];
+          DEFAULTS.forEach(a => { if (!testAttrs.includes(a)) testAttrs.push(a); });
 
           const startEl = window.__qkitLastContextTarget || document.activeElement;
           if (!startEl || !startEl.tagName) return;
 
-          // Walk up to find first ancestor with any of the test attrs
-          let locator = null;
-          let node = startEl;
-          for (let i = 0; i < 30 && node && node.tagName && node !== document.documentElement; i++) {
-            for (const a of attrs) {
-              if (node.hasAttribute(a)) {
-                locator = {
-                  attr: a,
-                  value: node.getAttribute(a),
-                  fromAncestor: node !== startEl,
-                  ancestorTag: node !== startEl ? (node.tagName.toLowerCase() +
-                    (node.id ? '#' + node.id : '') +
-                    (node.classList.length ? '.' + node.classList[0] : '')) : null,
-                };
-                break;
+          const JUNK = /^(?:css-[a-z0-9]+|mui-[a-z0-9]+|MuiBox-[a-z0-9]+|sc-[a-z0-9]+|jsx-\d+|emotion-[a-z0-9]+|chakra-[a-z0-9]+|ant-[a-z]+(?:-\w*)?-\d+|_[a-zA-Z0-9_]{6,}|[a-z]+-[0-9a-f]{6,}|[a-z]{1,3}\d{4,})$/;
+          const isStable = c => c && c.length >= 2 && c.length <= 40 && /^[a-zA-Z][\w-]*$/.test(c) && !JUNK.test(c);
+          const cleanCls = el => el && el.classList ? Array.from(el.classList).filter(isStable) : [];
+          const escA = v => String(v).replace(/"/g, '\\"');
+          const escX = v => String(v).replace(/"/g, '&quot;');
+          const verifyCss = sel => { try { const n = document.querySelectorAll(sel).length; return { count: n, isUnique: n === 1 }; } catch (_) { return { count: 0, isUnique: false }; } };
+          const verifyXp  = xp  => { try { const n = Math.round(document.evaluate('count(' + xp + ')', document, null, XPathResult.NUMBER_TYPE, null).numberValue); return { count: n, isUnique: n === 1 }; } catch (_) { return { count: 0, isUnique: false }; } };
+          const matches = (sel, type, el) => {
+            try {
+              if (type === 'xpath') {
+                const it = document.evaluate(sel, document, null, XPathResult.UNORDERED_NODE_ITERATOR_TYPE, null);
+                let n = it.iterateNext();
+                while (n) { if (n === el) return true; n = it.iterateNext(); }
+                return false;
+              }
+              return Array.from(document.querySelectorAll(sel)).indexOf(el) !== -1;
+            } catch (_) { return false; }
+          };
+          function findAnchor(el) {
+            let n = el.parentElement;
+            while (n && n !== document.documentElement && n.tagName) {
+              for (const a of testAttrs) { if (n.hasAttribute(a)) { const v = n.getAttribute(a); return { el: n, attr: a, sel: '[' + a + '="' + escA(v) + '"]', xp: '//*[@' + a + '="' + escX(v) + '"]' }; } }
+              if (n.id && /^[a-zA-Z][\w-]*$/.test(n.id)) return { el: n, attr: 'id', sel: '#' + n.id, xp: '//*[@id="' + n.id + '"]' };
+              n = n.parentElement;
+            }
+            return null;
+          }
+          function buildCandidates(el) {
+            const cs = [];
+            const tag = el.tagName.toLowerCase();
+            const push = c => {
+              const v = c.type === 'xpath' ? verifyXp(c.selector) : verifyCss(c.selector);
+              c.count = v.count; c.isUnique = v.isUnique;
+              if (c.count === 0) return;
+              if (!matches(c.selector, c.type, el)) return;
+              if (cs.some(x => x.selector === c.selector)) return;
+              cs.push(c);
+            };
+            // Tier 1
+            for (const a of testAttrs) { if (el.hasAttribute(a)) push({ tier: 1, label: a, type: 'css', selector: '[' + a + '="' + escA(el.getAttribute(a)) + '"]' }); }
+            if (el.id && /^[a-zA-Z][\w-]*$/.test(el.id)) push({ tier: 1, label: 'id', type: 'css', selector: '#' + el.id });
+            const anchor = findAnchor(el);
+            // Tier 2
+            if (anchor) {
+              const aria = el.getAttribute('aria-label');
+              if (aria) push({ tier: 2, label: 'anchor:aria', type: 'css', anchor: anchor.attr, selector: anchor.sel + ' ' + tag + '[aria-label="' + escA(aria) + '"]' });
+              if (['a','button','label','th','h1','h2','h3','h4','h5','h6','span','p','strong','em','li'].includes(tag)) {
+                const txt = (el.textContent || '').trim().replace(/\s+/g, ' ');
+                if (txt && txt.length <= 50 && !txt.includes('"')) push({ tier: 2, label: 'anchor:text', type: 'xpath', anchor: anchor.attr, selector: anchor.xp + '//' + tag + '[normalize-space()="' + txt + '"]' });
               }
             }
-            if (locator) break;
-            node = node.parentElement;
-          }
-
-          let copy, label;
-          if (locator) {
-            copy  = '[' + locator.attr + '="' + locator.value + '"]';
-            label = '⎘ ' + locator.attr + (locator.fromAncestor ? ' (↑ ' + locator.ancestorTag + ')' : '');
-          } else {
-            // Graceful fallback chain
-            const el = startEl;
-            if (el.id)                      { copy = '#' + el.id;                                 label = '⎘ id (no test attr found)'; }
-            else if (el.getAttribute('aria-label')) { copy = '[aria-label="' + el.getAttribute('aria-label') + '"]'; label = '⎘ aria-label (no test attr)'; }
-            else if (el.getAttribute('name'))       { copy = '[name="' + el.getAttribute('name') + '"]';     label = '⎘ name (no test attr)'; }
-            else if (el.getAttribute('role'))       { copy = '[role="' + el.getAttribute('role') + '"]';     label = '⎘ role (no test attr)'; }
-            else {
-              const cls = Array.from(el.classList).slice(0, 2).join('.');
-              copy = el.tagName.toLowerCase() + (cls ? '.' + cls : '');
-              label = '⎘ CSS (no test attr found)';
+            // Tier 3
+            const aria = el.getAttribute('aria-label'); if (aria) push({ tier: 3, label: 'aria-label', type: 'css', selector: tag + '[aria-label="' + escA(aria) + '"]' });
+            const nm = el.getAttribute('name'); if (nm) push({ tier: 3, label: 'name', type: 'css', selector: tag + '[name="' + escA(nm) + '"]' });
+            const role = el.getAttribute('role'); if (role) push({ tier: 3, label: 'role', type: 'css', selector: tag + '[role="' + escA(role) + '"]' });
+            if (['a','button','label','th','h1','h2','h3','h4','h5','h6'].includes(tag)) {
+              const txt = (el.textContent || '').trim().replace(/\s+/g, ' ');
+              if (txt && txt.length <= 40 && !txt.includes('"')) push({ tier: 3, label: 'text', type: 'xpath', selector: '//' + tag + '[normalize-space()="' + txt + '"]' });
             }
+            // Tier 4
+            if (anchor) {
+              push({ tier: 4, label: 'anchor:tag', type: 'css', anchor: anchor.attr, selector: anchor.sel + ' ' + tag });
+              const cc = cleanCls(el);
+              if (cc.length) push({ tier: 4, label: 'anchor:class', type: 'css', anchor: anchor.attr, selector: anchor.sel + ' ' + tag + '.' + cc[0] });
+              const par = el.parentElement;
+              if (par) { const sibs = Array.from(par.children).filter(c => c.tagName === el.tagName); if (sibs.length > 1) push({ tier: 4, label: 'anchor:nth', type: 'css', anchor: anchor.attr, selector: anchor.sel + ' ' + tag + ':nth-of-type(' + (sibs.indexOf(el) + 1) + ')' }); }
+            }
+            // Tier 5
+            const ph = el.getAttribute('placeholder'); if (ph) push({ tier: 5, label: 'placeholder', type: 'css', selector: tag + '[placeholder="' + escA(ph) + '"]' });
+            const cc2 = cleanCls(el); if (cc2.length) push({ tier: 5, label: 'class', type: 'css', selector: tag + '.' + cc2[0] });
+            cs.sort((a, b) => (a.isUnique !== b.isUnique) ? (a.isUnique ? -1 : 1) : (a.tier !== b.tier ? a.tier - b.tier : a.selector.length - b.selector.length));
+            return cs;
+          }
+          function format(cand, style) {
+            if (!cand) return '';
+            const sel = cand.selector;
+            if (style === 'playwright') {
+              let m = /^\[data-testid="(.+)"\]$/.exec(sel);
+              if (m) return "page.getByTestId('" + m[1].replace(/'/g, "\\'") + "')";
+              m = /^\w+\[aria-label="(.+)"\]$/.exec(sel);
+              if (m) return "page.getByLabel('" + m[1].replace(/'/g, "\\'") + "')";
+              m = /^\w+\[role="(.+)"\]$/.exec(sel);
+              if (m) return "page.getByRole('" + m[1].replace(/'/g, "\\'") + "')";
+              if (cand.type === 'xpath') return "page.locator('xpath=" + sel.replace(/'/g, "\\'") + "')";
+              return "page.locator('" + sel.replace(/'/g, "\\'") + "')";
+            }
+            if (style === 'cypress') {
+              // Cypress has no native cy.xpath() — translate text-based xpaths
+              // into cy.contains() (native) and skip ones we can't express.
+              if (cand.type === 'xpath') {
+                let m = /^(\[[^\]]+\]|#[\w-]+)\/\/(\w+)\[normalize-space\(\)="(.+)"\]$/.exec(sel);
+                if (m) {
+                  return "cy.get('" + m[1].replace(/'/g, "\\'") + "').contains('" + m[2] + "', '" + m[3].replace(/'/g, "\\'") + "')";
+                }
+                m = /^\/\/(\w+)\[normalize-space\(\)="(.+)"\]$/.exec(sel);
+                if (m) return "cy.contains('" + m[1] + "', '" + m[2].replace(/'/g, "\\'") + "')";
+                return null;
+              }
+              return "cy.get('" + sel.replace(/'/g, "\\'") + "')";
+            }
+            return sel;
           }
 
+          const candidates = buildCandidates(startEl);
+          // Pick the best candidate that the active output style can express
+          // natively. In Cypress mode an XPath that isn't a text query yields
+          // null from format(), so we walk down the ranked list until one
+          // sticks.
+          let best = null, copy = null;
+          for (const c of candidates) {
+            const formatted = format(c, outStyle);
+            if (formatted != null) { best = c; copy = formatted; break; }
+          }
+          let label;
+          if (best) {
+            const u = best.isUnique ? '✓' : '⚠ ' + best.count + '×';
+            label = '⎘ ' + best.label + ' ' + u;
+          } else {
+            copy  = startEl.tagName.toLowerCase();
+            label = '⎘ tag (no locator found)';
+          }
           navigator.clipboard.writeText(copy).then(() => {
             const t = document.createElement('div');
-            t.style.cssText = 'position:fixed;bottom:20px;right:20px;z-index:2147483647;background:#0a6e51;color:#fff;padding:8px 14px;border-radius:6px;font-family:sans-serif;font-size:13px;font-weight:600;max-width:360px;word-break:break-all';
+            t.style.cssText = 'position:fixed;bottom:20px;right:20px;z-index:2147483647;background:#0a6e51;color:#fff;padding:8px 14px;border-radius:6px;font-family:sans-serif;font-size:13px;font-weight:600;max-width:400px;word-break:break-all';
             t.textContent = label + '  →  ' + (copy.length > 80 ? copy.slice(0, 80) + '…' : copy);
             document.body.appendChild(t);
-            setTimeout(() => t.remove(), 2500);
+            setTimeout(() => t.remove(), 3000);
           }).catch(() => {});
         },
-        args: [customAttrs],
+        args: [customAttrs, outputStyle],
       }).catch(() => {});
       break;
     }

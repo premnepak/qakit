@@ -1,4 +1,4 @@
-// popup.js — QAKit v1.0.1
+// popup.js — QAKit
 
 const CATEGORY_COLORS = {
   // DOM events (content.js)
@@ -1943,14 +1943,18 @@ async function activateInspector(mode) {
     const sCustomAttr = (typeof getSettings === 'function')
       ? (getSettings().testIdAttr || '')
       : '';
+    const sLocatorOutput = (typeof getSettings === 'function')
+      ? (getSettings().locatorOutput || 'css')
+      : 'css';
 
     await chrome.scripting.executeScript({
       target: { tabId: tab.id },
       world: 'MAIN',
-      func: (m, customAttr) => {
+      func: (m, customAttr, locatorOutput) => {
         window.__qInspectorMode     = m;
         window.__qInspectorActive   = true;
         window.__qCustomTestAttr    = customAttr || ''; // used by getTestAttrs() in inspector
+        window.__qLocatorOutputStyle = locatorOutput || 'css';
         if (window.__qInspectorInstalled) {
           document.documentElement.style.cursor = 'crosshair';
           // Hide stale overlays from previous mode
@@ -1963,7 +1967,7 @@ async function activateInspector(mode) {
           });
         }
       },
-      args: [mode, sCustomAttr],
+      args: [mode, sCustomAttr, sLocatorOutput],
     });
 
     // First time: inject full script
@@ -2068,6 +2072,11 @@ document.getElementById('spacingBtn').addEventListener('click', async () => {
 });
 
 // ── Init all modules ─────────────────────────────────────────────────────────
+// Set version from manifest (single source of truth)
+(function() {
+  const vEl = document.querySelector('.logo-version');
+  if (vEl) vEl.textContent = 'v' + chrome.runtime.getManifest().version;
+})();
 try {
   if (typeof initPageTools === 'function') initPageTools();
 } catch(e) {
@@ -2090,11 +2099,25 @@ if (typeof initSettings      === 'function') initSettings();
   // Floating home button removed (Fix 55) — ← Home in panel nav is sole back nav
 })();
 
-// ── Sub-tab switching (Time, Utils) ───────────────────────────────────────
+// ── Sub-tab switching (Time, Utils, Tools) ────────────────────────────────
 function initSubTabs(tabClass, subClass) {
-  document.querySelectorAll('.' + tabClass).forEach(btn => {
+  const buttons = document.querySelectorAll('.' + tabClass);
+  // Activate first button + pane on init (ensures correct highlight on first
+  // visit and after any cross-panel active-class stripping).
+  const firstBtn = buttons[0];
+  if (firstBtn) {
+    buttons.forEach(b => b.classList.remove('active'));
+    firstBtn.classList.add('active');
+    const firstSub = firstBtn.dataset.sub;
+    document.querySelectorAll('.' + subClass).forEach(p => {
+      const isFirst = p.id.endsWith('-' + firstSub);
+      p.style.display = isFirst ? 'flex' : 'none';
+      p.classList.toggle('active', isFirst);
+    });
+  }
+  buttons.forEach(btn => {
     btn.addEventListener('click', () => {
-      document.querySelectorAll('.' + tabClass).forEach(b => b.classList.remove('active'));
+      buttons.forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
       const sub = btn.dataset.sub;
       document.querySelectorAll('.' + subClass).forEach(p => {

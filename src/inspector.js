@@ -1,4 +1,4 @@
-// inspector.js — QAKit v1.0.1 Element Inspector + Spacing Inspector
+// inspector.js — QAKit Element Inspector + Spacing Inspector
 // Injected into MAIN world via chrome.scripting.executeScript
 
 (function installInspector() {
@@ -157,62 +157,388 @@
     return merged;
   }
 
-  function findBestLocator(startEl, cursorX, cursorY) {
-    // Strategy: use document.elementsFromPoint to get ALL elements stacked at
-    // the cursor position, then search each one and its ancestors for test attrs.
-    // This handles:
-    //   1. Deep ancestor walk (data-testid on a distant parent)
-    //   2. Overlapping/sibling elements (e.g. positioned overlay on top of testid element)
-    //   3. z-index stacking where the hover target is not a descendant of testid element
-    const testAttrs = getTestAttrs();
+  // ════════════════════════════════════════════════════════════════════════
+  // LOCATOR ENGINE — ranked candidate list with live uniqueness check
+  // ════════════════════════════════════════════════════════════════════════
+  // Reject CSS-in-JS hashes, MUI/Chakra/Ant generated, Tailwind utility hashes,
+  // and obviously generated tokens. Keep BEM and component-style names.
+  const JUNK_CLASS_RE = /^(?:css-[a-z0-9]+|mui-[a-z0-9]+|MuiBox-[a-z0-9]+|sc-[a-z0-9]+|jsx-\d+|emotion-[a-z0-9]+|chakra-[a-z0-9]+|ant-[a-z]+(?:-\w*)?-\d+|_[a-zA-Z0-9_]{6,}|[a-z]+-[0-9a-f]{6,}|[a-z]{1,3}\d{4,})$/;
+  function isStableClass(c) {
+    if (!c || c.length < 2 || c.length > 40) return false;
+    if (!/^[a-zA-Z][\w-]*$/.test(c)) return false;
+    if (JUNK_CLASS_RE.test(c)) return false;
+    return true;
+  }
+  function cleanClasses(el) {
+    if (!el || !el.classList) return [];
+    return Array.from(el.classList).filter(isStableClass);
+  }
 
-    // First try: walk up from the directly hovered element (fastest path)
-    function walkUp(el, limit) {
-      let node = el;
-      for (let i = 0; i < limit && node && node.tagName && node !== document.documentElement; i++) {
-        for (const attr of testAttrs) {
-          if (node.hasAttribute(attr)) {
-            return { attr, value: node.getAttribute(attr), el: node, isSuggested: false };
-          }
-        }
-        node = node.parentElement;
+  function escAttr(v)   { return String(v).replace(/"/g, '\\"'); }
+  function escXpAttr(v) { return String(v).replace(/"/g, '&quot;'); }
+
+  // Verify selector uniqueness
+  function verifyCss(sel) {
+    try {
+      const n = document.querySelectorAll(sel).length;
+      return { count: n, isUnique: n === 1 };
+    } catch (_) { return { count: 0, isUnique: false }; }
+  }
+  function verifyXPath(xp) {
+    try {
+      const r = document.evaluate('count(' + xp + ')', document, null, XPathResult.NUMBER_TYPE, null).numberValue;
+      const n = Math.round(r);
+      return { count: n, isUnique: n === 1 };
+    } catch (_) { return { count: 0, isUnique: false }; }
+  }
+
+  // Confirm a selector actually matches the target element
+  function selectorMatches(sel, type, el) {
+    try {
+      if (type === 'xpath') {
+        const it = document.evaluate(sel, document, null, XPathResult.UNORDERED_NODE_ITERATOR_TYPE, null);
+        let n = it.iterateNext();
+        while (n) { if (n === el) return true; n = it.iterateNext(); }
+        return false;
       }
-      return null;
+      return Array.from(document.querySelectorAll(sel)).indexOf(el) !== -1;
+    } catch (_) { return false; }
+  }
+
+  // Find nearest ancestor with id or test-attr — used as anchor for relative selectors
+  function findAnchorAncestor(el, testAttrs) {
+    let node = el.parentElement;
+    while (node && node !== document.documentElement && node.tagName) {
+      for (const a of testAttrs) {
+        if (node.hasAttribute(a)) {
+          const v = node.getAttribute(a);
+          return {
+            el: node, kind: a, attr: a, value: v,
+            sel: '[' + a + '="' + escAttr(v) + '"]',
+            xp:  '//*[@' + a + '="' + escXpAttr(v) + '"]',
+          };
+        }
+      }
+      if (node.id && /^[a-zA-Z][\w-]*$/.test(node.id)) {
+        return {
+          el: node, kind: 'id', attr: 'id', value: node.id,
+          sel: '#' + node.id,
+          xp:  '//*[@id="' + node.id + '"]',
+        };
+      }
+      node = node.parentElement;
+    }
+    return null;
+  }
+
+  // Build a ranked list of candidate locators that target `el` directly.
+  // Tier scale (lower = better):
+  //   1 = own test attr / own id           (green, most stable)
+  //   2 = anchored: ancestor + text/aria   (green, semantic)
+  //   3 = own aria-label / role / text     (amber, semantic on element)
+  //   4 = anchored: ancestor + tag/nth/class (amber, structural with anchor)
+  //   5 = class chain / placeholder         (amber, brittle)
+  //   6 = nth-of-type absolute              (red, last resort)
+  function buildLocatorCandidates(el) {
+    const cands = [];
+    if (!el || !el.tagName) return cands;
+    const testAttrs = getTestAttrs();
+    const tag = el.tagName.toLowerCase();
+
+    function push(c) {
+      const v = c.type === 'xpath' ? verifyXPath(c.selector) : verifyCss(c.selector);
+      c.count = v.count;
+      c.isUnique = v.isUnique;
+      if (c.count === 0) return;
+      if (!selectorMatches(c.selector, c.type, el)) return;
+      // Dedup by selector
+      if (cands.some(x => x.selector === c.selector)) return;
+      cands.push(c);
     }
 
-    // Try direct ancestor walk first (depth 30)
-    const directResult = walkUp(startEl, 30);
-    if (directResult) return directResult;
+    // ── Tier 1: own test attr / own id ──────────────────────────────────
+    for (const a of testAttrs) {
+      if (el.hasAttribute(a)) {
+        const v = el.getAttribute(a);
+        push({ tier: 1, kind: a, label: a, type: 'css',
+               selector: '[' + a + '="' + escAttr(v) + '"]' });
+      }
+    }
+    if (el.id && /^[a-zA-Z][\w-]*$/.test(el.id)) {
+      push({ tier: 1, kind: 'id', label: 'id', type: 'css',
+             selector: '#' + el.id });
+    }
 
-    // Second try: check ALL elements under the cursor via elementsFromPoint.
-    // This catches overlapping elements where e.target is the wrong layer.
+    // ── Find anchor ancestor for relative selectors ─────────────────────
+    const anchor = findAnchorAncestor(el, testAttrs);
+
+    // ── Tier 2: anchored + text / aria (most reliable relative form) ────
+    if (anchor) {
+      const aria = el.getAttribute('aria-label');
+      if (aria) {
+        push({ tier: 2, kind: anchor.attr + ' › aria-label', label: 'anchor:aria',
+               type: 'css', anchor: anchor.kind,
+               selector: anchor.sel + ' ' + tag + '[aria-label="' + escAttr(aria) + '"]' });
+      }
+      if (['a','button','label','th','h1','h2','h3','h4','h5','h6','span','p','strong','em','li'].includes(tag)) {
+        const txt = (el.textContent || '').trim().replace(/\s+/g, ' ');
+        if (txt && txt.length <= 50 && !txt.includes('"')) {
+          push({ tier: 2, kind: anchor.attr + ' › text', label: 'anchor:text',
+                 type: 'xpath', anchor: anchor.kind,
+                 selector: anchor.xp + '//' + tag + '[normalize-space()="' + txt + '"]' });
+        }
+      }
+    }
+
+    // ── Tier 3: own semantic attrs ──────────────────────────────────────
+    const aria = el.getAttribute('aria-label');
+    if (aria) {
+      push({ tier: 3, kind: 'aria-label', label: 'aria-label', type: 'css',
+             selector: tag + '[aria-label="' + escAttr(aria) + '"]' });
+    }
+    const nameAttr = el.getAttribute('name');
+    if (nameAttr) {
+      push({ tier: 3, kind: 'name', label: 'name', type: 'css',
+             selector: tag + '[name="' + escAttr(nameAttr) + '"]' });
+    }
+    const role = el.getAttribute('role');
+    if (role) {
+      push({ tier: 3, kind: 'role', label: 'role', type: 'css',
+             selector: tag + '[role="' + escAttr(role) + '"]' });
+    }
+    if (['a','button','label','th','h1','h2','h3','h4','h5','h6'].includes(tag)) {
+      const txt = (el.textContent || '').trim().replace(/\s+/g, ' ');
+      if (txt && txt.length <= 40 && !txt.includes('"')) {
+        push({ tier: 3, kind: 'text', label: 'text', type: 'xpath',
+               selector: '//' + tag + '[normalize-space()="' + txt + '"]' });
+      }
+    }
+    if (tag === 'input') {
+      const type = el.getAttribute('type'), val = el.getAttribute('value');
+      if ((type === 'submit' || type === 'button' || type === 'reset') && val) {
+        push({ tier: 3, kind: 'input[value]', label: 'input', type: 'css',
+               selector: 'input[type="' + type + '"][value="' + escAttr(val) + '"]' });
+      }
+    }
+
+    // ── Tier 4: anchored + structural ───────────────────────────────────
+    if (anchor) {
+      // simple tag descendant
+      push({ tier: 4, kind: anchor.attr + ' › ' + tag, label: 'anchor:tag',
+             type: 'css', anchor: anchor.kind,
+             selector: anchor.sel + ' ' + tag });
+      // anchor + tag + clean class
+      const cleanCls = cleanClasses(el);
+      if (cleanCls.length) {
+        push({ tier: 4, kind: anchor.attr + ' › ' + tag + '.class', label: 'anchor:class',
+               type: 'css', anchor: anchor.kind,
+               selector: anchor.sel + ' ' + tag + '.' + cleanCls[0] });
+      }
+      // anchor + tag + nth-of-type
+      const parent = el.parentElement;
+      if (parent) {
+        const sibs = Array.from(parent.children).filter(c => c.tagName === el.tagName);
+        if (sibs.length > 1) {
+          const idx = sibs.indexOf(el) + 1;
+          push({ tier: 4, kind: anchor.attr + ' › ' + tag + ':nth', label: 'anchor:nth',
+                 type: 'css', anchor: anchor.kind,
+                 selector: anchor.sel + ' ' + tag + ':nth-of-type(' + idx + ')' });
+        }
+      }
+    }
+
+    // ── Tier 5: own placeholder / class chain ───────────────────────────
+    const ph = el.getAttribute('placeholder');
+    if (ph) {
+      push({ tier: 5, kind: 'placeholder', label: 'placeholder', type: 'css',
+             selector: tag + '[placeholder="' + escAttr(ph) + '"]' });
+    }
+    const cleanCls2 = cleanClasses(el);
+    if (cleanCls2.length) {
+      push({ tier: 5, kind: 'class', label: 'class', type: 'css',
+             selector: tag + '.' + cleanCls2[0] });
+      if (cleanCls2.length > 1) {
+        push({ tier: 5, kind: 'class+', label: 'class+', type: 'css',
+               selector: tag + '.' + cleanCls2.slice(0, 2).join('.') });
+      }
+    }
+
+    // ── Tier 6: nth-of-type absolute (last resort) ──────────────────────
+    function seg(node) {
+      const t = node.tagName.toLowerCase();
+      const p = node.parentElement;
+      if (!p) return t;
+      const sibs = Array.from(p.children).filter(c => c.tagName === node.tagName);
+      return sibs.length > 1 ? t + ':nth-of-type(' + (sibs.indexOf(node) + 1) + ')' : t;
+    }
+    const parts = []; let cur = el;
+    while (cur && cur !== document.documentElement && parts.length < 8) {
+      parts.unshift(seg(cur));
+      cur = cur.parentElement;
+    }
+    if (parts.length) {
+      push({ tier: 6, kind: 'path', label: 'path', type: 'css',
+             selector: parts.join(' > ') });
+    }
+
+    // Sort: unique first, then tier asc, then shorter selector
+    cands.sort((a, b) => {
+      if (a.isUnique !== b.isUnique) return a.isUnique ? -1 : 1;
+      if (a.tier !== b.tier) return a.tier - b.tier;
+      return a.selector.length - b.selector.length;
+    });
+
+    return cands;
+  }
+
+  // Format a candidate for the active output style
+  function formatForOutput(cand, style) {
+    if (!cand) return '';
+    const sel = cand.selector;
+    if (style === 'playwright') {
+      // Use idiomatic getBy* helpers when possible
+      let m = /^\[data-testid="(.+)"\]$/.exec(sel);
+      if (m) return "page.getByTestId('" + m[1].replace(/'/g, "\\'") + "')";
+      m = /^\w+\[aria-label="(.+)"\]$/.exec(sel);
+      if (m) return "page.getByLabel('" + m[1].replace(/'/g, "\\'") + "')";
+      m = /^\w+\[role="(.+)"\]$/.exec(sel);
+      if (m) return "page.getByRole('" + m[1].replace(/'/g, "\\'") + "')";
+      m = /^\w+\[placeholder="(.+)"\]$/.exec(sel);
+      if (m) return "page.getByPlaceholder('" + m[1].replace(/'/g, "\\'") + "')";
+      // anchored:text or own text xpath →  use getByText when not anchored
+      if (cand.type === 'xpath') {
+        m = /^\/\/(\w+)\[normalize-space\(\)="(.+)"\]$/.exec(sel);
+        if (m) return "page.getByRole('" + (m[1] === 'button' || m[1] === 'a' ? m[1] : 'generic') + "', { name: '" + m[2].replace(/'/g, "\\'") + "' })";
+        return "page.locator('xpath=" + sel.replace(/'/g, "\\'") + "')";
+      }
+      return "page.locator('" + sel.replace(/'/g, "\\'") + "')";
+    }
+    if (style === 'cypress') {
+      // Cypress has no native cy.xpath() — that requires the cypress-xpath
+      // plugin. We translate text-based XPaths into cy.contains() (native)
+      // and return null for any XPath we can't express natively, so the
+      // caller can skip / fall back to the next candidate.
+      if (cand.type === 'xpath') {
+        // Anchored text xpath:  [anchor]//tag[normalize-space()="text"]
+        let m = /^(\[[^\]]+\]|#[\w-]+)\/\/(\w+)\[normalize-space\(\)="(.+)"\]$/.exec(sel);
+        if (m) {
+          const anc = m[1].replace(/'/g, "\\'");
+          const txt = m[3].replace(/'/g, "\\'");
+          return "cy.get('" + anc + "').contains('" + m[2] + "', '" + txt + "')";
+        }
+        // Own text xpath:  //tag[normalize-space()="text"]
+        m = /^\/\/(\w+)\[normalize-space\(\)="(.+)"\]$/.exec(sel);
+        if (m) {
+          return "cy.contains('" + m[1] + "', '" + m[2].replace(/'/g, "\\'") + "')";
+        }
+        // Anything else (rare — only emitted for xpath-only candidates we
+        // can't express as a native Cypress chain) returns null so the UI
+        // can hide / skip this candidate in Cypress mode.
+        return null;
+      }
+      let m = /^\[data-testid="(.+)"\]$/.exec(sel);
+      if (m) return "cy.get('[data-testid=\"" + m[1] + "\"]')";
+      return "cy.get('" + sel.replace(/'/g, "\\'") + "')";
+    }
+    if (style === 'xpath') {
+      // Prefer xpath form if we have one, else convert via simple wrap
+      if (cand.type === 'xpath') return sel;
+      // For css selectors, just return as-is — caller can switch candidates
+      return sel;
+    }
+    // 'css' or default — raw selector
+    return sel;
+  }
+
+  function getOutputStyle() {
+    return window.__qLocatorOutputStyle || 'css';
+  }
+  function setOutputStyle(style) {
+    window.__qLocatorOutputStyle = style;
+    try { localStorage.setItem('__qakit_locator_output', style); } catch (_) {}
+  }
+  // Init from localStorage on first load
+  (function initOutputStyle() {
+    if (window.__qLocatorOutputStyle) return;
     try {
-      const allEls = document.elementsFromPoint(
-        cursorX !== undefined ? cursorX : startEl.getBoundingClientRect().left + startEl.getBoundingClientRect().width / 2,
-        cursorY !== undefined ? cursorY : startEl.getBoundingClientRect().top  + startEl.getBoundingClientRect().height / 2
-      );
+      const stored = localStorage.getItem('__qakit_locator_output');
+      if (stored && ['css','xpath','playwright','cypress'].includes(stored)) {
+        window.__qLocatorOutputStyle = stored;
+      }
+    } catch (_) {}
+  })();
 
-      for (const candidate of allEls) {
-        if (candidate === startEl) continue;              // already checked
-        if (candidate === document.documentElement) break;// stop at root
-        if (candidate.id && candidate.id.startsWith('__q-')) continue; // skip our own overlays
-        const result = walkUp(candidate, 30);
-        if (result) return result;
+  function findBestLocator(startEl, cursorX, cursorY) {
+    // Phase 0: Build ranked candidate list.
+    // The first candidate is the verified-unique winner.
+    const candidates = buildLocatorCandidates(startEl);
+    const best = candidates[0] || null;
+
+    // Same-layer z-index check for OWN test attrs on overlapping elements.
+    // Kept from the previous implementation so a hovered element with a
+    // sibling overlay still surfaces the sibling's testid.
+    let zCandidate = null;
+    try {
+      const cx = cursorX !== undefined ? cursorX : startEl.getBoundingClientRect().left + startEl.getBoundingClientRect().width / 2;
+      const cy = cursorY !== undefined ? cursorY : startEl.getBoundingClientRect().top  + startEl.getBoundingClientRect().height / 2;
+      const allEls = document.elementsFromPoint(cx, cy);
+      const testAttrs = getTestAttrs();
+      for (const cand of allEls) {
+        if (cand === startEl) continue;
+        if (cand === document.documentElement) break;
+        if (cand.id && cand.id.startsWith('__q-')) continue;
+        if (cand.contains(startEl)) continue;
+        for (const a of testAttrs) {
+          if (cand.hasAttribute(a)) {
+            zCandidate = { attr: a, value: cand.getAttribute(a), el: cand };
+            break;
+          }
+        }
+        if (zCandidate) break;
       }
     } catch (_) {}
 
-    // Nothing found anywhere — suggest the best locator for the hovered element
-    const el = startEl;
-    if (el.id) return { attr: 'id', value: el.id, el, isSuggested: true };
-    const aria = el.getAttribute('aria-label') || el.getAttribute('aria-labelledby');
-    if (aria) return { attr: 'aria-label', value: aria, el, isSuggested: true };
-    const name = el.getAttribute('name');
-    if (name) return { attr: 'name', value: name, el, isSuggested: true };
-    const role = el.getAttribute('role');
-    if (role) return { attr: 'role', value: role, el, isSuggested: true };
-    const tag = el.tagName.toLowerCase();
-    const classes = Array.from(el.classList).slice(0, 2).join('.');
-    return { attr: 'css', value: classes ? tag + '.' + classes : tag, el, isSuggested: true };
+    // Walk ancestors for an inheritedLocator note (display only).
+    let inheritedLocator = null;
+    {
+      const testAttrs = getTestAttrs();
+      let node = startEl.parentElement;
+      for (let i = 0; i < 30 && node && node.tagName && node !== document.documentElement; i++) {
+        for (const attr of testAttrs) {
+          if (node.hasAttribute(attr)) {
+            inheritedLocator = { attr, value: node.getAttribute(attr), el: node };
+            break;
+          }
+        }
+        if (inheritedLocator) break;
+        node = node.parentElement;
+      }
+    }
+
+    // Map best-candidate back to the legacy {attr,value,el,isSuggested,fromAncestor} shape
+    // so the rest of the code (badge, copy logic) keeps working.
+    if (zCandidate) {
+      return { ...zCandidate, isSuggested: false, inheritedLocator: null, candidates };
+    }
+    if (!best) {
+      // No candidates at all — degenerate fallback
+      return { attr: 'tag', value: startEl.tagName.toLowerCase(), el: startEl,
+               isSuggested: true, inheritedLocator, candidates: [] };
+    }
+    // Tier 1 = own attr/id → primary (green); other tiers = suggested (amber).
+    const isPrimary = best.tier === 1;
+    // Detect anchored-to-ancestor candidates so the badge can show the note.
+    const fromAncestor = !!best.anchor;
+    return {
+      attr:  best.kind,           // human label, e.g. "data-testid" or "data-testid › p"
+      value: best.selector,       // full ready-to-paste selector
+      el:    startEl,
+      isSuggested: !isPrimary && !fromAncestor,
+      fromAncestor,
+      inheritedLocator,
+      best,                       // raw candidate object
+      candidates,                 // full ranked list
+    };
   }
 
   function findAttrs(startEl, cursorX, cursorY) {
@@ -238,13 +564,19 @@
     // producing a confusing "highlights both buttons" effect.
     result.highlightEl = startEl;
 
-    if (result.testLocator && result.testLocator.el && result.testLocator.el !== startEl) {
+    // Inherited locator handling
+    if (result.testLocator && result.testLocator.fromAncestor) {
+      // The locator IS the ancestor testid — record the ancestor element for the badge note
       result.locatorInherited = true;
       const anc = result.testLocator.el;
       const ancTag = anc.tagName ? anc.tagName.toLowerCase() : '';
-      const ancId  = anc.id ? '#' + anc.id : '';
       const ancCls = anc.classList && anc.classList.length ? '.' + anc.classList[0] : '';
-      result.locatorInheritedTag = ancTag + ancId + ancCls;
+      result.locatorInheritedTag = ancTag + ancCls;
+    } else if (result.testLocator && result.testLocator.inheritedLocator) {
+      // Direct locator (id/aria/etc.) but a parent also has a test attr
+      result.locatorInherited    = true;
+      const il = result.testLocator.inheritedLocator;
+      result.locatorInheritedTag = '[' + il.attr + '="' + il.value + '"]';
     }
 
     // Walk up for WAE event (unchanged behavior — WAE events are commonly on
@@ -272,7 +604,7 @@
   // ── Generate shortest unique CSS selector ────────────────────────────────
   function generateCssSelector(el) {
     if (!el || el === document.body) return 'body';
-    if (el.id && /^[a-zA-Z][\w-]*$/.test(el.id)) return '#' + el.id;
+    if (el.id && /^[a-zA-Z][\w-]*$/.test(el.id)) return '[id="' + el.id + '"]';
     const testAttrs = getTestAttrs();
     for (const attr of testAttrs) {
       if (el.hasAttribute(attr)) {
@@ -280,21 +612,29 @@
         return el.tagName.toLowerCase() + '[' + attr + '="' + v.replace(/"/g, '\\"') + '"]';
       }
     }
+    // Semantic attrs stable enough for test automation
+    const tag = el.tagName.toLowerCase();
+    const nameAttr = el.getAttribute('name');
+    if (nameAttr) return tag + '[name="' + nameAttr.replace(/"/g, '\\"') + '"]';
+    const ariaLabel = el.getAttribute('aria-label');
+    if (ariaLabel) return tag + '[aria-label="' + ariaLabel.replace(/"/g, '\\"') + '"]';
+    const phAttr = el.getAttribute('placeholder');
+    if (phAttr) return tag + '[placeholder="' + phAttr.replace(/"/g, '\\"') + '"]';
     function seg(node) {
-      const tag = node.tagName.toLowerCase();
+      const t = node.tagName.toLowerCase();
       if (node.id && /^[a-zA-Z][\w-]*$/.test(node.id)) return '#' + node.id;
-      const cls = Array.from(node.classList).find(c => /^[a-zA-Z][a-zA-Z0-9_-]{1,30}$/.test(c) && !/^\d+$/.test(c));
+      const cls = Array.from(node.classList).find(c => isStableClass(c));
       if (cls) {
         const p = node.parentElement;
-        if (p && p.querySelectorAll(tag + '.' + cls).length === 1) return tag + '.' + cls;
+        if (p && p.querySelectorAll(t + '.' + cls).length === 1) return t + '.' + cls;
       }
       const p = node.parentElement;
       if (p) {
         const sibs = Array.from(p.children).filter(c => c.tagName === node.tagName);
-        if (sibs.length === 1) return tag;
-        return tag + ':nth-of-type(' + (sibs.indexOf(node) + 1) + ')';
+        if (sibs.length === 1) return t;
+        return t + ':nth-of-type(' + (sibs.indexOf(node) + 1) + ')';
       }
-      return tag;
+      return t;
     }
     const parts = []; let node = el;
     while (node && node !== document.documentElement && parts.length < 6) {
@@ -308,15 +648,91 @@
 
   function generateXPath(el) {
     if (!el || el === document.body) return '//body';
+    const TEST_ATTRS = ['data-testid','data-qa','data-test','data-cy','data-automation-id','data-test-id','data-pw'];
+    function esc(v) { return v.replace(/"/g, '&quot;'); }
+
+    // 1. id on element
     if (el.id && /^[a-zA-Z][\w-]*$/.test(el.id)) return '//*[@id="' + el.id + '"]';
+
+    // 2. Test automation attribute on element
+    for (const attr of TEST_ATTRS) {
+      if (el.hasAttribute(attr)) return '//*[@' + attr + '="' + esc(el.getAttribute(attr)) + '"]';
+    }
+
+    const tag = el.tagName.toLowerCase();
+
+    // 3. name attr (form elements)
+    const nameAttr = el.getAttribute('name');
+    if (nameAttr) return '//' + tag + '[@name="' + esc(nameAttr) + '"]';
+
+    // 4. aria-label
+    const ariaLabel = el.getAttribute('aria-label');
+    if (ariaLabel) return '//' + tag + '[@aria-label="' + esc(ariaLabel) + '"]';
+
+    // 5. placeholder
+    const phAttr = el.getAttribute('placeholder');
+    if (phAttr) return '//' + tag + '[@placeholder="' + esc(phAttr) + '"]';
+
+    // 5b. Full class string (exact match) — uniqueness verified via XPath count().
+    //     Falls back to contains(@class, 'first-token') if exact isn't unique.
+    if (el.classList && el.classList.length) {
+      const fullCls = el.className.trim();
+      if (fullCls && !fullCls.includes('"')) {
+        const exactXP = '//' + tag + '[@class="' + fullCls + '"]';
+        try {
+          const cnt = document.evaluate('count(' + exactXP + ')', document, null, XPathResult.NUMBER_TYPE, null).numberValue;
+          if (cnt === 1) return exactXP;
+        } catch(_) {}
+        // Fallback: contains() on first class token
+        const firstCls = fullCls.split(/\s+/)[0];
+        if (firstCls) {
+          const containsXP = '//' + tag + '[contains(@class,"' + firstCls + '")]';
+          try {
+            const cnt2 = document.evaluate('count(' + containsXP + ')', document, null, XPathResult.NUMBER_TYPE, null).numberValue;
+            if (cnt2 === 1) return containsXP;
+          } catch(_) {}
+        }
+      }
+    }
+
+    // 6. Short visible text for interactive/structural elements
+    if (['button','a','label','th','h1','h2','h3','h4','h5','h6'].includes(tag)) {
+      const txt = (el.textContent || '').trim().replace(/\s+/g, ' ');
+      if (txt && txt.length <= 40 && !txt.includes('"')) {
+        return '//' + tag + '[normalize-space()="' + txt + '"]';
+      }
+    }
+
+    // 7. type+value for submit/button/reset inputs
+    if (tag === 'input') {
+      const type = el.getAttribute('type');
+      const val  = el.getAttribute('value');
+      if ((type === 'submit' || type === 'button' || type === 'reset') && val) {
+        return '//input[@type="' + type + '" and @value="' + esc(val) + '"]';
+      }
+    }
+
+    // 8. Walk up — anchor to nearest ancestor with id or test-attr, build short path down
+    function seg(node) {
+      const t = node.tagName.toLowerCase();
+      const p = node.parentElement;
+      if (!p) return t;
+      const sibs = Array.from(p.children).filter(c => c.tagName === node.tagName);
+      return sibs.length > 1 ? t + '[' + (sibs.indexOf(node) + 1) + ']' : t;
+    }
     const parts = []; let node = el;
     while (node && node.nodeType === 1 && node !== document.documentElement) {
-      const tag = node.tagName.toLowerCase();
-      const p = node.parentElement;
-      if (p) {
-        const sibs = Array.from(p.children).filter(c => c.tagName === node.tagName);
-        parts.unshift(sibs.length > 1 ? tag + '[' + (sibs.indexOf(node) + 1) + ']' : tag);
-      } else { parts.unshift(tag); }
+      if (node !== el) {
+        if (node.id && /^[a-zA-Z][\w-]*$/.test(node.id)) {
+          return '//*[@id="' + node.id + '"]/' + parts.join('/');
+        }
+        for (const attr of TEST_ATTRS) {
+          if (node.hasAttribute(attr)) {
+            return '//*[@' + attr + '="' + esc(node.getAttribute(attr)) + '"]/' + parts.join('/');
+          }
+        }
+      }
+      parts.unshift(seg(node));
       node = node.parentElement;
     }
     return '//' + parts.join('/');
@@ -334,10 +750,13 @@
 
   // Copyable row — uses data-copy attribute + event delegation (no inline onclick)
   // A small ⎘ copy button appears on the right, and hovering the row shows a tooltip
-  function copyRow(key, val, keyColor, valColor) {
+  // copyVal (optional) overrides what goes to the clipboard — lets us display a short
+  // friendly value while copying a full test-automation-ready locator string.
+  function copyRow(key, val, keyColor, valColor, copyVal) {
     // Escape val for display and for data attribute
     const displayVal = String(val).replace(/</g,'&lt;').replace(/>/g,'&gt;');
-    const dataVal    = String(val).replace(/&/g,'&amp;').replace(/"/g,'&quot;');
+    const rawCopy    = copyVal !== undefined ? copyVal : val;
+    const dataVal    = String(rawCopy).replace(/&/g,'&amp;').replace(/"/g,'&quot;');
     return (
       '<div class="__q-copy-row" data-copy="' + dataVal + '" ' +
           'style="display:flex;align-items:flex-start;gap:5px;min-width:0;padding:2px 2px;' +
@@ -375,6 +794,22 @@
         pinBtn.textContent = window.__qInspectorPinned ? '📌 Pinned' : '📌 Pin';
         pinBtn.style.color = window.__qInspectorPinned ? '#f9c74f' : 'rgba(255,255,255,.5)';
         pinBtn.style.borderColor = window.__qInspectorPinned ? '#f9c74f' : 'rgba(255,255,255,.15)';
+        return;
+      }
+      // Output-style toggle (CSS / XPath / Playwright / Cypress)
+      const styleBtn = e.target.closest('.__q-outstyle-btn');
+      if (styleBtn) {
+        e.stopPropagation();
+        const newStyle = styleBtn.dataset.style;
+        if (newStyle && newStyle !== getOutputStyle()) {
+          setOutputStyle(newStyle);
+          // Re-render badge with the same element so all rows update
+          const cur = window.__qPinnedEl || lastTarget;
+          if (cur) {
+            const newAttrs = findAttrs(cur);
+            renderInspectBadge(newAttrs);
+          }
+        }
         return;
       }
       const btn = e.target.closest('.__q-copy-btn');
@@ -471,8 +906,8 @@
 
     // ── Element identity rows (only non-empty) ────────────────────────────
     html += row('TAG', tag, 'rgba(255,255,255,.5)', '#c0c8d8', false);
-    if (attrs.id) html += copyRow('ID', attrs.id, 'rgba(255,255,255,.5)', '#93c5fd');
-    if (attrs.classes.length) html += copyRow('CLASS', attrs.classes.join(' '), 'rgba(255,255,255,.5)', '#c084fc');
+    if (attrs.id) html += copyRow('ID', attrs.id, 'rgba(255,255,255,.5)', '#93c5fd', '#' + attrs.id);
+    if (attrs.classes.length) html += copyRow('CLASS', attrs.classes.join(' '), 'rgba(255,255,255,.5)', '#c084fc', '.' + attrs.classes.join('.'));
     if (el) {
       const name = el.getAttribute?.('name');
       const type = el.getAttribute?.('type');
@@ -481,28 +916,86 @@
       const alt  = el.getAttribute?.('alt');
       const role = el.getAttribute?.('role');
       const aria = el.getAttribute?.('aria-label');
-      if (name) html += copyRow('NAME', name, 'rgba(255,255,255,.5)', '#86efac');
-      if (type) html += copyRow('TYPE', type, 'rgba(255,255,255,.5)', '#86efac');
-      if (href) html += copyRow('HREF', href.length > 60 ? href.slice(0,60)+'…' : href, 'rgba(255,255,255,.5)', '#7dd3fc');
-      if (src)  html += copyRow('SRC', src.length > 60 ? src.slice(0,60)+'…' : src, 'rgba(255,255,255,.5)', '#7dd3fc');
-      if (alt)  html += copyRow('ALT', alt, 'rgba(255,255,255,.5)', '#fde68a');
-      if (role) html += copyRow('ROLE', role, 'rgba(255,255,255,.5)', '#fde68a');
-      if (aria) html += copyRow('ARIA', aria, 'rgba(255,255,255,.5)', '#fde68a');
+      if (name) html += copyRow('NAME', name, 'rgba(255,255,255,.5)', '#86efac', '[name="' + name + '"]');
+      if (type) html += copyRow('TYPE', type, 'rgba(255,255,255,.5)', '#86efac', '[type="' + type + '"]');
+      if (href) html += copyRow('HREF', href.length > 60 ? href.slice(0,60)+'…' : href, 'rgba(255,255,255,.5)', '#7dd3fc', href);
+      if (src)  html += copyRow('SRC',  src.length  > 60 ? src.slice(0,60)+'…'  : src,  'rgba(255,255,255,.5)', '#7dd3fc', src);
+      if (alt)  html += copyRow('ALT',  alt,  'rgba(255,255,255,.5)', '#fde68a', '[alt="' + alt + '"]');
+      if (role) html += copyRow('ROLE', role, 'rgba(255,255,255,.5)', '#fde68a', '[role="' + role + '"]');
+      if (aria) html += copyRow('ARIA', aria, 'rgba(255,255,255,.5)', '#fde68a', '[aria-label="' + aria + '"]');
     }
 
-    // ── Test locator ──────────────────────────────────────────────────────
+    // ── Test locator (ranked candidate list) ─────────────────────────────
     html += '<div style="border-top:1px solid rgba(255,255,255,.07);margin:4px 0 1px;padding-top:5px;">';
-    if (tl && !tl.isSuggested) {
-      // FIX 2b: use copyRow instead of row so testid values are copyable
-      html += copyRow(tl.attr, '"' + tl.value + '"', '#00e5a0', '#fff');
-      if (attrs.locatorInherited && attrs.locatorInheritedTag) {
-        html += '<div style="font-size:10px;color:rgba(255,255,255,.5);margin:1px 0 0 2px">↑ inherited from &lt;' + attrs.locatorInheritedTag + '&gt;</div>';
-      }
-    } else if (tl && tl.isSuggested) {
-      html += '<div style="font-size:10.5px;color:#ff9f43;margin-bottom:3px">⚠ No test attr — best available:</div>';
-      html += copyRow(tl.attr, '"' + tl.value + '"', '#ff9f43', '#ffe0a0');
+    const candidates = (tl && Array.isArray(tl.candidates)) ? tl.candidates : [];
+    const outStyle   = getOutputStyle();
+
+    // Output-style toggle pill row
+    const styles = [
+      { id: 'css',        label: 'CSS' },
+      { id: 'xpath',      label: 'XPath' },
+      { id: 'playwright', label: 'PW' },
+      { id: 'cypress',    label: 'Cy' },
+    ];
+    html += '<div style="display:flex;align-items:center;justify-content:space-between;gap:6px;margin-bottom:4px;padding:0 1px">' +
+      '<span style="font-size:10px;color:rgba(255,255,255,.4);font-weight:600;letter-spacing:.5px">BEST LOCATORS</span>' +
+      '<div class="__q-outstyle" style="display:flex;gap:2px;background:rgba(255,255,255,.05);border-radius:4px;padding:1px">';
+    styles.forEach(st => {
+      const active = st.id === outStyle;
+      html += '<button class="__q-outstyle-btn" data-style="' + st.id + '" ' +
+        'style="background:' + (active ? 'rgba(0,229,160,.25)' : 'transparent') + ';' +
+        'color:' + (active ? '#00e5a0' : 'rgba(255,255,255,.55)') + ';' +
+        'border:none;padding:1px 6px;font-size:10px;font-weight:' + (active ? '700' : '500') + ';' +
+        'border-radius:3px;cursor:pointer;font-family:inherit">' + st.label + '</button>';
+    });
+    html += '</div></div>';
+
+    if (candidates.length === 0) {
+      html += '<div style="font-size:10.5px;color:rgba(255,100,100,.85);margin-bottom:3px">⚠ No locator found</div>';
     } else {
-      html += '<div style="font-size:10.5px;color:rgba(255,100,100,.85);margin-bottom:3px">⚠ No test locator found</div>';
+      // Show top 4 ranked candidates
+      const TIER_COLORS = { 1: '#00e5a0', 2: '#7dd3a0', 3: '#ff9f43', 4: '#ff9f43', 5: '#ffb27a', 6: '#ff7575' };
+      // Filter out candidates that can't be expressed natively in the active
+      // output style (e.g. Cypress + non-text XPath). formatForOutput returns
+      // null in that case.
+      const renderable = candidates.filter(c => formatForOutput(c, outStyle) != null);
+      const top = renderable.slice(0, 4);
+      if (top.length === 0) {
+        html += '<div style="font-size:10.5px;color:rgba(255,100,100,.85);margin-bottom:3px">⚠ No native ' + outStyle + ' locator found</div>';
+      }
+      top.forEach((c, idx) => {
+        const color  = TIER_COLORS[c.tier] || '#999';
+        const formatted = formatForOutput(c, outStyle);
+        const dispVal   = formatted.length > 80 ? formatted.slice(0, 80) + '…' : formatted;
+        const countBadge = c.isUnique
+          ? '<span style="color:#00e5a0;font-size:9.5px;background:rgba(0,229,160,.12);padding:0 4px;border-radius:3px;margin-right:4px;flex-shrink:0">✓ unique</span>'
+          : '<span style="color:#ff9f43;font-size:9.5px;background:rgba(255,159,67,.12);padding:0 4px;border-radius:3px;margin-right:4px;flex-shrink:0">⚠ ' + c.count + '×</span>';
+        const isPrimary = idx === 0;
+        const dataVal = String(formatted).replace(/&/g,'&amp;').replace(/"/g,'&quot;');
+        const dispEsc = String(dispVal).replace(/</g,'&lt;').replace(/>/g,'&gt;');
+        html += '<div class="__q-copy-row" data-copy="' + dataVal + '" ' +
+          'style="display:flex;align-items:center;gap:5px;min-width:0;padding:2px 2px;border-radius:3px;' +
+          (isPrimary ? 'background:rgba(0,229,160,.06);' : '') + '">' +
+          '<span style="color:' + color + ';font-size:10px;font-weight:' + (isPrimary ? '700' : '500') +
+            ';flex-shrink:0;min-width:64px;letter-spacing:.2px">' + c.label + '</span>' +
+          countBadge +
+          '<span style="color:' + (isPrimary ? '#fff' : '#d0d8e8') + ';font-size:11px;' +
+            'word-break:break-all;flex:1;font-family:ui-monospace,monospace">' + dispEsc + '</span>' +
+          '<button class="__q-copy-btn" data-copy="' + dataVal + '" ' +
+            'style="flex-shrink:0;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.18);' +
+            'border-radius:3px;color:rgba(255,255,255,.5);font-size:9px;padding:0 5px;cursor:pointer;' +
+            'line-height:14px;height:16px;margin-left:2px" title="Copy">⎘</button>' +
+        '</div>';
+      });
+      // Note for anchored selectors
+      const bestC = top[0];
+      if (bestC && bestC.anchor) {
+        html += '<div style="font-size:10px;color:rgba(255,255,255,.5);margin:2px 0 0 2px">↑ anchored on ancestor [' + bestC.anchor + '=…]</div>';
+      }
+    }
+    // Inherited test-attr note when present and not already shown via anchor
+    if (attrs.locatorInherited && attrs.locatorInheritedTag && !(candidates[0] && candidates[0].anchor)) {
+      html += '<div style="font-size:10px;color:rgba(255,255,255,.5);margin:1px 0 0 2px">↑ parent has ' + attrs.locatorInheritedTag + '</div>';
     }
     html += '</div>';
 
@@ -724,7 +1217,33 @@
       width: width + 'px', height: height + 'px',
       display: 'block', background: bg, border: 'none',
     });
-    posLabel(labelId, gap.px + 'px', left + width / 2, top + height / 2, 'rgba(220,50,50,0.92)', '#fff', 'center');
+    // Nudge gap labels off the dead-centre line so they don't land exactly on
+    // pcy (for H gaps) or pcx (for V gaps) — the same axis where the padding
+    // labels are also placed.  A small offset of ~12 px (capped at 25% of the
+    // gap dimension) is enough to visually separate them.
+    const gLabelCx = gap.axis === 'V'
+      ? left + width / 2 + Math.min(12, width  * 0.25)   // shift right of pcx
+      : left + width / 2;
+    const gLabelCy = gap.axis === 'H'
+      ? top  + height / 2 - Math.min(12, height * 0.25)  // shift above pcy
+      : top  + height / 2;
+    posLabel(labelId, gap.px + 'px', gLabelCx, gLabelCy, 'rgba(220,50,50,0.92)', '#fff', 'center');
+    // Give gap labels a white border so they punch through the red indicator line.
+    // If the gap is very thin, nudge the label just outside the gap box.
+    const lbl = document.getElementById(labelId);
+    if (lbl) {
+      lbl.style.outline = '1.5px solid rgba(180,0,0,0.7)';
+      const lblH = lbl.offsetHeight;
+      const lblW = lbl.offsetWidth;
+      if (gap.axis === 'V' && height < lblH + 4) {
+        // Push label above the gap box
+        lbl.style.top = Math.max(4, top - lblH - 3) + 'px';
+      } else if (gap.axis === 'H' && width < lblW + 4) {
+        // Push label to the right of the gap box
+        const newLeft = Math.min(left + width + 3, window.innerWidth - lblW - 4);
+        lbl.style.left = Math.max(4, newLeft) + 'px';
+      }
+    }
   }
 
   function positionSpacing(el) {
@@ -757,28 +1276,60 @@
     });
 
     // Dimension labels
-    // Width label — above element, centred
+    // Width label — above element; pushed further up when top padding label would overlap
+    const wLabelY = s.pt ? r.top - 26 : r.top - 18;
     posLabel('__q-dim-w', s.w+'px',
-      r.left + r.width/2, r.top - 18,
+      r.left + r.width/2, wLabelY,
       'rgba(0,229,160,0.95)', '#000', 'center');
 
-    // Height label — right of element, centred vertically
-    posLabel('__q-dim-h', s.h+'px',
-      r.right + 6, r.top + r.height/2,
-      'rgba(0,229,160,0.95)', '#000', 'left');
-
     // Padding labels (only if non-zero)
-    if (s.pt) posLabel('__q-dim-pt', s.pt+'px', r.left+r.width/2, r.top+s.bt+s.pt/2-6, 'rgba(130,100,255,0.95)', '#fff', 'center');
-    if (s.pb) posLabel('__q-dim-pb', s.pb+'px', r.left+r.width/2, r.bottom-s.bb-s.pb/2-6, 'rgba(130,100,255,0.95)', '#fff', 'center');
-    if (s.pl) posLabel('__q-dim-pl', s.pl+'px', r.left+s.bl+s.pl/2, r.top+r.height/2-6, 'rgba(130,100,255,0.95)', '#fff', 'center');
-    if (s.pr) posLabel('__q-dim-pr', s.pr+'px', r.right-s.br-s.pr/2, r.top+r.height/2-6, 'rgba(130,100,255,0.95)', '#fff', 'center');
+    // Place each label at 1/3 or 1/4 from the respective edge (not at the centroid)
+    // so top/bottom labels don't collide when the element is short, and
+    // left/right labels don't collide with the W label or with each other.
+    const pcx = r.left + r.width / 2;  // horizontal centre
+    const pcy = r.top  + r.height / 2; // vertical centre
+    // Top padding: 1/3 from top edge (inside content area), never overlapping W label
+    if (s.pt) {
+      const ptY = r.top + Math.min(Math.max(s.pt / 2, 8), r.height * 0.35);
+      posLabel('__q-dim-pt', s.pt+'px', pcx, ptY, 'rgba(130,100,255,0.95)', '#fff', 'center');
+    }
+    // Bottom padding: 1/3 from bottom edge
+    if (s.pb) {
+      const pbY = r.bottom - Math.min(Math.max(s.pb / 2, 8), r.height * 0.35);
+      posLabel('__q-dim-pb', s.pb+'px', pcx, pbY, 'rgba(130,100,255,0.95)', '#fff', 'center');
+    }
+    // Left padding: 1/3 from left, biased toward top quarter so it misses W+H labels
+    if (s.pl) {
+      const plX = r.left + Math.min(Math.max(s.pl / 2, 8), r.width * 0.3);
+      posLabel('__q-dim-pl', s.pl+'px', plX, pcy, 'rgba(130,100,255,0.95)', '#fff', 'center');
+    }
+    // Right padding: 1/3 from right
+    if (s.pr) {
+      const prX = r.right - Math.min(Math.max(s.pr / 2, 8), r.width * 0.3);
+      posLabel('__q-dim-pr', s.pr+'px', prX, pcy, 'rgba(130,100,255,0.95)', '#fff', 'center');
+    }
 
     // Gap boxes — show spacing between this element and its adjacent siblings
     positionGapBox('__q-gap-prev', '__q-gap-prev-lbl', s.gapToPrev, r);
     positionGapBox('__q-gap-next', '__q-gap-next-lbl', s.gapToNext, r);
 
-    // Build panel
-    renderSpacingPanel(s, r);
+    // Build panel first so we know which side it lands on
+    const panelLeft = renderSpacingPanel(s, r);
+
+    // Height label — placed on the side opposite the panel to avoid overlap.
+    // Prefer right; fall back to left when panel is on the right.
+    const hLabelCy = r.top + r.height / 2;
+    if (panelLeft > r.right) {
+      // Panel is on the right — put H label on the left
+      posLabel('__q-dim-h', s.h+'px',
+        r.left - 6, hLabelCy,
+        'rgba(0,229,160,0.95)', '#000', 'right');
+    } else {
+      // Panel is on the left (or centred fallback) — put H label on the right
+      posLabel('__q-dim-h', s.h+'px',
+        r.right + 6, hLabelCy,
+        'rgba(0,229,160,0.95)', '#000', 'left');
+    }
   }
 
   function posLabel(id, text, cx, cy, bg, fg, align) {
@@ -787,7 +1338,10 @@
     el.style.left = '0px'; el.style.top = '0px';
     const w = el.offsetWidth;
     const h = el.offsetHeight;
-    let left = align === 'center' ? cx - w/2 : cx;
+    let left;
+    if (align === 'center') left = cx - w / 2;
+    else if (align === 'right') left = cx - w - 2; // cx is the right edge
+    else left = cx;
     left = Math.max(4, Math.min(left, window.innerWidth - w - 4));
     el.style.left = left + 'px';
     el.style.top  = Math.max(4, cy - h/2) + 'px';
@@ -870,16 +1424,17 @@
     const pw = spacingPanel.offsetWidth;
     const ph = spacingPanel.offsetHeight;
 
-    // Position panel: prefer below+right, clamp to viewport
-    let left = r.right + 12;
+    // Position panel: prefer right side, then left, with increased gap from element
+    let left = r.right + 20;
     let top  = r.top;
-    if (left + pw > vw - 8) left = r.left - pw - 12;
+    if (left + pw > vw - 8) left = r.left - pw - 20;
     if (left < 8) left = 8;
     if (top + ph > vh - 8) top = vh - ph - 8;
     if (top < 8) top = 8;
 
     spacingPanel.style.left = left + 'px';
     spacingPanel.style.top  = top + 'px';
+    return left; // caller uses this to decide H label side
   }
 
   function sRow(key, val, color) {
