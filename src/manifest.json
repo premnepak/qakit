@@ -34,7 +34,8 @@
         "text-compare.html",
         "text-compare.js",
         "privacy-policy.html",
-        "help.html"
+        "help.html",
+        "changelog.html"
       ],
       "matches": [
         "<all_urls>"
