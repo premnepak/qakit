@@ -11,6 +11,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 ### Changed
 - Element Inspector → Best Locators switcher: larger, more distinct CSS / XPath / Playwright / Cypress buttons with brand logomarks for Playwright and Cypress, and a dedicated active colour per framework.
 - Element Inspector badge footer now spells out the gestures ("Click to freeze · Esc to unfreeze / exit · Alt/⌥-click to drill in") instead of the cryptic "📌 pin · ⌥ click = drill in" hint.
+- Best Locators switcher tooltips now show full framework names ("Playwright", "Cypress") instead of the abbreviated "PW" / "Cy" labels.
 
 ---
 
