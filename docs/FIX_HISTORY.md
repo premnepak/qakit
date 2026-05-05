@@ -6,6 +6,18 @@ The numbering (Issue 64, Issue 65, etc.) reflects the chronological tracking fro
 
 ---
 
+## Issue 81 — Element Inspector freeze gesture not discoverable
+
+**Symptom:** Users didn't realise the Element Inspector badge could be frozen by clicking the page. The existing footer hint (`⎘ copy · 📌 pin · ⌥ click = drill in · click crumb above`) used cryptic symbols and didn't mention freeze / Esc at all.
+
+**Root cause:** Footer copy was abbreviated and assumed familiarity with the 📌 icon and ⌥ symbol.
+
+**Fix:** Rewrote the footer hint inside `renderInspectBadge()` to spell out the gestures: `⎘ copy · Click to freeze · Esc to unfreeze / exit · Alt/⌥-click to drill in · click crumb above`. No behavioural change — click-to-freeze, Alt+click drill-down, and Esc unpin/exit all work exactly as before.
+
+**Files touched:** `src/inspector.js` (single string change in `renderInspectBadge()`)
+
+---
+
 ## Issue 64 — Page Audit completely broken on Run
 
 **Symptom:** Clicking "▶ Run" on the Page Audit tool did nothing — no scan started, no results, no errors.

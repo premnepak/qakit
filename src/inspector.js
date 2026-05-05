@@ -1045,7 +1045,7 @@
       html += '</div>';
     }
 
-    html += '<div style="font-size:9.5px;color:rgba(255,255,255,.35);margin-top:4px;text-align:right;padding:0 2px">⎘ copy · 📌 pin · ⌥ click = drill in · click crumb above</div>';
+    html += '<div style="font-size:9.5px;color:rgba(255,255,255,.35);margin-top:4px;text-align:right;padding:0 2px">⎘ copy · Click to freeze · Esc to unfreeze / exit · Alt/⌥-click to drill in · click crumb above</div>';
     html += '</div>';
     badge.innerHTML = html;
     // Wire copy buttons via event delegation (must happen after innerHTML set)
