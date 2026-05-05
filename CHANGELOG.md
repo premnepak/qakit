@@ -6,6 +6,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ---
 
+## [1.0.2] — Unreleased
+
+### Changed
+- Element Inspector → Best Locators switcher: larger, more distinct CSS / XPath / Playwright / Cypress buttons with brand logomarks for Playwright and Cypress, and a dedicated active colour per framework.
+
+---
+
 ## [1.0.1] — 2026-05-01
 
 ### Added
@@ -88,5 +95,6 @@ Internal pre-release versions (0.0.x) are kept here for historical traceability,
 - **MINOR** — new feature added
 - **PATCH** — bug fix or doc update
 
+[1.0.2]: https://github.com/premnepak/qakit/releases/tag/v1.0.2
 [1.0.1]: https://github.com/premnepak/qakit/releases/tag/v1.0.1
 [1.0.0]: https://github.com/your-username/qakit/releases/tag/v1.0.0

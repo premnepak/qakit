@@ -930,23 +930,48 @@
     const candidates = (tl && Array.isArray(tl.candidates)) ? tl.candidates : [];
     const outStyle   = getOutputStyle();
 
-    // Output-style toggle pill row
+    // Output-style toggle pill row — distinct icon + label per framework
+    // Icons use inline SVG so they render crisply regardless of system emoji font.
+    const ICON_CSS =
+      '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0">' +
+        '<polyline points="6 8 3 12 6 16"></polyline><polyline points="18 8 21 12 18 16"></polyline><line x1="14" y1="6" x2="10" y2="18"></line>' +
+      '</svg>';
+    const ICON_XPATH =
+      '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0">' +
+        '<polyline points="4 7 4 4 10 4"></polyline><polyline points="20 7 20 4 14 4"></polyline>' +
+        '<polyline points="4 17 4 20 10 20"></polyline><polyline points="20 17 20 20 14 20"></polyline>' +
+        '<line x1="9" y1="9" x2="15" y2="15"></line><line x1="15" y1="9" x2="9" y2="15"></line>' +
+      '</svg>';
+    const ICON_PW =
+      // Official Playwright logomark (Simple Icons / playwright.dev)
+      '<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" style="flex-shrink:0">' +
+        '<path d="M23.996 7.462c-.056.837-.257 2.135-.716 3.85-.995 3.715-4.27 10.874-10.42 9.227-6.15-1.65-5.407-9.487-4.412-13.201.46-1.716.934-2.94 1.305-3.694.42-.853.846-.289 1.815.523.684.573 2.41 1.791 5.011 2.488 2.601.697 4.706.506 5.583.352 1.245-.219 1.897-.494 1.834.455Zm-9.807 3.863s-.127-1.819-1.773-2.286c-1.644-.467-2.613 1.04-2.613 1.04Zm4.058 4.539-7.769-2.172s.446 2.306 3.338 3.153c2.862.836 4.43-.98 4.43-.981Zm2.701-2.51s-.13-1.818-1.773-2.286c-1.644-.469-2.612 1.038-2.612 1.038ZM8.57 18.23c-4.749 1.279-7.261-4.224-8.021-7.08C.197 9.831.044 8.832.003 8.188c-.047-.73.455-.52 1.415-.354.677.118 2.3.261 4.308-.28a11.28 11.28 0 0 0 2.41-.956c-.058.197-.114.4-.17.61-.433 1.618-.827 4.055-.632 6.426-1.976.732-2.267 2.423-2.267 2.423l2.524-.715c.227 1.002.6 1.987 1.15 2.838a5.914 5.914 0 0 1-.171.049Zm-4.188-6.298c1.265-.333 1.363-1.631 1.363-1.631l-3.374.888s.745 1.076 2.01.743Z"/>' +
+      '</svg>';
+    const ICON_CY =
+      // Official Cypress logomark (Simple Icons / cypress.io)
+      '<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" style="flex-shrink:0">' +
+        '<path d="M11.998.0195c-.8642 0-1.6816.1101-2.1445.1934v.002C4.1731 1.2283 0 6.1368 0 12.0018c0 1.1265.1573 2.2328.4648 3.3028.0387.1453.0915.2993.1368.4473 1.607 4.865 6.2245 8.226 11.3925 8.2285.0651 0 .2518-.0003.502-.0118.8564-.0353 1.6228-.5734 1.9512-1.369l.4736-1.1544L20.4258 8.043H18.621l-2.3164 5.871-2.334-5.871h-1.9082l3.2734 8.0117c-.8115 1.9702-1.6252 3.9395-2.4355 5.9101-.0808.1945-.2655.3284-.4727.336-.144.005-.285.0098-.4316.0098-4.5848 0-8.6672-3.0695-9.9277-7.4649a10.3058 10.3058 0 0 1-.3985-2.8437c0-5.0887 3.6521-9.3404 8.6035-10.164.2214-.037.8885-.1446 1.7246-.1446 4.4166 0 8.269 2.732 9.7305 6.8476.0558.144.0977.293.1465.4395.299.9746.4531 1.9887.4531 3.0215 0 4.5696-2.9413 8.5326-7.3164 9.8613l.4863 1.5996c5.085-1.546 8.4995-6.1518 8.502-11.459 0-1.5491-.2983-2.8706-.6504-3.8926-.0432-.1212-.0873-.2422-.1309-.3633h-.002C21.4577 3.0954 17.0444.0195 11.998.0195ZM8.4336 7.8906c-1.1999 0-2.1747.3852-2.9805 1.1758-.8007.7856-1.205 1.7736-1.205 2.9356 0 1.1544.4068 2.1368 1.205 2.9199.8058.7906 1.7806 1.1738 2.9805 1.1738 1.705 0 3.1556-.955 3.7871-2.4883l.0332-.082-1.6289-.5547c-.168.4563-.7552 1.4883-2.1914 1.4883-.6745 0-1.2437-.2344-1.6934-.6992-.4572-.4699-.6875-1.0632-.6875-1.7578 0-.6998.2253-1.2809.6875-1.7735.4522-.4648 1.019-.7012 1.6934-.7012 1.438 0 2.0238 1.0815 2.1934 1.4883l1.627-.5527-.0333-.084c-.629-1.5358-2.082-2.4883-3.7871-2.4883Z"/>' +
+      '</svg>';
     const styles = [
-      { id: 'css',        label: 'CSS' },
-      { id: 'xpath',      label: 'XPath' },
-      { id: 'playwright', label: 'PW' },
-      { id: 'cypress',    label: 'Cy' },
+      { id: 'css',        label: 'CSS',   icon: ICON_CSS,   active: '#a5f3c0' },
+      { id: 'xpath',      label: 'XPath', icon: ICON_XPATH, active: '#fde68a' },
+      { id: 'playwright', label: 'PW',    icon: ICON_PW,    active: '#7dd3fc' },
+      { id: 'cypress',    label: 'Cy',    icon: ICON_CY,    active: '#c4b5fd' },
     ];
-    html += '<div style="display:flex;align-items:center;justify-content:space-between;gap:6px;margin-bottom:4px;padding:0 1px">' +
+    html += '<div style="display:flex;align-items:center;justify-content:space-between;gap:6px;margin-bottom:5px;padding:0 1px">' +
       '<span style="font-size:10px;color:rgba(255,255,255,.4);font-weight:600;letter-spacing:.5px">BEST LOCATORS</span>' +
-      '<div class="__q-outstyle" style="display:flex;gap:2px;background:rgba(255,255,255,.05);border-radius:4px;padding:1px">';
+      '<div class="__q-outstyle" style="display:flex;gap:3px;background:rgba(255,255,255,.05);border-radius:5px;padding:2px">';
     styles.forEach(st => {
       const active = st.id === outStyle;
-      html += '<button class="__q-outstyle-btn" data-style="' + st.id + '" ' +
-        'style="background:' + (active ? 'rgba(0,229,160,.25)' : 'transparent') + ';' +
-        'color:' + (active ? '#00e5a0' : 'rgba(255,255,255,.55)') + ';' +
-        'border:none;padding:1px 6px;font-size:10px;font-weight:' + (active ? '700' : '500') + ';' +
-        'border-radius:3px;cursor:pointer;font-family:inherit">' + st.label + '</button>';
+      const bg     = active ? 'rgba(0,229,160,.18)' : 'transparent';
+      const color  = active ? st.active : 'rgba(255,255,255,.6)';
+      html += '<button class="__q-outstyle-btn" data-style="' + st.id + '" title="' + st.label + '" ' +
+        'style="display:inline-flex;align-items:center;gap:4px;background:' + bg + ';' +
+        'color:' + color + ';border:none;padding:3px 7px;font-size:11px;' +
+        'font-weight:' + (active ? '700' : '500') + ';border-radius:4px;cursor:pointer;' +
+        'font-family:inherit;line-height:1;' +
+        (active ? 'box-shadow:0 0 0 1px rgba(0,229,160,.35);' : '') +
+        '">' + st.icon + '<span>' + st.label + '</span></button>';
     });
     html += '</div></div>';
 

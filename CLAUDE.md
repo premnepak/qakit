@@ -8,7 +8,7 @@
 
 - **Source code:** `src/`
 - **Manifest:** `src/manifest.json`
-- **Current version:** 1.0.1 (ready for Chrome Web Store submission)
+- **Current version:** 1.0.2 (in development — fixes queued for next Web Store release)
 - **Documentation:** `docs/`
 - **Tech stack:** Vanilla JavaScript (no framework), Chrome Extension APIs (v3), HTML, CSS
 
