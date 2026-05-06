@@ -2128,7 +2128,6 @@ function initSubTabs(tabClass, subClass) {
     });
   });
 }
-initSubTabs('time-subtab', 'time-sub');
 initSubTabs('util-subtab', 'util-sub');
 initSubTabs('tools-subtab', 'tools-sub');
 
