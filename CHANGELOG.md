@@ -8,6 +8,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [1.0.2] — Unreleased
 
+### Added
+- **Markup Annotation Editor** — every screenshot toast now includes a **✎ Markup** button that opens the captured image in a full-screen annotation editor. Tools available: freehand pen, rectangle, arrow, highlight, blur/redact, numbered step markers, and text labels. Supports undo/redo, select + move/resize shapes, copy to clipboard, and save as PNG via a Save-As dialog. Opens in a dedicated browser tab so you can annotate without leaving the page.
+
 ### Changed
 - Element Inspector → Best Locators switcher: larger, more distinct CSS / XPath / Playwright / Cypress buttons with brand logomarks for Playwright and Cypress, and a dedicated active colour per framework.
 - Element Inspector badge footer now spells out the gestures ("Click to freeze · Esc to unfreeze / exit · Alt/⌥-click to drill in") instead of the cryptic "📌 pin · ⌥ click = drill in" hint.
