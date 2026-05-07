@@ -72,9 +72,17 @@
       "description": "Toggle Spacing Inspector"
     },
     "capture-region": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+Z",
+        "mac": "Command+Shift+Z"
+      },
       "description": "Capture region screenshot"
     },
     "capture-fullpage": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+F",
+        "mac": "Command+Shift+F"
+      },
       "description": "Capture full page screenshot"
     }
   },

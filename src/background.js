@@ -108,10 +108,10 @@ function setupContextMenus() {
     chrome.contextMenus.create({ id: 'qakit-root',          title: 'QAKit',                    contexts: ['all'] });
 
     // ── Core QA actions ─────────────────────────────────────────────────────
-    chrome.contextMenus.create({ id: 'qakit-inspect',       title: '🔍 Inspect Element',        contexts: ['all'], parentId: 'qakit-root' });
-    chrome.contextMenus.create({ id: 'qakit-spacing',       title: '📐 Spacing Inspector',      contexts: ['all'], parentId: 'qakit-root' });
-    chrome.contextMenus.create({ id: 'qakit-region',        title: '⬚ Region Screenshot',       contexts: ['all'], parentId: 'qakit-root' });
-    chrome.contextMenus.create({ id: 'qakit-fullpage',      title: '📄 Full Page Screenshot',   contexts: ['all'], parentId: 'qakit-root' });
+    chrome.contextMenus.create({ id: 'qakit-inspect',       title: '🔍 Inspect Element  (Ctrl+⇧+Q)',        contexts: ['all'], parentId: 'qakit-root' });
+    chrome.contextMenus.create({ id: 'qakit-spacing',       title: '📐 Spacing Inspector  (Ctrl+⇧+Y)',      contexts: ['all'], parentId: 'qakit-root' });
+    chrome.contextMenus.create({ id: 'qakit-region',        title: '⬚ Region Screenshot  (Ctrl+⇧+Z)',       contexts: ['all'], parentId: 'qakit-root' });
+    chrome.contextMenus.create({ id: 'qakit-fullpage',      title: '📄 Full Page Screenshot  (Ctrl+⇧+F)',   contexts: ['all'], parentId: 'qakit-root' });
     chrome.contextMenus.create({ id: 'qakit-element-shot',  title: '🖼 Capture Element',   contexts: ['all'], parentId: 'qakit-root' });
     chrome.contextMenus.create({ id: 'sep1',                type:  'separator',                 contexts: ['all'], parentId: 'qakit-root' });
     chrome.contextMenus.create({ id: 'qakit-audit',         title: '📋 Run Page Audit',         contexts: ['all'], parentId: 'qakit-root' });

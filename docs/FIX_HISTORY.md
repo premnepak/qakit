@@ -143,9 +143,11 @@ All three guards are required. Removing any single one re-introduces the bug.
 
 **Root cause:** `Ctrl+Shift+U` is bound by Chrome on some platforms (text input methods on Linux/Windows). `Ctrl+Shift+K` is sometimes bound by other extensions. When Chrome detects a conflict, the extension shortcut is silently ignored.
 
-**Fix:** Removed the `suggested_key` defaults for `capture-region` and `capture-fullpage` in `manifest.json`. The commands are still registered, so users can manually configure their preferred shortcut at `chrome://extensions/shortcuts`. Avoids the conflict.
+**Fix (v1):** Removed the `suggested_key` defaults for `capture-region` and `capture-fullpage` in `manifest.json`. The commands are still registered, so users can manually configure their preferred shortcut at `chrome://extensions/shortcuts`. Avoids the conflict.
 
-**Files touched:** `manifest.json`
+**Fix (v2):** Re-assigned to conflict-free keys: `Ctrl+Shift+Z` (Region) and `Ctrl+Shift+F` (Full Page). These are not bound by Chrome or Windows. `mac` variants use `Command+Shift+Z` and `Command+Shift+F`.
+
+**Files touched:** `manifest.json`, `help.html`
 
 ---
 
