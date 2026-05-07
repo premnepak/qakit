@@ -82,19 +82,28 @@ code{background:#f0f4f8;border-radius:3px;padding:1px 6px;font-family:monospace;
           <li><strong>Rectangle</strong> — draw outlined boxes to highlight areas</li>
           <li><strong>Arrow</strong> — point to anything on the image</li>
           <li><strong>Highlight</strong> — semi-transparent marker overlay</li>
-          <li><strong>Blur / Redact</strong> — Gaussian blur (light) or mosaic pixelation (heavy) to obscure sensitive information</li>
+          <li><strong>Blur / Redact</strong> — Gaussian blur (size 1–10) or mosaic pixelation (size 11–20) to obscure sensitive information</li>
           <li><strong>Number markers</strong> — drop sequential numbered circles for step-by-step bug reports</li>
           <li><strong>Text</strong> — type labels directly onto the image</li>
-          <li><strong>Select</strong> — move or resize any placed annotation</li>
+          <li><strong>Select</strong> — move or resize any placed annotation; Delete key removes it</li>
           <li><strong>Crop</strong> — trim the image to a selected region</li>
         </ul>
-        Includes undo / redo, copy to clipboard, and <strong>Save</strong> (Save-As PNG dialog).
+        Includes undo / redo, copy to clipboard, and <strong>Save</strong> (always opens the OS Save-As dialog so you choose where the PNG is written).
       </li>
+    </ul>
+
+    <h3><span class="icon">🛠</span>Fixed &amp; improved</h3>
+    <ul>
+      <li><strong>Keyboard shortcuts now work out of the box</strong> — Region Screenshot is <code>Ctrl+Shift+Z</code> / <code>Cmd+Shift+Z</code> and Full Page Screenshot is <code>Ctrl+Shift+F</code> / <code>Cmd+Shift+F</code>. Both shortcuts are now registered as defaults in the manifest so they work immediately after install without needing manual configuration.</li>
+      <li><strong>Ruler — keep multiple measurements on screen</strong> — the second click now <em>locks</em> the current measurement as a permanent teal line (with endpoint dots and a label). You can immediately start the next measurement. All locked lines stay visible until you press Esc.</li>
+      <li><strong>Screenshot Save always shows a Save-As dialog</strong> — the ⬇ Save button in screenshot toasts now routes through the browser's download API, so the OS file-picker always appears regardless of Chrome's "Ask where to save" setting.</li>
+      <li><strong>Time &amp; Epoch — World Clock tab visible on first open</strong> — the World Clock sub-tab is now correctly highlighted and its panel shown when you first open the Time tool.</li>
     </ul>
 
     <h3><span class="icon">✨</span>Polish</h3>
     <ul>
-      <li><strong>Best Locators pill is easier to read</strong> — the CSS / XPath / Playwright / Cypress switcher in the Element Inspector overlay now uses larger, clearly distinct buttons with framework logos for Playwright and Cypress, and a dedicated active colour per framework so the selected output style is unambiguous at a glance.</li>
+      <li><strong>Best Locators pill is easier to read</strong> — the CSS / XPath / Playwright / Cypress switcher in the Element Inspector overlay now uses larger, clearly distinct buttons with framework logos and a dedicated active colour per framework (green / yellow / blue / purple) so the selected output style is unambiguous at a glance. Tooltips show the full framework name.</li>
+      <li><strong>Inspector badge hint is clearer</strong> — the footer hint now reads "Click to pin · Esc to unpin / exit · Alt/⌥-click to drill in" instead of cryptic symbols.</li>
     </ul>
   </div>
 

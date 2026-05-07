@@ -9,12 +9,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 ## [1.0.2] — Unreleased
 
 ### Added
-- **Markup Annotation Editor** — every screenshot toast now includes a **✎ Markup** button that opens the captured image in a full-screen annotation editor. Tools available: freehand pen, rectangle, arrow, highlight, blur/redact, numbered step markers, and text labels. Supports undo/redo, select + move/resize shapes, copy to clipboard, and save as PNG via a Save-As dialog. Opens in a dedicated browser tab so you can annotate without leaving the page.
+- **Markup Annotation Editor** — every screenshot toast now includes a **✎ Markup** button. Clicking it opens the captured image in a full-screen, canvas-based annotation editor in a new tab. Available tools: freehand pen, rectangle, arrow, highlight (semi-transparent marker), blur/redact (Gaussian blur at size 1–10; mosaic pixelation at size 11–20), numbered step markers (auto-increment), text labels, select/move/resize, and crop. Includes undo/redo, copy to clipboard, and Save (always triggers the OS Save-As dialog).
+
+### Fixed
+- **Keyboard shortcuts corrected** — Region Screenshot is now `Ctrl+Shift+Z` / `Cmd+Shift+Z`; Full Page Screenshot is now `Ctrl+Shift+F` / `Cmd+Shift+F`. Both shortcuts are now registered as default keys in the manifest (previously they were unset, requiring users to configure them manually). Context menu labels, tile hints, and the settings keyboard-reference table are all updated to match.
+- **Ruler — multi-line persistent measurements** — a second click now _locks_ the current measurement as a permanent teal line on screen (with endpoint dots and a distance label). You can continue drawing a new measurement immediately. All locked lines stay visible until you press Esc, so you can accumulate several measurements side-by-side.
+- **Screenshot Save button always shows Save-As dialog** — the ⬇ Save button in all screenshot toasts now routes through `chrome.downloads.download({ saveAs: true })`, so the OS file-picker always appears regardless of Chrome's global "Ask where to save" preference. Previously the button used a silent anchor-click download.
+- **Time & Epoch — World Clock sub-tab active on first load** — opening the Time panel no longer leaves the World Clock sub-tab unselected. The bug was caused by `initSubTabs` in `popup.js` matching Page Audit's same-class buttons, which set `data-sub` to `undefined` and hid all sub-panels. Fixed by removing the duplicate call and relying on `time.js`'s own scoped initialisation.
 
 ### Changed
-- Element Inspector → Best Locators switcher: larger, more distinct CSS / XPath / Playwright / Cypress buttons with brand logomarks for Playwright and Cypress, and a dedicated active colour per framework.
-- Element Inspector badge footer now spells out the gestures ("Click to freeze · Esc to unfreeze / exit · Alt/⌥-click to drill in") instead of the cryptic "📌 pin · ⌥ click = drill in" hint.
-- Best Locators switcher tooltips now show full framework names ("Playwright", "Cypress") instead of the abbreviated "PW" / "Cy" labels.
+- **Element Inspector — Best Locators switcher** redesigned: each button now shows an inline SVG framework icon (CSS, XPath, Playwright, Cypress) with a distinct active colour per framework (green / yellow / blue / purple). Tooltips show the full framework name instead of the abbreviated "PW" / "Cy" labels.
+- **Element Inspector — badge footer hint** rewritten to spell out the gestures clearly: "⎘ copy · Click to pin 📌 · Esc to unpin / exit · Alt/⌥-click to drill in · click crumb above".
 
 ---
 

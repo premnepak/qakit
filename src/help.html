@@ -202,11 +202,12 @@ tr:nth-child(even) td{background:#fafbfc}
     </div>
     <div class="card">
       <div class="card-title"><span class="card-icon">📏</span> Ruler</div>
-      <p>Draws a measurement ruler on screen. Click and drag to measure the pixel distance between any two points on the page. Useful for verifying layout precision.</p>
+      <p>Place precise pixel measurements anywhere on the page. Each two-click sequence locks a teal measurement line on screen — you can keep placing new measurements without losing the previous ones.</p>
       <ul>
-        <li>Shows horizontal and vertical pixel dimensions</li>
-        <li>Drag handles to resize the measured area</li>
-        <li>Click outside to dismiss</li>
+        <li>First click sets the start point (yellow active line follows the cursor)</li>
+        <li>Second click <strong>locks</strong> the line permanently (teal, with distance label showing px · Δx · Δy)</li>
+        <li>All locked lines stay visible so you can compare multiple measurements at once</li>
+        <li>Press Esc to clear all measurements and close the Ruler</li>
       </ul>
     </div>
     <div class="card">
@@ -312,7 +313,7 @@ tr:nth-child(even) td{background:#fafbfc}
     </div>
   </div>
 
-  <div class="tip"><strong>Screenshot toast:</strong> All screenshot actions show a dark toast at the bottom of the popup with a <strong>⬇ Download</strong> button and a <strong>✎ Markup</strong> button. The toast auto-dismisses after 10 seconds. The image is also copied to your clipboard so you can paste it directly into documents or bug trackers.</div>
+  <div class="tip"><strong>Screenshot toast:</strong> All screenshot actions show a dark toast at the bottom of the page with three buttons: <strong>⬇ Save</strong> (always opens the OS file-picker Save-As dialog so you choose exactly where the PNG is saved), <strong>✎ Markup</strong> (opens the Markup Editor in a new tab), and <strong>✕</strong> (dismiss). The image is also copied to your clipboard automatically so you can paste it directly into documents or bug trackers. The toast auto-dismisses after 10 seconds.</div>
   <div class="info"><strong>After a screenshot:</strong> QAKit closes while the capture runs. When you reopen it, you land on the Home screen — not inside any tool panel.</div>
 
   <!-- Markup Editor sub-section -->
@@ -806,6 +807,7 @@ tr:nth-child(even) td{background:#fafbfc}
     <tr><td>Region Screenshot</td><td><kbd>⌘⇧Z</kbd></td><td><kbd>Ctrl⇧Z</kbd></td></tr>
     <tr><td>Full Page Screenshot</td><td><kbd>⌘⇧F</kbd></td><td><kbd>Ctrl⇧F</kbd></td></tr>
   </table>
+  <div class="tip">All four shortcuts are active immediately after install — no configuration needed. You can reassign them at <code>chrome://extensions/shortcuts</code> if there are conflicts with other extensions.</div>
 
   <div class="tip">Shortcuts trigger the tool directly on the page without opening the QAKit popup. The result (screenshot) is delivered via a toast notification so you can continue working uninterrupted.</div>
 </div>
