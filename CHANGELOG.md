@@ -6,7 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ---
 
-## [1.0.2] — Unreleased
+
+## [1.0.2] — 2026-05-07
 
 ### Added
 - **Markup Annotation Editor** — every screenshot toast now includes a **✎ Markup** button. Clicking it opens the captured image in a full-screen, canvas-based annotation editor in a new tab. Available tools: freehand pen, rectangle, arrow, highlight (semi-transparent marker), blur/redact (Gaussian blur at size 1–10; mosaic pixelation at size 11–20), numbered step markers (auto-increment), text labels, select/move/resize, and crop. Includes undo/redo, copy to clipboard, and Save (always triggers the OS Save-As dialog).
