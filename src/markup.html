@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>QAKit — Markup</title>
+  <link rel="icon" href="icons/icon16.png">
+  <link rel="stylesheet" href="markup.css">
+</head>
+<body>
+  <header class="mk-header">
+    <div class="mk-brand">
+      <img src="icons/icon16.png" alt="" width="16" height="16">
+      <span>QAKit Markup</span>
+    </div>
+    <div class="mk-actions">
+      <button id="mkUndo" class="mk-btn" title="Undo (Ctrl+Z)">↶ Undo</button>
+      <button id="mkRedo" class="mk-btn" title="Redo (Ctrl+Y)">↷ Redo</button>
+      <span class="mk-sep"></span>
+      <button id="mkCopy" class="mk-btn" title="Copy to clipboard">⧉ Copy</button>
+      <button id="mkSave" class="mk-btn mk-btn-primary" title="Save (Ctrl+S)">⬇ Save</button>
+      <button id="mkDone" class="mk-btn" title="Close tab">✓ Done</button>
+    </div>
+  </header>
+
+  <div class="mk-body">
+    <aside class="mk-toolbar" role="toolbar" aria-label="Markup tools">
+      <button class="mk-tool" data-tool="select" title="Select / move (V)"><span class="mk-icon">⌖</span><span class="mk-label">Select</span></button>
+      <button class="mk-tool" data-tool="pen" title="Pen (P)"><span class="mk-icon">✎</span><span class="mk-label">Pen</span></button>
+      <button class="mk-tool" data-tool="rect" title="Rectangle (R)"><span class="mk-icon">▭</span><span class="mk-label">Rect</span></button>
+      <button class="mk-tool" data-tool="arrow" title="Arrow (A)"><span class="mk-icon">➜</span><span class="mk-label">Arrow</span></button>
+      <button class="mk-tool" data-tool="highlight" title="Highlighter (H)"><span class="mk-icon">▤</span><span class="mk-label">Highlight</span></button>
+      <button class="mk-tool" data-tool="blur" title="Blur / redact (B)"><span class="mk-icon">▣</span><span class="mk-label">Blur</span></button>
+      <button class="mk-tool" data-tool="number" title="Numbered step (N)"><span class="mk-icon">①</span><span class="mk-label">Number</span></button>
+      <button class="mk-tool" data-tool="text" title="Text (T)"><span class="mk-icon">T</span><span class="mk-label">Text</span></button>
+      <button class="mk-tool" data-tool="crop" title="Crop (C)"><span class="mk-icon">⌗</span><span class="mk-label">Crop</span></button>
+
+      <div class="mk-divider"></div>
+
+      <label class="mk-color-label" title="Color">
+        <input type="color" id="mkColor" value="#ff3b3b">
+      </label>
+
+      <div class="mk-size">
+        <label for="mkSize" title="Stroke size">Size</label>
+        <input type="range" id="mkSize" min="1" max="20" value="1">
+        <span id="mkSizeVal">1</span>
+      </div>
+    </aside>
+
+    <main class="mk-canvas-wrap">
+      <div class="mk-status" id="mkStatus">Loading…</div>
+      <canvas id="mkCanvas"></canvas>
+      <input type="text" id="mkTextInput" class="mk-text-input" placeholder="Type and press Enter">
+    </main>
+  </div>
+
+  <script src="markup.js"></script>
+</body>
+</html>

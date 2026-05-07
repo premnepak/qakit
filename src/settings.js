@@ -5,7 +5,6 @@ const SETTINGS_KEY = 'qa_tools_settings';
 
 const DEFAULT_SETTINGS = {
   domains:            '*',
-  analyticsFilter:    '',
   testIdAttr:         'data-testid',
   lsKeys:             '',
   cookieFilter:       '',
@@ -117,7 +116,6 @@ function renderSettingsPanel() {
   const s = _settings;
 
   document.getElementById('settingDomains').value         = s.domains || '';
-  document.getElementById('settingAnalyticsFilter').value = s.analyticsFilter || '';
   document.getElementById('settingTestIdAttr').value      = s.testIdAttr || '';
   document.getElementById('settingLsKeys').value          = s.lsKeys || '';
   document.getElementById('settingCookieFilter').value    = s.cookieFilter || '';
@@ -153,7 +151,6 @@ function renderSettingsPanel() {
 
 async function handleSaveSettings() {
   const domains         = document.getElementById('settingDomains').value.trim();
-  const analyticsFilter = document.getElementById('settingAnalyticsFilter').value.trim();
   const testIdAttr      = document.getElementById('settingTestIdAttr').value.trim();
   const lsKeys          = document.getElementById('settingLsKeys').value.trim();
   const cookieFilter    = document.getElementById('settingCookieFilter').value.trim();
@@ -177,7 +174,7 @@ async function handleSaveSettings() {
     }
   }
 
-  await saveSettings({ domains, analyticsFilter, testIdAttr, lsKeys, cookieFilter, consolePaths, theme, visibleTabs, analyticsProviders, locatorOutput });
+  await saveSettings({ domains, testIdAttr, lsKeys, cookieFilter, consolePaths, theme, visibleTabs, analyticsProviders, locatorOutput });
 
   // Apply immediately
   applySettingsToUI();
@@ -284,10 +281,6 @@ function applySettingsToUI() {
   // Apply analytics filter from settings — empty string means show all events
   const searchEl = document.getElementById('searchInput');
   if (searchEl) {
-    const filterVal = s.analyticsFilter || '';
-    searchEl.value = filterVal;
-    if (typeof searchQuery !== 'undefined') searchQuery = filterVal.toLowerCase().trim();
-    window._lastAppliedFilter = filterVal.toLowerCase().trim();
   }
 
   // Update LS_TARGET_KEYS from settings

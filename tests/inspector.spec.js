@@ -217,4 +217,76 @@ test.describe('Element Inspector', () => {
 
     await expect(page.locator('#__q-inspector-overlay')).toBeHidden();
   });
+
+  // ── Fix 75: rAF race regression ──────────────────────────────────────────
+  // The mousemove handler schedules a rAF callback. If __qInspectorActive flips
+  // to false BEFORE the callback fires, the callback must re-check the flag
+  // and bail out — otherwise the green overlay stays stuck on screen.
+  test('rAF callback bails out when deactivated mid-flight (Fix 75)', async () => {
+    // Dispatch mousemove + flip the flag synchronously, before rAF fires.
+    await page.evaluate(() => {
+      const t = document.querySelector('#box-a');
+      t.dispatchEvent(new MouseEvent('mousemove', { bubbles: true, cancelable: true }));
+      window.__qInspectorActive = false;
+    });
+    // Flush two rAF cycles — gives the scheduled callback room to run + bail.
+    await page.evaluate(() =>
+      new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r))));
+    // Overlay must NOT be visible after deactivation.
+    await expect(page.locator('#__q-inspector-overlay')).toBeHidden();
+  });
+
+  test('window.__qInspectorRafId is exposed for external cancellation (Fix 75)', async () => {
+    // The popup's deactivateInspector uses cancelAnimationFrame on this id.
+    // Test that scheduling a mousemove sets the external mirror.
+    const rafIdSet = await page.evaluate(() => {
+      const t = document.querySelector('#box-a');
+      t.dispatchEvent(new MouseEvent('mousemove', { bubbles: true, cancelable: true }));
+      return typeof window.__qInspectorRafId === 'number' && window.__qInspectorRafId > 0;
+    });
+    expect(rafIdSet).toBe(true);
+  });
+
+  // ── Pin state regression ──────────────────────────────────────────────────
+  test('badge stops following cursor when pinned', async () => {
+    await hoverAndFlush(page, '#box-a');
+    const idAfterA = await page.locator('#__q-inspector-badge').innerText();
+    expect(idAfterA).toContain('box-a');
+
+    // Pin
+    await page.evaluate(() => { window.__qInspectorPinned = true; });
+
+    // Hover a different element — handler should early-return on pinned.
+    await hoverAndFlush(page, '#box-b');
+    const idAfterPinnedHover = await page.locator('#__q-inspector-badge').innerText();
+    // Badge content should still reference box-a, not box-b
+    expect(idAfterPinnedHover).toContain('box-a');
+    expect(idAfterPinnedHover).not.toContain('box-b');
+
+    // Unpin and hover again — badge should now update
+    await page.evaluate(() => { window.__qInspectorPinned = false; });
+    await hoverAndFlush(page, '#box-b');
+    const idAfterUnpin = await page.locator('#__q-inspector-badge').innerText();
+    expect(idAfterUnpin).toContain('box-b');
+  });
+
+  // ── Output-style toggle (CSS / XPath / PW / Cy) ───────────────────────────
+  test('badge renders BEST LOCATORS section with output-style buttons', async () => {
+    await hoverAndFlush(page, '#box-a');
+    const html = await page.locator('#__q-inspector-badge').innerHTML();
+    expect(html).toContain('BEST LOCATORS');
+    // All four output styles should be present as toggle buttons
+    expect(html).toContain('data-style="css"');
+    expect(html).toContain('data-style="xpath"');
+    expect(html).toContain('data-style="playwright"');
+    expect(html).toContain('data-style="cypress"');
+  });
+
+  // ── Breadcrumb trail ──────────────────────────────────────────────────────
+  test('badge renders breadcrumb chain for nested elements', async () => {
+    await hoverAndFlush(page, '#left'); // child of #row
+    const html = await page.locator('#__q-inspector-badge').innerHTML();
+    // Crumb container should be present
+    expect(html).toContain('__q-crumbs');
+  });
 });

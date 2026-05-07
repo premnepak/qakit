@@ -40,7 +40,76 @@ let searchParsed  = { include: [], exclude: [], mode: 'or' };  // Fix 26 — par
 let platformQuery = ''; // platform filter from ddlPlatformFilter dropdown
 let eventTypeQuery = ''; // event type filter from ddlEventTypeFilter dropdown
 let isAllowedTab = false;
+
 let activeTab  = 'pagetools';
+
+// Storage keys for analytics filters
+const ANALYTICS_FILTER_KEYS = {
+  search: 'qakit_analytics_search',
+  platform: 'qakit_analytics_platform',
+  eventType: 'qakit_analytics_eventtype',
+};
+
+// Persist analytics filter state
+function persistAnalyticsFilters() {
+  chrome.storage.local.set({
+    [ANALYTICS_FILTER_KEYS.search]: searchQuery,
+    [ANALYTICS_FILTER_KEYS.platform]: platformQuery,
+    [ANALYTICS_FILTER_KEYS.eventType]: eventTypeQuery,
+  }).catch(() => {});
+}
+
+// Restore analytics filter state and update UI/vars
+async function restoreAnalyticsFilters() {
+  try {
+    const s = await chrome.storage.local.get([
+      ANALYTICS_FILTER_KEYS.search,
+      ANALYTICS_FILTER_KEYS.platform,
+      ANALYTICS_FILTER_KEYS.eventType,
+    ]);
+    // Only use saved filter, do not use settings.analyticsFilter
+    searchQuery = s[ANALYTICS_FILTER_KEYS.search] || '';
+    platformQuery = s[ANALYTICS_FILTER_KEYS.platform] || '';
+    eventTypeQuery = s[ANALYTICS_FILTER_KEYS.eventType] || '';
+    searchParsed = parseSearchQuery(searchQuery);
+    // Update UI controls if present
+    const searchBox = document.getElementById('searchInput');
+    if (searchBox) searchBox.value = searchQuery;
+    const platformFilter = document.getElementById('ddlPlatformFilter');
+    if (platformFilter) platformFilter.value = platformQuery;
+    const eventTypeFilter = document.getElementById('ddlEventTypeFilter');
+    if (eventTypeFilter) eventTypeFilter.value = eventTypeQuery;
+  } catch (_) {}
+}
+
+// Register listeners after DOM is ready
+document.addEventListener('DOMContentLoaded', () => {
+  const searchBox = document.getElementById('searchInput');
+  if (searchBox) {
+    searchBox.addEventListener('input', (e) => {
+      searchQuery = e.target.value || '';
+      searchParsed = parseSearchQuery(searchQuery);
+      persistAnalyticsFilters();
+      renderDDL();
+    });
+  }
+  const platformFilter = document.getElementById('ddlPlatformFilter');
+  if (platformFilter) {
+    platformFilter.addEventListener('change', (e) => {
+      platformQuery = e.target.value || '';
+      persistAnalyticsFilters();
+      renderDDL();
+    });
+  }
+  const eventTypeFilter = document.getElementById('ddlEventTypeFilter');
+  if (eventTypeFilter) {
+    eventTypeFilter.addEventListener('change', (e) => {
+      eventTypeQuery = e.target.value || '';
+      persistAnalyticsFilters();
+      renderDDL();
+    });
+  }
+});
 
 // ── Multi-criteria search parser (Fix 26) ─────────────────────────────────
 // Parses raw search string into { include, exclude, mode }.
@@ -281,7 +350,9 @@ function updateFooterVisibility() {
 }
 
 // ── Analytics (DDL) rendering ─────────────────────────────────────────────────
-function renderDDL() {
+
+async function renderDDL() {
+  await restoreAnalyticsFilters();
   const list = document.getElementById('ddlList');
   list.innerHTML = '';
 
@@ -1055,11 +1126,13 @@ async function checkCurrentTab() {
 }
 
 // ── Load events from background ───────────────────────────────────────────────
+
 async function loadEvents() {
-  chrome.runtime.sendMessage({ action: 'GET_EVENTS' }, (res) => {
+  chrome.runtime.sendMessage({ action: 'GET_EVENTS' }, async (res) => {
     if (res) {
       allEvents = res.events || [];
       paused    = res.paused || false;
+      await restoreAnalyticsFilters();
       render();
     }
   });
@@ -2128,7 +2201,6 @@ function initSubTabs(tabClass, subClass) {
     });
   });
 }
-initSubTabs('time-subtab', 'time-sub');
 initSubTabs('util-subtab', 'util-sub');
 initSubTabs('tools-subtab', 'tools-sub');
 

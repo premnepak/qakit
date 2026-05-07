@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>QAKit v1.0.1 — Help &amp; User Guide</title>
+<title>QAKit v1.0.2 — Help &amp; User Guide</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 html{scroll-behavior:smooth}
@@ -97,7 +97,7 @@ tr:nth-child(even) td{background:#fafbfc}
   <div class="hero-inner">
     <h1><span class="hero-badge">QK</span> QAKit User Guide</h1>
     <div class="hero-sub">Your complete QA &amp; developer toolkit for testing web applications</div>
-    <div class="hero-meta">Version 1.0.1 · Built by Prem Nepak · QAKit Extension · <a href="changelog.html" style="color:#00e5a0;font-weight:700;text-decoration:none">What's new →</a></div>
+    <div class="hero-meta">Version 1.0.2 · Built by Prem Nepak · QAKit Extension · <a href="changelog.html" style="color:#00e5a0;font-weight:700;text-decoration:none">What's new →</a></div>
     <div class="hero-chips">
       <span class="chip">Inspect &amp; Measure</span>
       <span class="chip">Screenshots</span>
@@ -202,11 +202,12 @@ tr:nth-child(even) td{background:#fafbfc}
     </div>
     <div class="card">
       <div class="card-title"><span class="card-icon">📏</span> Ruler</div>
-      <p>Draws a measurement ruler on screen. Click and drag to measure the pixel distance between any two points on the page. Useful for verifying layout precision.</p>
+      <p>Place precise pixel measurements anywhere on the page. Each two-click sequence locks a teal measurement line on screen — you can keep placing new measurements without losing the previous ones.</p>
       <ul>
-        <li>Shows horizontal and vertical pixel dimensions</li>
-        <li>Drag handles to resize the measured area</li>
-        <li>Click outside to dismiss</li>
+        <li>First click sets the start point (yellow active line follows the cursor)</li>
+        <li>Second click <strong>locks</strong> the line permanently (teal, with distance label showing px · Δx · Δy)</li>
+        <li>All locked lines stay visible so you can compare multiple measurements at once</li>
+        <li>Press Esc to clear all measurements and close the Ruler</li>
       </ul>
     </div>
     <div class="card">
@@ -270,13 +271,13 @@ tr:nth-child(even) td{background:#fafbfc}
 
   <div class="feat-grid">
     <div class="card">
-      <div class="card-title"><span class="card-icon">✏</span> Annotate</div>
-      <p>Draw on the current page before capturing. Add arrows, rectangles, text labels, and highlights to mark up what you're testing, then save as a PNG.</p>
+      <div class="card-title"><span class="card-icon">✏</span> Annotate Page</div>
+      <p>Captures the visible page and opens it immediately in the <strong>Markup Editor</strong> — a full-screen annotation workspace. Add shapes, text, arrows, highlights, and numbered markers before saving as a PNG.</p>
       <ul>
-        <li>Freehand draw, shapes, text, arrows</li>
-        <li>Choose stroke colour and thickness</li>
-        <li>Undo / redo support</li>
-        <li>Save annotated screenshot as PNG</li>
+        <li>Instantly captures the visible viewport</li>
+        <li>Opens the Markup Editor in a new tab</li>
+        <li>Full annotation toolkit (see below)</li>
+        <li>Save as PNG with a Save-As dialog</li>
       </ul>
     </div>
     <div class="card">
@@ -286,7 +287,7 @@ tr:nth-child(even) td{background:#fafbfc}
         <li>Click and drag to select area</li>
         <li>Auto-copied to clipboard as PNG</li>
         <li>Toast notification with ⬇ Download button</li>
-        <li>Keyboard shortcut: <kbd>⌘⇧U</kbd> / <kbd>Ctrl⇧U</kbd></li>
+        <li>Keyboard shortcut: <kbd>⌘⇧Z</kbd> / <kbd>Ctrl⇧Z</kbd></li>
       </ul>
     </div>
     <div class="card">
@@ -297,7 +298,7 @@ tr:nth-child(even) td{background:#fafbfc}
         <li>Stitches all strips into one PNG</li>
         <li>Copied to clipboard automatically</li>
         <li>Toast with ⬇ Download button showing final dimensions</li>
-        <li>Keyboard shortcut: <kbd>⌘⇧K</kbd> / <kbd>Ctrl⇧K</kbd></li>
+        <li>Keyboard shortcut: <kbd>⌘⇧F</kbd> / <kbd>Ctrl⇧F</kbd></li>
       </ul>
     </div>
     <div class="card">
@@ -312,8 +313,39 @@ tr:nth-child(even) td{background:#fafbfc}
     </div>
   </div>
 
-  <div class="tip"><strong>Screenshot toast:</strong> All screenshot actions show a dark toast at the bottom of the popup with a <strong>⬇ Download</strong> button. The toast auto-dismisses after 10 seconds. The image is also copied to your clipboard so you can paste it directly into documents or bug trackers.</div>
+  <div class="tip"><strong>Screenshot toast:</strong> All screenshot actions show a dark toast at the bottom of the page with three buttons: <strong>⬇ Save</strong> (always opens the OS file-picker Save-As dialog so you choose exactly where the PNG is saved), <strong>✎ Markup</strong> (opens the Markup Editor in a new tab), and <strong>✕</strong> (dismiss). The image is also copied to your clipboard automatically so you can paste it directly into documents or bug trackers. The toast auto-dismisses after 10 seconds.</div>
   <div class="info"><strong>After a screenshot:</strong> QAKit closes while the capture runs. When you reopen it, you land on the Home screen — not inside any tool panel.</div>
+
+  <!-- Markup Editor sub-section -->
+  <h3>✏ Markup Editor</h3>
+  <p>The Markup Editor opens in a full browser tab. It loads the screenshot you just captured and gives you a canvas-based annotation workspace. Use it to call out bugs, highlight UI issues, or build step-by-step repro screenshots before filing a ticket.</p>
+
+  <h4>Annotation tools</h4>
+  <table>
+    <tr><th>Tool</th><th>What it does</th></tr>
+    <tr><td><strong>Pen</strong></td><td>Freehand drawing — drag to sketch freely on the image</td></tr>
+    <tr><td><strong>Rectangle</strong></td><td>Draw a outlined box — drag to define the region</td></tr>
+    <tr><td><strong>Arrow</strong></td><td>Draw a directional arrow — drag from tail to tip</td></tr>
+    <tr><td><strong>Highlight</strong></td><td>Semi-transparent colour overlay — drag like a marker pen</td></tr>
+    <tr><td><strong>Blur</strong></td><td>Gaussian blur (size 1–10) or mosaic pixelation (size 11–20) — drag a redaction region</td></tr>
+    <tr><td><strong>Number</strong></td><td>Drop a filled numbered circle; numbers auto-increment for step-by-step repros</td></tr>
+    <tr><td><strong>Text</strong></td><td>Click to place a text label, type your note, press Enter or click away to commit</td></tr>
+    <tr><td><strong>Select</strong></td><td>Click a shape to select it; drag to move, drag a handle to resize. Delete key removes it.</td></tr>
+    <tr><td><strong>Crop</strong></td><td>Drag a region to crop the image to those bounds</td></tr>
+  </table>
+
+  <h4>Toolbar actions</h4>
+  <ul>
+    <li><strong>Colour swatch</strong> — click to open a colour picker; applies to all tools except Blur</li>
+    <li><strong>Size slider</strong> — adjusts stroke width or blur intensity; each tool remembers its own size</li>
+    <li><strong>↩ Undo / ↪ Redo</strong> — step backwards and forwards through the annotation history</li>
+    <li><strong>⎘ Copy</strong> — copies the fully annotated image to the clipboard as a PNG</li>
+    <li><strong>💾 Save</strong> — opens a Save-As dialog to download the annotated image as a PNG file</li>
+    <li><strong>✕ Done</strong> — closes the Markup Editor tab</li>
+  </ul>
+
+  <div class="tip"><strong>Blur for sensitive data:</strong> Use the Blur tool to redact passwords, PII, or internal references before sharing screenshots with external teams. Size 1–10 applies a soft Gaussian blur; size 11–20 pixelates the region for stronger redaction.</div>
+  <div class="tip"><strong>Number markers for repro steps:</strong> Switch to the Number tool and click once per step location. Numbers auto-increment from 1 so your repro steps are labelled in order. Use Undo to remove a misplaced marker.</div>
 </div>
 
 <!-- ═══════════════════════════════════════════════════════════════════════ ANALYTICS -->
@@ -728,10 +760,6 @@ tr:nth-child(even) td{background:#fafbfc}
       <p>Choose which analytics platforms to monitor. WAE attribute capture is always on. Toggle GTM, GA4, DDL, Adobe, Tealium, Meta Pixel, Floodlight, and Segment individually.</p>
     </div>
     <div class="card">
-      <div class="card-title">📊 Analytics Filter</div>
-      <p>Set a default search filter that pre-populates the Analytics search box. Useful if you always want to filter to a specific event type or platform.</p>
-    </div>
-    <div class="card">
       <div class="card-title">🔍 Test Locator Attribute</div>
       <p>The attribute name used for test IDs on your application (e.g. <code>data-testid</code>, <code>data-qa</code>). The Element Inspector highlights this attribute in its output.</p>
     </div>
@@ -772,16 +800,17 @@ tr:nth-child(even) td{background:#fafbfc}
     <tr><th>Action</th><th>Mac</th><th>Windows / Linux</th></tr>
     <tr><td>Element Inspector</td><td><kbd>⌘⇧Q</kbd></td><td><kbd>Ctrl⇧Q</kbd></td></tr>
     <tr><td>Spacing Inspector</td><td><kbd>⌘⇧Y</kbd></td><td><kbd>Ctrl⇧Y</kbd></td></tr>
-    <tr><td>Region Screenshot</td><td><kbd>⌘⇧U</kbd></td><td><kbd>Ctrl⇧U</kbd></td></tr>
-    <tr><td>Full Page Screenshot</td><td><kbd>⌘⇧K</kbd></td><td><kbd>Ctrl⇧K</kbd></td></tr>
+    <tr><td>Region Screenshot</td><td><kbd>⌘⇧Z</kbd></td><td><kbd>Ctrl⇧Z</kbd></td></tr>
+    <tr><td>Full Page Screenshot</td><td><kbd>⌘⇧F</kbd></td><td><kbd>Ctrl⇧F</kbd></td></tr>
   </table>
+  <div class="tip">All four shortcuts are active immediately after install — no configuration needed. You can reassign them at <code>chrome://extensions/shortcuts</code> if there are conflicts with other extensions.</div>
 
   <div class="tip">Shortcuts trigger the tool directly on the page without opening the QAKit popup. The result (screenshot) is delivered via a toast notification so you can continue working uninterrupted.</div>
 </div>
 
 <!-- ═══════════════════════════════════════════════════════════════════════ FOOTER -->
 <div class="footer">
-  <p><strong>QAKit v1.0.1</strong> · Built with passion for QAs &amp; developers<br>
+  <p><strong>QAKit v1.0.2</strong> · Built with passion for QAs &amp; developers<br>
   By <strong>Prem Nepak</strong> · QAKit Extension<br>
   <span style="font-size:12px"><a href="changelog.html" style="color:#0a6e51;font-weight:600">What's new →</a> · <a href="privacy-policy.html" style="color:#0a6e51;font-weight:600">Privacy Policy</a> · Questions or feedback? <a href="mailto:qakit.extension@gmail.com" style="color:#0a6e51;font-weight:600">qakit.extension@gmail.com</a></span></p>
 </div>

@@ -471,15 +471,28 @@ window.initPageTools = function () {
     toast.innerHTML =
       '<span style="font-size:16px;flex-shrink:0">📸</span>' +
       '<span style="flex:1;font-weight:600;color:#00e5a0">' + label + '</span>' +
-      '<button id="ssDownloadBtn" style="background:#00e5a0;border:none;border-radius:5px;padding:5px 12px;color:#0f141d;font-size:10px;font-weight:700;cursor:pointer">⬇ Download</button>' +
+      '<button id="ssDownloadBtn" style="background:#00e5a0;border:none;border-radius:5px;padding:5px 12px;color:#0f141d;font-size:10px;font-weight:700;cursor:pointer">⬇ Save</button>' +
+      '<button id="ssEditBtn" style="background:#2a3a5c;border:1px solid rgba(160,196,255,.3);border-radius:5px;padding:5px 12px;color:#a0c4ff;font-size:10px;font-weight:700;cursor:pointer">✎ Markup</button>' +
       '<button id="ssDismissBtn" style="background:none;border:none;color:rgba(255,255,255,.5);font-size:16px;cursor:pointer;padding:0 2px">×</button>';
     document.body.appendChild(toast);
 
     document.getElementById('ssDownloadBtn').addEventListener('click', () => {
-      const a = document.createElement('a');
-      a.href = dataUrl;
-      a.download = 'qakit-screenshot-' + Date.now() + '.png';
-      a.click();
+      // Route via background so chrome.downloads.download({ saveAs: true })
+      // ALWAYS prompts for save location, regardless of Chrome's global pref.
+      chrome.runtime.sendMessage({
+        action: 'SAVE_SCREENSHOT',
+        dataUrl,
+        prefix: 'qakit-screenshot',
+      }).catch(() => {});
+      toast.remove();
+    });
+    document.getElementById('ssEditBtn').addEventListener('click', () => {
+      chrome.runtime.sendMessage({
+        action: 'OPEN_IN_EDITOR',
+        dataUrl,
+        prefix: 'qakit-screenshot',
+      }).catch(() => {});
+      toast.remove();
     });
     document.getElementById('ssDismissBtn').addEventListener('click', () => toast.remove());
 

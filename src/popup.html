@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>QAKit v1.0.1</title>
+<title>QAKit v1.0.2</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Syne:wght@700;800&display=swap');
 
@@ -1467,8 +1467,8 @@
       <div class="home-section-label">CAPTURE</div>
       <div class="home-grid">
         <div class="home-tile" data-action="annotate"><div class="home-tile-icon">✏</div><div class="home-tile-name">Annotate</div><div class="home-tile-hint">draw</div></div>
-        <div class="home-tile" data-action="region"><div class="home-tile-icon">⬚</div><div class="home-tile-name">Region</div><div class="home-tile-hint">⌘⇧U</div></div>
-        <div class="home-tile" data-action="fullpage"><div class="home-tile-icon">📄</div><div class="home-tile-name">Full Page</div><div class="home-tile-hint">⌘⇧K</div></div>
+        <div class="home-tile" data-action="region"><div class="home-tile-icon">⬚</div><div class="home-tile-name">Region</div><div class="home-tile-hint">⌘⇧Z</div></div>
+        <div class="home-tile" data-action="fullpage"><div class="home-tile-icon">📄</div><div class="home-tile-name">Full Page</div><div class="home-tile-hint">⌘⇧F</div></div>
         <div class="home-tile" data-action="element-shot"><div class="home-tile-icon">🖼</div><div class="home-tile-name">Element</div><div class="home-tile-hint">1 click</div></div>
       </div>
     </div>
@@ -1595,8 +1595,8 @@
 
     <!-- Bottom action bar — flex-shrink:0 keeps it always visible -->
     <div style="display:flex;gap:5px;padding:6px 8px;border-top:1px solid var(--border);background:var(--surface);flex-shrink:0">
-      <button class="btn-accent" id="ss-fullBtn"   title="Capture full page — Ctrl+Shift+K / Cmd+Shift+K" style="flex:1;font-size:9px;padding:6px 4px">📄 Full Page</button>
-      <button class="btn-ghost"  id="ss-regionBtn" title="Select a region to capture — Ctrl+Shift+U / Cmd+Shift+U" style="flex:1;font-size:9px;padding:6px 4px">⬚ Region</button>
+      <button class="btn-accent" id="ss-fullBtn"   title="Capture full page — Ctrl+Shift+F / Cmd+Shift+F" style="flex:1;font-size:9px;padding:6px 4px">📄 Full Page</button>
+      <button class="btn-ghost"  id="ss-regionBtn" title="Select a region to capture — Ctrl+Shift+Z / Cmd+Shift+Z" style="flex:1;font-size:9px;padding:6px 4px">⬚ Region</button>
       <button class="btn-ghost"  id="ssCopyBtn"    title="Copy screenshot to clipboard" style="font-size:9px;padding:6px 8px">⎘</button>
       <button class="btn-accent" id="ssSaveBtn"    title="Save screenshot as PNG"       style="font-size:9px;padding:6px 10px">⬇ Save</button>
       <button class="btn-ghost"  id="ssClearBtn"   title="Clear screenshot canvas"      style="font-size:9px;padding:6px 7px">✕</button>
@@ -2233,11 +2233,6 @@
       </div>
     </div>
 
-    <div class="setting-group">
-      <div class="setting-group-title">📊 Analytics Filter</div>
-      <div class="setting-desc">Default search filter in the Analytics tab. Leave blank to show all events.</div>
-      <input class="net-input" id="settingAnalyticsFilter" placeholder="e.g. wae" />
-    </div>
 
     <div class="setting-group">
       <div class="setting-group-title">🔍 Test Locator Attribute</div>
@@ -2285,9 +2280,9 @@
         <span style="color:var(--text)">Spacing Inspector</span>
         <span style="color:var(--muted);font-family:monospace">⌘⇧Y / Ctrl⇧Y</span>
         <span style="color:var(--text)">Region Screenshot</span>
-        <span style="color:var(--muted);font-family:monospace">⌘⇧U / Ctrl⇧U</span>
+        <span style="color:var(--muted);font-family:monospace">⌘⇧Z / Ctrl⇧Z</span>
         <span style="color:var(--text)">Full-Page Screenshot</span>
-        <span style="color:var(--muted);font-family:monospace">⌘⇧K / Ctrl⇧K</span>
+        <span style="color:var(--muted);font-family:monospace">⌘⇧F / Ctrl⇧F</span>
         <span style="color:var(--text)">Toggle Recording</span>
         <span style="color:var(--muted);font-family:monospace">Click REC toggle</span>
       </div>

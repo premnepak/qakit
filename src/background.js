@@ -108,10 +108,10 @@ function setupContextMenus() {
     chrome.contextMenus.create({ id: 'qakit-root',          title: 'QAKit',                    contexts: ['all'] });
 
     // ── Core QA actions ─────────────────────────────────────────────────────
-    chrome.contextMenus.create({ id: 'qakit-inspect',       title: '🔍 Inspect Element',        contexts: ['all'], parentId: 'qakit-root' });
-    chrome.contextMenus.create({ id: 'qakit-spacing',       title: '📐 Spacing Inspector',      contexts: ['all'], parentId: 'qakit-root' });
-    chrome.contextMenus.create({ id: 'qakit-region',        title: '⬚ Region Screenshot',       contexts: ['all'], parentId: 'qakit-root' });
-    chrome.contextMenus.create({ id: 'qakit-fullpage',      title: '📄 Full Page Screenshot',   contexts: ['all'], parentId: 'qakit-root' });
+    chrome.contextMenus.create({ id: 'qakit-inspect',       title: '🔍 Inspect Element  (Ctrl+⇧+Q)',        contexts: ['all'], parentId: 'qakit-root' });
+    chrome.contextMenus.create({ id: 'qakit-spacing',       title: '📐 Spacing Inspector  (Ctrl+⇧+Y)',      contexts: ['all'], parentId: 'qakit-root' });
+    chrome.contextMenus.create({ id: 'qakit-region',        title: '⬚ Region Screenshot  (Ctrl+⇧+Z)',       contexts: ['all'], parentId: 'qakit-root' });
+    chrome.contextMenus.create({ id: 'qakit-fullpage',      title: '📄 Full Page Screenshot  (Ctrl+⇧+F)',   contexts: ['all'], parentId: 'qakit-root' });
     chrome.contextMenus.create({ id: 'qakit-element-shot',  title: '🖼 Capture Element',   contexts: ['all'], parentId: 'qakit-root' });
     chrome.contextMenus.create({ id: 'sep1',                type:  'separator',                 contexts: ['all'], parentId: 'qakit-root' });
     chrome.contextMenus.create({ id: 'qakit-audit',         title: '📋 Run Page Audit',         contexts: ['all'], parentId: 'qakit-root' });
@@ -904,6 +904,58 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     chrome.runtime.sendMessage({ action: 'NET_INTERCEPTED', entry: msg.entry }).catch(() => {});
     return;
   }
+
+  // Open screenshot in QAKit Markup editor (in-extension annotation page).
+  // Image is held in an in-memory map (not chrome.storage.session, which has
+  // a 10 MB quota that full-page captures can exceed). The markup tab pulls
+  // the image via FETCH_MARKUP_IMAGE on load. The service worker stays alive
+  // for the brief window between tab creation and markup.js requesting the
+  // image because the new tab triggers more events.
+  if (msg.action === 'OPEN_IN_EDITOR') {
+    const { dataUrl, prefix } = msg;
+    if (!dataUrl) {
+      console.warn('[QAKit] OPEN_IN_EDITOR: no dataUrl provided');
+      sendResponse({ ok: false });
+      return;
+    }
+    const id = 'mk_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
+    if (!self.__qkitMarkupImages) self.__qkitMarkupImages = new Map();
+    self.__qkitMarkupImages.set(id, { dataUrl, prefix: prefix || 'qakit-screenshot' });
+    // Drop after 5 minutes to bound memory if the tab is never opened.
+    setTimeout(() => self.__qkitMarkupImages?.delete(id), 5 * 60 * 1000);
+    const url = chrome.runtime.getURL('markup.html') + '?id=' + encodeURIComponent(id);
+    chrome.tabs.create({ url });
+    sendResponse({ ok: true });
+    return;
+  }
+
+  // Markup page asks for its image. One-shot: the entry is removed after read.
+  if (msg.action === 'FETCH_MARKUP_IMAGE') {
+    const id = msg.id;
+    const entry = self.__qkitMarkupImages?.get(id);
+    if (entry) self.__qkitMarkupImages.delete(id);
+    sendResponse({ ok: !!entry, entry: entry || null });
+    return true;   // keep channel open for async sendResponse
+  }
+
+  // Save screenshot — always prompt for save location (saveAs: true) so the
+  // user can choose where the PNG is written, regardless of their Chrome
+  // "Ask where to save" preference.
+  if (msg.action === 'SAVE_SCREENSHOT') {
+    const { dataUrl, prefix } = msg;
+    const filename = (prefix || 'qakit-screenshot') + '-' + Date.now() + '.png';
+    chrome.downloads.download({
+      url: dataUrl,
+      filename,
+      saveAs: true,
+    }, () => {
+      if (chrome.runtime.lastError) {
+        console.warn('[QAKit] SAVE_SCREENSHOT: download failed:', chrome.runtime.lastError.message);
+      }
+    });
+    sendResponse({ ok: true });
+    return;
+  }
 });
 
 // ── Delay then capture — gives overlay time to clear before screenshotting ──
@@ -1014,7 +1066,7 @@ async function injectScreenshotToast(tabId, pngDataUrl, label, downloadPrefix) {
         btns.style.cssText = 'display:flex;gap:6px';
 
         const saveBtn = document.createElement('button');
-        saveBtn.textContent = '⬇ Save as PNG';
+        saveBtn.textContent = '⬇ Save';
         saveBtn.style.cssText = [
           'flex:1;background:#0a6e51;color:#fff;border:none;border-radius:6px',
           'padding:7px 10px;font-size:13px;cursor:pointer;font-weight:700',
@@ -1023,12 +1075,13 @@ async function injectScreenshotToast(tabId, pngDataUrl, label, downloadPrefix) {
         saveBtn.onmouseover = () => { saveBtn.style.background = '#085c44'; };
         saveBtn.onmouseout  = () => { saveBtn.style.background = '#0a6e51'; };
         saveBtn.onclick = () => {
-          const a = document.createElement('a');
-          a.href = imgUrl;
-          a.download = dlPrefix + '-' + Date.now() + '.png';
-          document.body.appendChild(a);
-          a.click();
-          a.remove();
+          // Dispatch to content.js (isolated world) which forwards to background.
+          // Background uses chrome.downloads.download({ saveAs: true }) so the
+          // "Save As" dialog ALWAYS appears, regardless of Chrome's global
+          // "Ask where to save" preference.
+          window.dispatchEvent(new CustomEvent('__qkitSaveScreenshot', {
+            detail: { dataUrl: imgUrl, prefix: dlPrefix }
+          }));
           toast.remove();
         };
 
@@ -1041,7 +1094,27 @@ async function injectScreenshotToast(tabId, pngDataUrl, label, downloadPrefix) {
         ].join(';');
         closeBtn.onclick = () => toast.remove();
 
+        // Markup button — opens the QAKit Markup editor in a new tab.
+        // MAIN world has no chrome API access, so dispatch a CustomEvent that
+        // content.js (isolated world) forwards to background via sendMessage.
+        const editBtn = document.createElement('button');
+        editBtn.textContent = '✎ Markup';
+        editBtn.style.cssText = [
+          'flex:1;background:#2a3a5c;color:#a0c4ff;border:1px solid rgba(160,196,255,.3)',
+          'border-radius:6px;padding:7px 10px;font-size:13px;cursor:pointer;font-weight:700',
+          'transition:background .12s',
+        ].join(';');
+        editBtn.onmouseover = () => { editBtn.style.background = '#344a72'; };
+        editBtn.onmouseout  = () => { editBtn.style.background = '#2a3a5c'; };
+        editBtn.onclick = () => {
+          window.dispatchEvent(new CustomEvent('__qkitEditScreenshot', {
+            detail: { dataUrl: imgUrl, prefix: dlPrefix }
+          }));
+          toast.remove();
+        };
+
         btns.appendChild(saveBtn);
+        btns.appendChild(editBtn);
         btns.appendChild(closeBtn);
         toast.appendChild(btns);
 

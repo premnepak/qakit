@@ -78,7 +78,7 @@ python3 << PYEOF
 import re, sys
 import os
 SRC = '$SRC_DIR'
-files = ['popup.html','json-diff-tool.html','text-compare.html','help.html','privacy-policy.html']
+files = ['popup.html','json-diff-tool.html','text-compare.html','help.html','privacy-policy.html','markup.html']
 all_ok = True
 for fname in files:
     path = os.path.join(SRC, fname)

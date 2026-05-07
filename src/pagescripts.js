@@ -213,17 +213,21 @@
   };
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // 3. RULER — SVG crosshair + two-click distance measurement
+  // 3. RULER — SVG crosshair + two-click distance measurement (multi-line)
   // ═══════════════════════════════════════════════════════════════════════════
   let _rulerSvg = null, _rulerActive = false;
-  let _pt1 = null, _measureLine = null, _labelEl = null;
+  let _pt1 = null;
   let _crossH = null, _crossV = null;
+  let _activeLine = null, _activeDot = null;
+  let _activeLabelG = null, _activeLabelBg = null, _activeLabelTxt = null;
 
   function closeRuler() {
     removeEl('__qkit-ruler-host');
     _rulerSvg = null; _rulerActive = false;
-    _pt1 = null; _measureLine = null; _labelEl = null;
+    _pt1 = null;
     _crossH = null; _crossV = null;
+    _activeLine = null; _activeDot = null;
+    _activeLabelG = null; _activeLabelBg = null; _activeLabelTxt = null;
     document.removeEventListener('mousemove', _rulerMouseMove, true);
     document.removeEventListener('click',     _rulerClick,     true);
   }
@@ -255,6 +259,65 @@
     return r;
   }
 
+  function _svgCircle(parent, r, fill, stroke) {
+    const c = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+    c.setAttribute('r', r);
+    c.setAttribute('fill', fill);
+    if (stroke) { c.setAttribute('stroke', stroke); c.setAttribute('stroke-width', '1.5'); }
+    parent.appendChild(c);
+    return c;
+  }
+
+  // Commit a completed measurement as permanent SVG elements (teal, stays until ESC)
+  function _commitRulerLine(x1, y1, x2, y2) {
+    const svg = _rulerSvg;
+    const vw = window.innerWidth;
+    const dx = x2 - x1, dy = y2 - y1;
+    const dist = Math.round(Math.sqrt(dx * dx + dy * dy));
+    const adx = Math.abs(Math.round(dx));
+    const ady = Math.abs(Math.round(dy));
+    const labelStr = dist + 'px  ·  Δx:' + adx + '  Δy:' + ady;
+
+    // Committed line (solid teal)
+    const line = _svgLine(svg, '#00e5a0', null, '2');
+    line.setAttribute('x1', x1); line.setAttribute('y1', y1);
+    line.setAttribute('x2', x2); line.setAttribute('y2', y2);
+
+    // Endpoint dots
+    const d1 = _svgCircle(svg, 4, '#00e5a0', '#fff');
+    d1.setAttribute('cx', x1); d1.setAttribute('cy', y1);
+    const d2 = _svgCircle(svg, 4, '#00e5a0', '#fff');
+    d2.setAttribute('cx', x2); d2.setAttribute('cy', y2);
+
+    // Persistent label at midpoint (dark text on teal bg)
+    const mx = (x1 + x2) / 2, my = (y1 + y2) / 2;
+    const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+    const bg = _svgRect(g, 'rgba(0,229,160,0.9)', '4');
+    const txt = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    txt.setAttribute('fill', '#000');
+    txt.setAttribute('font-size', '11');
+    txt.setAttribute('font-family', "-apple-system,'Segoe UI',sans-serif");
+    txt.setAttribute('font-weight', '700');
+    g.appendChild(txt);
+    svg.appendChild(g);
+
+    txt.textContent = labelStr;
+    const tw = labelStr.length * 6.5 + 12;
+    const th = 18;
+    const lx = Math.max(4, Math.min(mx - tw / 2, vw - tw - 4));
+    const ly = Math.max(4, my - 24);
+    bg.setAttribute('x', lx - 4); bg.setAttribute('y', ly - 2);
+    bg.setAttribute('width', tw + 8); bg.setAttribute('height', th + 4);
+    txt.setAttribute('x', lx + tw / 2);
+    txt.setAttribute('y', ly + 13);
+    txt.setAttribute('text-anchor', 'middle');
+
+    // Keep active elements on top (move to end of SVG)
+    if (_activeLine)   svg.appendChild(_activeLine);
+    if (_activeDot)    svg.appendChild(_activeDot);
+    if (_activeLabelG) svg.appendChild(_activeLabelG);
+  }
+
   window.__qkitStartRuler = function() {
     closeAll();
     _rulerActive = true;
@@ -274,27 +337,20 @@
     _crossH = _svgLine(svg, 'rgba(10,110,80,0.5)', '4 4');
     _crossV = _svgLine(svg, 'rgba(10,110,80,0.5)', '4 4');
 
-    // Measurement line (hidden until pt1 set)
-    _measureLine = _svgLine(svg, '#f9c74f', null, '2');
-    _measureLine.style.display = 'none';
+    // Active measurement line (hidden until pt1 set)
+    _activeLine = _svgLine(svg, '#f9c74f', null, '2');
+    _activeLine.style.display = 'none';
 
-    // Dot at pt1
-    const dot1 = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-    dot1.id = '__qkit-ruler-dot1';
-    dot1.setAttribute('r', '4');
-    dot1.setAttribute('fill', '#f9c74f');
-    dot1.setAttribute('stroke', '#fff');
-    dot1.setAttribute('stroke-width', '1.5');
-    dot1.style.display = 'none';
-    svg.appendChild(dot1);
+    // Active dot at pt1 (yellow, hidden until first click)
+    _activeDot = _svgCircle(svg, 4, '#f9c74f', '#fff');
+    _activeDot.style.display = 'none';
 
-    // Label group: bg rect + text
-    const labelG = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-    labelG.style.display = 'none';
-    const labelBg  = _svgRect(labelG, 'rgba(10,10,20,0.85)', '4');
-    const labelTxt = _svgText(labelG);
-    svg.appendChild(labelG);
-    _labelEl = { g: labelG, bg: labelBg, txt: labelTxt, dot1 };
+    // Active label group (follows cursor, hidden until pt1 set)
+    _activeLabelG = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+    _activeLabelG.style.display = 'none';
+    _activeLabelBg  = _svgRect(_activeLabelG, 'rgba(10,10,20,0.85)', '4');
+    _activeLabelTxt = _svgText(_activeLabelG);
+    svg.appendChild(_activeLabelG);
 
     const tip = document.createElement('div');
     tip.id = '__qkit-ruler-tip';
@@ -318,53 +374,53 @@
     _crossV.setAttribute('x2', x);   _crossV.setAttribute('y2', vh);
 
     if (_pt1) {
-      // Update measurement line
-      _measureLine.setAttribute('x1', _pt1.x); _measureLine.setAttribute('y1', _pt1.y);
-      _measureLine.setAttribute('x2', x);       _measureLine.setAttribute('y2', y);
-      _measureLine.style.display = '';
+      // Update active measurement line from pt1 to cursor
+      _activeLine.setAttribute('x1', _pt1.x); _activeLine.setAttribute('y1', _pt1.y);
+      _activeLine.setAttribute('x2', x);       _activeLine.setAttribute('y2', y);
+      _activeLine.style.display = '';
 
-      // Compute distance, delta, angle
       const dx = x - _pt1.x, dy = y - _pt1.y;
       const dist = Math.round(Math.sqrt(dx * dx + dy * dy));
       const adx  = Math.abs(Math.round(dx));
       const ady  = Math.abs(Math.round(dy));
       const labelStr = dist + 'px  ·  Δx:' + adx + '  Δy:' + ady;
 
-      // Position label near midpoint
       const mx = (_pt1.x + x) / 2, my = (_pt1.y + y) / 2;
-      const { g, bg, txt } = _labelEl;
-      txt.textContent = labelStr;
-      g.style.display = '';
-      // Measure text width (approximate: 6px per char)
+      _activeLabelTxt.textContent = labelStr;
+      _activeLabelG.style.display = '';
       const tw = labelStr.length * 6.5 + 12;
       const th = 18;
       const lx = Math.max(4, Math.min(mx - tw / 2, vw - tw - 4));
       const ly = Math.max(4, my - 24);
-      bg.setAttribute('x', lx - 4); bg.setAttribute('y', ly - 2);
-      bg.setAttribute('width', tw + 8); bg.setAttribute('height', th + 4);
-      txt.setAttribute('x', lx + tw / 2);
-      txt.setAttribute('y', ly + 13);
-      txt.setAttribute('text-anchor', 'middle');
+      _activeLabelBg.setAttribute('x', lx - 4); _activeLabelBg.setAttribute('y', ly - 2);
+      _activeLabelBg.setAttribute('width', tw + 8); _activeLabelBg.setAttribute('height', th + 4);
+      _activeLabelTxt.setAttribute('x', lx + tw / 2);
+      _activeLabelTxt.setAttribute('y', ly + 13);
+      _activeLabelTxt.setAttribute('text-anchor', 'middle');
 
       const tip = document.getElementById('__qkit-ruler-tip');
-      if (tip) tip.textContent = dist + 'px (Δx:' + adx + ' Δy:' + ady + ')  ·  Click to reset  ·  Esc to close';
+      if (tip) tip.textContent = dist + 'px (Δx:' + adx + ' Δy:' + ady + ')  ·  Click to lock line  ·  Esc to close';
     }
   }
 
   function _rulerClick(e) {
     if (!_rulerActive) return;
     if (_pt1) {
-      // Reset — start new measurement from here
-      _pt1 = { x: e.clientX, y: e.clientY };
-      const { dot1 } = _labelEl;
-      dot1.setAttribute('cx', _pt1.x); dot1.setAttribute('cy', _pt1.y);
-    } else {
-      _pt1 = { x: e.clientX, y: e.clientY };
-      const { dot1 } = _labelEl;
-      dot1.style.display = '';
-      dot1.setAttribute('cx', _pt1.x); dot1.setAttribute('cy', _pt1.y);
+      // Second click — commit this line permanently, reset for next measurement
+      _commitRulerLine(_pt1.x, _pt1.y, e.clientX, e.clientY);
+      _pt1 = null;
+      _activeLine.style.display = 'none';
+      _activeDot.style.display = 'none';
+      _activeLabelG.style.display = 'none';
       const tip = document.getElementById('__qkit-ruler-tip');
-      if (tip) tip.textContent = 'Move to measure  ·  Click to reset  ·  Esc to close';
+      if (tip) tip.textContent = 'Click to set start point  ·  Esc to close';
+    } else {
+      // First click — set start point for new line
+      _pt1 = { x: e.clientX, y: e.clientY };
+      _activeDot.style.display = '';
+      _activeDot.setAttribute('cx', _pt1.x); _activeDot.setAttribute('cy', _pt1.y);
+      const tip = document.getElementById('__qkit-ruler-tip');
+      if (tip) tip.textContent = 'Click to set end point  ·  Esc to close';
     }
   }
 

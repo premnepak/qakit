@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "QAKit",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "QAKit — All-in-one toolkit for QA engineers & developers: inspect, capture, audit, mock requests, manage cookies & storage.",
   "author": "Prem Nepak",
   "homepage_url": "https://github.com/premnepak/qakit",
@@ -15,7 +15,8 @@
     "declarativeNetRequest",
     "declarativeNetRequestWithHostAccess",
     "windows",
-    "contextMenus"
+    "contextMenus",
+    "downloads"
   ],
   "host_permissions": [
     "<all_urls>"
@@ -35,7 +36,10 @@
         "text-compare.js",
         "privacy-policy.html",
         "help.html",
-        "changelog.html"
+        "changelog.html",
+        "markup.html",
+        "markup.js",
+        "markup.css"
       ],
       "matches": [
         "<all_urls>"
@@ -72,9 +76,17 @@
       "description": "Toggle Spacing Inspector"
     },
     "capture-region": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+Z",
+        "mac": "Command+Shift+Z"
+      },
       "description": "Capture region screenshot"
     },
     "capture-fullpage": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+F",
+        "mac": "Command+Shift+F"
+      },
       "description": "Capture full page screenshot"
     }
   },

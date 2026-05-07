@@ -418,4 +418,26 @@
     } catch(_) {}
   });
 
+  // Bridge 7: Screenshot "Edit" button — MAIN-world toast dispatches this
+  // CustomEvent because it has no direct chrome API access. Forward to
+  // background which downloads silently and opens in the default image editor.
+  window.addEventListener('__qkitEditScreenshot', (e) => {
+    try {
+      if (!chrome.runtime?.id) return;
+      const { dataUrl, prefix } = e.detail || {};
+      chrome.runtime.sendMessage({ action: 'OPEN_IN_EDITOR', dataUrl, prefix }).catch(() => {});
+    } catch(_) {}
+  });
+
+  // Bridge 8: Screenshot "Save" button — forwards to background which uses
+  // chrome.downloads.download({ saveAs: true }) so the OS "Save As" dialog
+  // always appears, independent of Chrome's global download preference.
+  window.addEventListener('__qkitSaveScreenshot', (e) => {
+    try {
+      if (!chrome.runtime?.id) return;
+      const { dataUrl, prefix } = e.detail || {};
+      chrome.runtime.sendMessage({ action: 'SAVE_SCREENSHOT', dataUrl, prefix }).catch(() => {});
+    } catch(_) {}
+  });
+
 })();

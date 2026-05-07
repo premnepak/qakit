@@ -6,6 +6,52 @@ The numbering (Issue 64, Issue 65, etc.) reflects the chronological tracking fro
 
 ---
 
+## Issue 82 — Markup Annotation Editor
+
+**Feature addition (not a bug fix)**
+
+**Summary:** Every screenshot toast now shows a **✎ Markup** button. Clicking it opens the captured image in a dedicated `markup.html` tab — a full canvas-based annotation workspace.
+
+**Motivation:** QA engineers need to annotate screenshots before filing bugs. Previously, users had to open an external image editor, annotate, and re-save. The new Markup Editor eliminates that round-trip entirely.
+
+**How it works:**
+1. A screenshot capture (Region, Full Page, Element, or Annotate) stores the PNG data URL in `chrome.storage.session` under a one-shot key (UUID-like ID tied to the capture timestamp).
+2. The toast in the popup/pagetools renders a **✎ Markup** button alongside the existing ⬇ Download.
+3. Clicking Markup dispatches a `__qkitEditScreenshot` event on the document. `content.js` forwards this as a `OPEN_MARKUP_EDITOR` message to `background.js`.
+4. `background.js` opens `markup.html?id=<key>` in a new tab, then calls `chrome.downloads`-based save when the editor requests it via `FETCH_MARKUP_IMAGE` / `SAVE_MARKUP_IMAGE` messages.
+5. `markup.js` loads the image, renders it on a `<canvas>`, and exposes the full annotation toolkit.
+
+**Annotation tools shipped:**
+- **Pen** — freehand strokes
+- **Rectangle** — outlined box
+- **Arrow** — directional arrow with arrowhead
+- **Highlight** — semi-transparent colour overlay
+- **Blur** — size 1–10: Gaussian blur; size 11–20: mosaic pixelation (for redaction)
+- **Number** — auto-incrementing numbered circle markers for step-by-step repros
+- **Text** — click-to-place text labels
+- **Select** — move/resize committed shapes; Delete key removes
+- **Crop** — trim canvas to a drag-selected region
+
+**New permission:** `"downloads"` added to `manifest.json` for `chrome.downloads.download` (Save-As dialog).
+
+**New WAR resources:** `markup.html`, `markup.js`, `markup.css` added to `web_accessible_resources` in `manifest.json`.
+
+**Files touched:** `src/markup.html` (new), `src/markup.js` (new), `src/markup.css` (new), `src/background.js`, `src/content.js`, `src/pagetools.js`, `src/manifest.json`
+
+---
+
+## Issue 81 — Element Inspector freeze gesture not discoverable
+
+**Symptom:** Users didn't realise the Element Inspector badge could be frozen by clicking the page. The existing footer hint (`⎘ copy · 📌 pin · ⌥ click = drill in · click crumb above`) used cryptic symbols and didn't mention freeze / Esc at all.
+
+**Root cause:** Footer copy was abbreviated and assumed familiarity with the 📌 icon and ⌥ symbol.
+
+**Fix:** Rewrote the footer hint inside `renderInspectBadge()` to spell out the gestures: `⎘ copy · Click to freeze · Esc to unfreeze / exit · Alt/⌥-click to drill in · click crumb above`. No behavioural change — click-to-freeze, Alt+click drill-down, and Esc unpin/exit all work exactly as before.
+
+**Files touched:** `src/inspector.js` (single string change in `renderInspectBadge()`)
+
+---
+
 ## Issue 64 — Page Audit completely broken on Run
 
 **Symptom:** Clicking "▶ Run" on the Page Audit tool did nothing — no scan started, no results, no errors.
@@ -131,9 +177,11 @@ All three guards are required. Removing any single one re-introduces the bug.
 
 **Root cause:** `Ctrl+Shift+U` is bound by Chrome on some platforms (text input methods on Linux/Windows). `Ctrl+Shift+K` is sometimes bound by other extensions. When Chrome detects a conflict, the extension shortcut is silently ignored.
 
-**Fix:** Removed the `suggested_key` defaults for `capture-region` and `capture-fullpage` in `manifest.json`. The commands are still registered, so users can manually configure their preferred shortcut at `chrome://extensions/shortcuts`. Avoids the conflict.
+**Fix (v1):** Removed the `suggested_key` defaults for `capture-region` and `capture-fullpage` in `manifest.json`. The commands are still registered, so users can manually configure their preferred shortcut at `chrome://extensions/shortcuts`. Avoids the conflict.
 
-**Files touched:** `manifest.json`
+**Fix (v2):** Re-assigned to conflict-free keys: `Ctrl+Shift+Z` (Region) and `Ctrl+Shift+F` (Full Page). These are not bound by Chrome or Windows. `mac` variants use `Command+Shift+Z` and `Command+Shift+F`.
+
+**Files touched:** `manifest.json`, `help.html`
 
 ---
 

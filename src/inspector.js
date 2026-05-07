@@ -45,11 +45,12 @@
   Object.assign(badge.style, {
     position: 'fixed', zIndex: '2147483647', pointerEvents: 'none',
     fontFamily: 'ui-monospace,"SF Mono",Menlo,Consolas,"Courier New",monospace',
-    fontSize: '13px', lineHeight: '1.6',
-    borderRadius: '8px', background: 'rgba(15,15,20,0.97)',
-    border: '1.5px solid rgba(0,229,160,0.6)', color: '#e8e8f0',
+    fontSize: '13.5px', lineHeight: '1.65',
+    borderRadius: '8px', background: 'rgba(24,26,34,0.98)',
+    border: '1px solid rgba(0,229,160,0.45)', color: '#eef0f6',
     maxWidth: '360px', minWidth: '220px',
-    boxShadow: '0 8px 32px rgba(0,0,0,.7)', display: 'none', overflow: 'hidden',
+    boxShadow: '0 10px 36px rgba(0,0,0,.55), 0 0 0 1px rgba(255,255,255,.04)',
+    display: 'none', overflow: 'hidden',
     userSelect: 'none',
   });
   document.documentElement.appendChild(badge);
@@ -115,11 +116,12 @@
   Object.assign(spacingPanel.style, {
     position: 'fixed', pointerEvents: 'none', zIndex: '2147483647',
     fontFamily: 'ui-monospace,"SF Mono",Menlo,Consolas,monospace',
-    fontSize: '12px', lineHeight: '1.6',
-    borderRadius: '8px', background: 'rgba(10,10,20,0.97)',
-    border: '1.5px solid rgba(130,100,255,0.7)', color: '#e8e8f0',
+    fontSize: '13px', lineHeight: '1.6',
+    borderRadius: '8px', background: 'rgba(24,26,34,0.98)',
+    border: '1px solid rgba(130,100,255,0.55)', color: '#eef0f6',
     maxWidth: '260px', minWidth: '180px',
-    boxShadow: '0 8px 32px rgba(0,0,0,.7)', display: 'none', overflow: 'hidden',
+    boxShadow: '0 10px 36px rgba(0,0,0,.55), 0 0 0 1px rgba(255,255,255,.04)',
+    display: 'none', overflow: 'hidden',
   });
   document.documentElement.appendChild(spacingPanel);
 
@@ -741,9 +743,9 @@
   function row(key, val, keyColor, valColor, bold) {
     return (
       '<div style="display:flex;align-items:flex-start;gap:5px;min-width:0;padding:1px 2px;">' +
-        '<span style="color:' + keyColor + ';font-weight:' + (bold?'700':'500') + ';font-size:11px;flex-shrink:0;min-width:76px;">' + key + '</span>' +
-        '<span style="color:rgba(255,255,255,.25);font-size:11px;flex-shrink:0;">=</span>' +
-        '<span style="color:' + valColor + ';font-size:11px;word-break:break-word;flex:1;">' + val + '</span>' +
+        '<span style="color:' + keyColor + ';font-weight:' + (bold?'700':'500') + ';font-size:12px;flex-shrink:0;min-width:76px;">' + key + '</span>' +
+        '<span style="color:rgba(255,255,255,.45);font-size:12px;flex-shrink:0;">=</span>' +
+        '<span style="color:' + valColor + ';font-size:12px;word-break:break-word;flex:1;">' + val + '</span>' +
       '</div>'
     );
   }
@@ -762,12 +764,12 @@
           'style="display:flex;align-items:flex-start;gap:5px;min-width:0;padding:2px 2px;' +
           'border-radius:3px;cursor:default;position:relative" ' +
           'title="Click ⎘ to copy">' +
-        '<span style="color:' + keyColor + ';font-weight:500;font-size:11px;flex-shrink:0;min-width:76px;">' + key + '</span>' +
-        '<span style="color:rgba(255,255,255,.25);font-size:11px;flex-shrink:0;">=</span>' +
-        '<span style="color:' + valColor + ';font-size:11px;word-break:break-word;flex:1;">' + displayVal + '</span>' +
+        '<span style="color:' + keyColor + ';font-weight:500;font-size:12px;flex-shrink:0;min-width:76px;">' + key + '</span>' +
+        '<span style="color:rgba(255,255,255,.45);font-size:12px;flex-shrink:0;">=</span>' +
+        '<span style="color:' + valColor + ';font-size:12px;word-break:break-word;flex:1;">' + displayVal + '</span>' +
         '<button class="__q-copy-btn" data-copy="' + dataVal + '" ' +
-          'style="flex-shrink:0;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.18);' +
-          'border-radius:3px;color:rgba(255,255,255,.5);font-size:9px;padding:0 5px;cursor:pointer;' +
+          'style="flex-shrink:0;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.22);' +
+          'border-radius:3px;color:rgba(255,255,255,.7);font-size:10px;padding:0 5px;cursor:pointer;' +
           'line-height:14px;height:16px;margin-left:2px;transition:all .12s" ' +
           'title="Copy ' + key + ' to clipboard">⎘</button>' +
       '</div>'
@@ -880,14 +882,14 @@
         cur = cur.parentElement;
         hops++;
       }
-      crumbsHtml = '<div class="__q-crumbs" style="padding:5px 11px;background:rgba(255,255,255,.03);border-bottom:1px solid rgba(255,255,255,.05);overflow-x:auto;white-space:nowrap;font-size:11.5px;line-height:1.3;scrollbar-width:thin">';
+      crumbsHtml = '<div class="__q-crumbs" style="padding:5px 11px;background:rgba(255,255,255,.04);border-bottom:1px solid rgba(255,255,255,.08);overflow-x:auto;white-space:nowrap;font-size:12px;line-height:1.3;scrollbar-width:thin">';
       chain.forEach((crumb, i) => {
         const isLast = i === chain.length - 1;
-        if (i > 0) crumbsHtml += '<span style="color:rgba(255,255,255,.25);margin:0 3px">›</span>';
+        if (i > 0) crumbsHtml += '<span style="color:rgba(255,255,255,.45);margin:0 3px">›</span>';
         if (isLast) {
           crumbsHtml += '<span style="color:rgba(0,229,160,.95);font-weight:500;background:rgba(0,229,160,.1);padding:1px 4px;border-radius:3px">' + crumb.label + '</span>';
         } else {
-          crumbsHtml += '<span class="__q-crumb-link" data-crumb-idx="' + i + '" style="color:rgba(255,255,255,.55);cursor:pointer;text-decoration:none" title="Click to select this ancestor">' + crumb.label + '</span>';
+          crumbsHtml += '<span class="__q-crumb-link" data-crumb-idx="' + i + '" style="color:rgba(255,255,255,.75);cursor:pointer;text-decoration:none" title="Click to select this ancestor">' + crumb.label + '</span>';
         }
       });
       crumbsHtml += '</div>';
@@ -897,8 +899,8 @@
 
     let html =
       '<div style="background:rgba(0,229,160,.12);border-bottom:1px solid rgba(0,229,160,.2);padding:6px 11px;display:flex;align-items:center;justify-content:space-between;gap:6px">' +
-        '<span style="font-size:12px;color:rgba(0,229,160,.95);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;font-weight:600">&lt;' + tag + ctx + '&gt;</span>' +
-        '<span id="__q-pin-label" style="font-size:10.5px;color:rgba(255,255,255,.5);cursor:pointer;padding:2px 7px;border-radius:3px;border:1px solid rgba(255,255,255,.15);flex-shrink:0" ' +
+        '<span style="font-size:13px;color:rgba(0,229,160,.98);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;font-weight:600">&lt;' + tag + ctx + '&gt;</span>' +
+        '<span id="__q-pin-label" style="font-size:11px;color:rgba(255,255,255,.7);cursor:pointer;padding:2px 7px;border-radius:3px;border:1px solid rgba(255,255,255,.25);flex-shrink:0" ' +
           'title="Click to pin / unpin (P)">📌 Pin</span>' +
       '</div>' +
       crumbsHtml +
@@ -926,32 +928,57 @@
     }
 
     // ── Test locator (ranked candidate list) ─────────────────────────────
-    html += '<div style="border-top:1px solid rgba(255,255,255,.07);margin:4px 0 1px;padding-top:5px;">';
+    html += '<div style="border-top:1px solid rgba(255,255,255,.12);margin:4px 0 1px;padding-top:5px;">';
     const candidates = (tl && Array.isArray(tl.candidates)) ? tl.candidates : [];
     const outStyle   = getOutputStyle();
 
-    // Output-style toggle pill row
+    // Output-style toggle pill row — distinct icon + label per framework
+    // Icons use inline SVG so they render crisply regardless of system emoji font.
+    const ICON_CSS =
+      '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0">' +
+        '<polyline points="6 8 3 12 6 16"></polyline><polyline points="18 8 21 12 18 16"></polyline><line x1="14" y1="6" x2="10" y2="18"></line>' +
+      '</svg>';
+    const ICON_XPATH =
+      '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0">' +
+        '<polyline points="4 7 4 4 10 4"></polyline><polyline points="20 7 20 4 14 4"></polyline>' +
+        '<polyline points="4 17 4 20 10 20"></polyline><polyline points="20 17 20 20 14 20"></polyline>' +
+        '<line x1="9" y1="9" x2="15" y2="15"></line><line x1="15" y1="9" x2="9" y2="15"></line>' +
+      '</svg>';
+    const ICON_PW =
+      // Official Playwright logomark (Simple Icons / playwright.dev)
+      '<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" style="flex-shrink:0">' +
+        '<path d="M23.996 7.462c-.056.837-.257 2.135-.716 3.85-.995 3.715-4.27 10.874-10.42 9.227-6.15-1.65-5.407-9.487-4.412-13.201.46-1.716.934-2.94 1.305-3.694.42-.853.846-.289 1.815.523.684.573 2.41 1.791 5.011 2.488 2.601.697 4.706.506 5.583.352 1.245-.219 1.897-.494 1.834.455Zm-9.807 3.863s-.127-1.819-1.773-2.286c-1.644-.467-2.613 1.04-2.613 1.04Zm4.058 4.539-7.769-2.172s.446 2.306 3.338 3.153c2.862.836 4.43-.98 4.43-.981Zm2.701-2.51s-.13-1.818-1.773-2.286c-1.644-.469-2.612 1.038-2.612 1.038ZM8.57 18.23c-4.749 1.279-7.261-4.224-8.021-7.08C.197 9.831.044 8.832.003 8.188c-.047-.73.455-.52 1.415-.354.677.118 2.3.261 4.308-.28a11.28 11.28 0 0 0 2.41-.956c-.058.197-.114.4-.17.61-.433 1.618-.827 4.055-.632 6.426-1.976.732-2.267 2.423-2.267 2.423l2.524-.715c.227 1.002.6 1.987 1.15 2.838a5.914 5.914 0 0 1-.171.049Zm-4.188-6.298c1.265-.333 1.363-1.631 1.363-1.631l-3.374.888s.745 1.076 2.01.743Z"/>' +
+      '</svg>';
+    const ICON_CY =
+      // Official Cypress logomark (Simple Icons / cypress.io)
+      '<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" style="flex-shrink:0">' +
+        '<path d="M11.998.0195c-.8642 0-1.6816.1101-2.1445.1934v.002C4.1731 1.2283 0 6.1368 0 12.0018c0 1.1265.1573 2.2328.4648 3.3028.0387.1453.0915.2993.1368.4473 1.607 4.865 6.2245 8.226 11.3925 8.2285.0651 0 .2518-.0003.502-.0118.8564-.0353 1.6228-.5734 1.9512-1.369l.4736-1.1544L20.4258 8.043H18.621l-2.3164 5.871-2.334-5.871h-1.9082l3.2734 8.0117c-.8115 1.9702-1.6252 3.9395-2.4355 5.9101-.0808.1945-.2655.3284-.4727.336-.144.005-.285.0098-.4316.0098-4.5848 0-8.6672-3.0695-9.9277-7.4649a10.3058 10.3058 0 0 1-.3985-2.8437c0-5.0887 3.6521-9.3404 8.6035-10.164.2214-.037.8885-.1446 1.7246-.1446 4.4166 0 8.269 2.732 9.7305 6.8476.0558.144.0977.293.1465.4395.299.9746.4531 1.9887.4531 3.0215 0 4.5696-2.9413 8.5326-7.3164 9.8613l.4863 1.5996c5.085-1.546 8.4995-6.1518 8.502-11.459 0-1.5491-.2983-2.8706-.6504-3.8926-.0432-.1212-.0873-.2422-.1309-.3633h-.002C21.4577 3.0954 17.0444.0195 11.998.0195ZM8.4336 7.8906c-1.1999 0-2.1747.3852-2.9805 1.1758-.8007.7856-1.205 1.7736-1.205 2.9356 0 1.1544.4068 2.1368 1.205 2.9199.8058.7906 1.7806 1.1738 2.9805 1.1738 1.705 0 3.1556-.955 3.7871-2.4883l.0332-.082-1.6289-.5547c-.168.4563-.7552 1.4883-2.1914 1.4883-.6745 0-1.2437-.2344-1.6934-.6992-.4572-.4699-.6875-1.0632-.6875-1.7578 0-.6998.2253-1.2809.6875-1.7735.4522-.4648 1.019-.7012 1.6934-.7012 1.438 0 2.0238 1.0815 2.1934 1.4883l1.627-.5527-.0333-.084c-.629-1.5358-2.082-2.4883-3.7871-2.4883Z"/>' +
+      '</svg>';
     const styles = [
-      { id: 'css',        label: 'CSS' },
-      { id: 'xpath',      label: 'XPath' },
-      { id: 'playwright', label: 'PW' },
-      { id: 'cypress',    label: 'Cy' },
+      { id: 'css',        label: 'CSS',   tip: 'CSS',        icon: ICON_CSS,   active: '#a5f3c0' },
+      { id: 'xpath',      label: 'XPath', tip: 'XPath',      icon: ICON_XPATH, active: '#fde68a' },
+      { id: 'playwright', label: 'PW',    tip: 'Playwright', icon: ICON_PW,    active: '#7dd3fc' },
+      { id: 'cypress',    label: 'Cy',    tip: 'Cypress',    icon: ICON_CY,    active: '#c4b5fd' },
     ];
-    html += '<div style="display:flex;align-items:center;justify-content:space-between;gap:6px;margin-bottom:4px;padding:0 1px">' +
-      '<span style="font-size:10px;color:rgba(255,255,255,.4);font-weight:600;letter-spacing:.5px">BEST LOCATORS</span>' +
-      '<div class="__q-outstyle" style="display:flex;gap:2px;background:rgba(255,255,255,.05);border-radius:4px;padding:1px">';
+    html += '<div style="display:flex;align-items:center;justify-content:space-between;gap:6px;margin-bottom:5px;padding:0 1px">' +
+      '<span style="font-size:10.5px;color:rgba(255,255,255,.7);font-weight:600;letter-spacing:.6px">BEST LOCATORS</span>' +
+      '<div class="__q-outstyle" style="display:flex;gap:3px;background:rgba(255,255,255,.06);border-radius:5px;padding:2px">';
     styles.forEach(st => {
       const active = st.id === outStyle;
-      html += '<button class="__q-outstyle-btn" data-style="' + st.id + '" ' +
-        'style="background:' + (active ? 'rgba(0,229,160,.25)' : 'transparent') + ';' +
-        'color:' + (active ? '#00e5a0' : 'rgba(255,255,255,.55)') + ';' +
-        'border:none;padding:1px 6px;font-size:10px;font-weight:' + (active ? '700' : '500') + ';' +
-        'border-radius:3px;cursor:pointer;font-family:inherit">' + st.label + '</button>';
+      const bg     = active ? 'rgba(0,229,160,.18)' : 'transparent';
+      const color  = active ? st.active : 'rgba(255,255,255,.8)';
+      html += '<button class="__q-outstyle-btn" data-style="' + st.id + '" title="' + st.tip + '" ' +
+        'style="display:inline-flex;align-items:center;gap:4px;background:' + bg + ';' +
+        'color:' + color + ';border:none;padding:3px 7px;font-size:11.5px;' +
+        'font-weight:' + (active ? '700' : '500') + ';border-radius:4px;cursor:pointer;' +
+        'font-family:inherit;line-height:1;' +
+        (active ? 'box-shadow:0 0 0 1px rgba(0,229,160,.35);' : '') +
+        '">' + st.icon + '<span>' + st.label + '</span></button>';
     });
     html += '</div></div>';
 
     if (candidates.length === 0) {
-      html += '<div style="font-size:10.5px;color:rgba(255,100,100,.85);margin-bottom:3px">⚠ No locator found</div>';
+      html += '<div style="font-size:11.5px;color:rgba(255,120,120,.95);margin-bottom:3px">⚠ No locator found</div>';
     } else {
       // Show top 4 ranked candidates
       const TIER_COLORS = { 1: '#00e5a0', 2: '#7dd3a0', 3: '#ff9f43', 4: '#ff9f43', 5: '#ffb27a', 6: '#ff7575' };
@@ -961,41 +988,41 @@
       const renderable = candidates.filter(c => formatForOutput(c, outStyle) != null);
       const top = renderable.slice(0, 4);
       if (top.length === 0) {
-        html += '<div style="font-size:10.5px;color:rgba(255,100,100,.85);margin-bottom:3px">⚠ No native ' + outStyle + ' locator found</div>';
+        html += '<div style="font-size:11.5px;color:rgba(255,120,120,.95);margin-bottom:3px">⚠ No native ' + outStyle + ' locator found</div>';
       }
       top.forEach((c, idx) => {
         const color  = TIER_COLORS[c.tier] || '#999';
         const formatted = formatForOutput(c, outStyle);
         const dispVal   = formatted.length > 80 ? formatted.slice(0, 80) + '…' : formatted;
         const countBadge = c.isUnique
-          ? '<span style="color:#00e5a0;font-size:9.5px;background:rgba(0,229,160,.12);padding:0 4px;border-radius:3px;margin-right:4px;flex-shrink:0">✓ unique</span>'
-          : '<span style="color:#ff9f43;font-size:9.5px;background:rgba(255,159,67,.12);padding:0 4px;border-radius:3px;margin-right:4px;flex-shrink:0">⚠ ' + c.count + '×</span>';
+          ? '<span style="color:#00e5a0;font-size:10.5px;background:rgba(0,229,160,.16);padding:1px 5px;border-radius:3px;margin-right:4px;flex-shrink:0">✓ unique</span>'
+          : '<span style="color:#ff9f43;font-size:10.5px;background:rgba(255,159,67,.16);padding:1px 5px;border-radius:3px;margin-right:4px;flex-shrink:0">⚠ ' + c.count + '×</span>';
         const isPrimary = idx === 0;
         const dataVal = String(formatted).replace(/&/g,'&amp;').replace(/"/g,'&quot;');
         const dispEsc = String(dispVal).replace(/</g,'&lt;').replace(/>/g,'&gt;');
         html += '<div class="__q-copy-row" data-copy="' + dataVal + '" ' +
           'style="display:flex;align-items:center;gap:5px;min-width:0;padding:2px 2px;border-radius:3px;' +
           (isPrimary ? 'background:rgba(0,229,160,.06);' : '') + '">' +
-          '<span style="color:' + color + ';font-size:10px;font-weight:' + (isPrimary ? '700' : '500') +
+          '<span style="color:' + color + ';font-size:11px;font-weight:' + (isPrimary ? '700' : '500') +
             ';flex-shrink:0;min-width:64px;letter-spacing:.2px">' + c.label + '</span>' +
           countBadge +
-          '<span style="color:' + (isPrimary ? '#fff' : '#d0d8e8') + ';font-size:11px;' +
+          '<span style="color:' + (isPrimary ? '#fff' : '#dde2ee') + ';font-size:12px;' +
             'word-break:break-all;flex:1;font-family:ui-monospace,monospace">' + dispEsc + '</span>' +
           '<button class="__q-copy-btn" data-copy="' + dataVal + '" ' +
-            'style="flex-shrink:0;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.18);' +
-            'border-radius:3px;color:rgba(255,255,255,.5);font-size:9px;padding:0 5px;cursor:pointer;' +
+            'style="flex-shrink:0;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.22);' +
+            'border-radius:3px;color:rgba(255,255,255,.7);font-size:10px;padding:0 5px;cursor:pointer;' +
             'line-height:14px;height:16px;margin-left:2px" title="Copy">⎘</button>' +
         '</div>';
       });
       // Note for anchored selectors
       const bestC = top[0];
       if (bestC && bestC.anchor) {
-        html += '<div style="font-size:10px;color:rgba(255,255,255,.5);margin:2px 0 0 2px">↑ anchored on ancestor [' + bestC.anchor + '=…]</div>';
+        html += '<div style="font-size:11px;color:rgba(255,255,255,.7);margin:2px 0 0 2px">↑ anchored on ancestor [' + bestC.anchor + '=…]</div>';
       }
     }
     // Inherited test-attr note when present and not already shown via anchor
     if (attrs.locatorInherited && attrs.locatorInheritedTag && !(candidates[0] && candidates[0].anchor)) {
-      html += '<div style="font-size:10px;color:rgba(255,255,255,.5);margin:1px 0 0 2px">↑ parent has ' + attrs.locatorInheritedTag + '</div>';
+      html += '<div style="font-size:11px;color:rgba(255,255,255,.7);margin:1px 0 0 2px">↑ parent has ' + attrs.locatorInheritedTag + '</div>';
     }
     html += '</div>';
 
@@ -1003,7 +1030,7 @@
     if (el) {
       const css   = generateCssSelector(el);
       const xpath = generateXPath(el);
-      html += '<div style="border-top:1px solid rgba(255,255,255,.07);margin:4px 0 1px;padding-top:5px;">';
+      html += '<div style="border-top:1px solid rgba(255,255,255,.12);margin:4px 0 1px;padding-top:5px;">';
       html += copyRow('CSS', css, 'rgba(255,255,255,.4)', '#a5f3c0');
       html += copyRow('XPath', xpath, 'rgba(255,255,255,.4)', '#fde68a');
       html += '</div>';
@@ -1011,7 +1038,7 @@
 
     // ── WAE event ─────────────────────────────────────────────────────────
     if (attrs.waeEvent) {
-      html += '<div style="border-top:1px solid rgba(255,255,255,.07);margin:4px 0 1px;padding-top:5px;">';
+      html += '<div style="border-top:1px solid rgba(255,255,255,.12);margin:4px 0 1px;padding-top:5px;">';
       html += copyRow('data-wae-event', attrs.waeEvent, '#ff6ec7', '#fff');
       const entries = Object.entries(attrs.waeAttrs);
       if (entries.length) {
@@ -1020,7 +1047,7 @@
       html += '</div>';
     }
 
-    html += '<div style="font-size:9.5px;color:rgba(255,255,255,.35);margin-top:4px;text-align:right;padding:0 2px">⎘ copy · 📌 pin · ⌥ click = drill in · click crumb above</div>';
+    html += '<div style="font-size:10.5px;color:rgba(255,255,255,.6);margin-top:5px;text-align:right;padding:0 2px;line-height:1.5">⎘ copy · Click to pin 📌  · Esc to unpin / exit · Alt/⌥-click to drill in · click crumb above</div>';
     html += '</div>';
     badge.innerHTML = html;
     // Wire copy buttons via event delegation (must happen after innerHTML set)
@@ -1361,8 +1388,8 @@
 
     function colorRow(label, hex, color) {
       if (!hex) return '';
-      return '<div style="display:flex;justify-content:space-between;gap:8px;font-size:11px;align-items:center;">' +
-        '<span style="color:rgba(255,255,255,.45)">' + label + '</span>' +
+      return '<div style="display:flex;justify-content:space-between;gap:8px;font-size:12px;align-items:center;">' +
+        '<span style="color:rgba(255,255,255,.65)">' + label + '</span>' +
         '<span style="color:' + color + ';font-weight:700;display:flex;align-items:center">' +
           swatch(hex) + hex +
         '</span>' +
@@ -1371,7 +1398,7 @@
 
     spacingPanel.innerHTML =
       // Header
-      '<div style="background:rgba(130,100,255,.2);border-bottom:1px solid rgba(130,100,255,.3);padding:5px 10px;font-size:11px;color:rgba(130,100,255,1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' +
+      '<div style="background:rgba(130,100,255,.22);border-bottom:1px solid rgba(130,100,255,.35);padding:6px 10px;font-size:12.5px;color:#c9bbff;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' +
         '&lt;' + s.tag + (s.testId ? ' ' + s.testId : '') + '&gt;' +
       '</div>' +
       '<div style="padding:8px 10px;display:flex;flex-direction:column;gap:4px;">' +
@@ -1379,39 +1406,39 @@
         sRow('W × H', s.w + ' × ' + s.h + ' px', '#00e5a0') +
         // Gaps between adjacent siblings
         (s.gapToPrev !== null || s.gapToNext !== null
-          ? '<div style="border-top:1px solid rgba(255,255,255,.07);margin:3px 0 1px;padding-top:4px;">' +
+          ? '<div style="border-top:1px solid rgba(255,255,255,.12);margin:3px 0 1px;padding-top:4px;">' +
             (s.gapToPrev !== null ? sRow((s.gapToPrev.axis === 'V' ? '↑' : '←') + ' Gap to prev', s.gapToPrev.px + ' px', '#ff6b6b') : '') +
             (s.gapToNext !== null ? sRow((s.gapToNext.axis === 'V' ? '↓' : '→') + ' Gap to next', s.gapToNext.px + ' px', '#ff6b6b') : '') +
             '</div>'
           : '') +
         // Padding
         (s.pt||s.pb||s.pl||s.pr
-          ? '<div style="border-top:1px solid rgba(255,255,255,.07);margin:3px 0 1px;padding-top:4px;">' +
+          ? '<div style="border-top:1px solid rgba(255,255,255,.12);margin:3px 0 1px;padding-top:4px;">' +
             sRow('Padding T/B', s.pt + ' / ' + s.pb + ' px', '#9d8aff') +
             sRow('Padding L/R', s.pl + ' / ' + s.pr + ' px', '#9d8aff') +
           '</div>' : '') +
         // Margin
         (s.mt||s.mb||s.ml||s.mr
-          ? '<div style="border-top:1px solid rgba(255,255,255,.07);margin:3px 0 1px;padding-top:4px;">' +
+          ? '<div style="border-top:1px solid rgba(255,255,255,.12);margin:3px 0 1px;padding-top:4px;">' +
             sRow('Margin T/B', s.mt + ' / ' + s.mb + ' px', '#ff9f43') +
             sRow('Margin L/R', s.ml + ' / ' + s.mr + ' px', '#ff9f43') +
           '</div>' : '') +
         // Border
         (s.bt||s.br||s.bb||s.bl
-          ? '<div style="border-top:1px solid rgba(255,255,255,.07);margin:3px 0 1px;padding-top:4px;">' +
+          ? '<div style="border-top:1px solid rgba(255,255,255,.12);margin:3px 0 1px;padding-top:4px;">' +
             sRow('Border T/B', s.bt + ' / ' + s.bb + ' px', '#7ec8e3') +
             sRow('Border L/R', s.bl + ' / ' + s.br + ' px', '#7ec8e3') +
           '</div>' : '') +
         // Colours
         (s.color || s.bgColor || s.borderColor
-          ? '<div style="border-top:1px solid rgba(255,255,255,.07);margin:3px 0 1px;padding-top:4px;">' +
+          ? '<div style="border-top:1px solid rgba(255,255,255,.12);margin:3px 0 1px;padding-top:4px;">' +
             colorRow('Text colour', s.color, '#e8e8f0') +
             colorRow('Background', s.bgColor, '#e8e8f0') +
             colorRow('Border colour', s.borderColor, '#e8e8f0') +
           '</div>' : '') +
         // Typography
         (s.fontFamily
-          ? '<div style="border-top:1px solid rgba(255,255,255,.07);margin:3px 0 1px;padding-top:4px;">' +
+          ? '<div style="border-top:1px solid rgba(255,255,255,.12);margin:3px 0 1px;padding-top:4px;">' +
             sRow('Font', s.fontFamily, '#f9c74f') +
             sRow('Size / Weight', s.fontSize + ' / ' + s.fontWeight, '#f9c74f') +
             (s.lineHeight && s.lineHeight !== 'normal' ? sRow('Line height', s.lineHeight, '#f9c74f') : '') +
@@ -1439,8 +1466,8 @@
 
   function sRow(key, val, color) {
     return (
-      '<div style="display:flex;justify-content:space-between;gap:12px;font-size:12px;">' +
-        '<span style="color:rgba(255,255,255,.45);">' + key + '</span>' +
+      '<div style="display:flex;justify-content:space-between;gap:12px;font-size:12.5px;">' +
+        '<span style="color:rgba(255,255,255,.65);">' + key + '</span>' +
         '<span style="color:' + color + ';font-weight:700;">' + val + '</span>' +
       '</div>'
     );
