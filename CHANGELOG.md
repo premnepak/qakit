@@ -7,6 +7,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 ---
 
 
+## [1.0.4] — Unreleased
+
+### Fixed
+- **Markup editor — service worker memory wipe** — the "✎ Markup" button was silently failing in the published extension with "Screenshot not found (may have expired)". Root cause: the screenshot dataURL was held in an in-memory Map on the service worker global (`self.__qkitMarkupImages`), which Chrome wiped whenever the SW was terminated between opening the markup tab and `markup.js` loading. Fixed by switching to `chrome.storage.session`, which survives SW restarts for the life of the browser session.
+
+---
+
+## [1.0.3] — 2026-05-09 — Web Store resubmission of 1.0.2
+
+Version 1.0.2 was reverted on the Chrome Web Store; this version number was used for the resubmission with no additional code changes.
+
+---
+
 ## [1.0.2] — 2026-05-07
 
 ### Added

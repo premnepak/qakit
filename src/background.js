@@ -906,11 +906,9 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   }
 
   // Open screenshot in QAKit Markup editor (in-extension annotation page).
-  // Image is held in an in-memory map (not chrome.storage.session, which has
-  // a 10 MB quota that full-page captures can exceed). The markup tab pulls
-  // the image via FETCH_MARKUP_IMAGE on load. The service worker stays alive
-  // for the brief window between tab creation and markup.js requesting the
-  // image because the new tab triggers more events.
+  // Image is stored in chrome.storage.session so it survives service-worker
+  // restarts (Chrome aggressively terminates idle SW in production). The markup
+  // tab retrieves it via FETCH_MARKUP_IMAGE on load and the entry is deleted.
   if (msg.action === 'OPEN_IN_EDITOR') {
     const { dataUrl, prefix } = msg;
     if (!dataUrl) {
@@ -919,23 +917,33 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       return;
     }
     const id = 'mk_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
-    if (!self.__qkitMarkupImages) self.__qkitMarkupImages = new Map();
-    self.__qkitMarkupImages.set(id, { dataUrl, prefix: prefix || 'qakit-screenshot' });
-    // Drop after 5 minutes to bound memory if the tab is never opened.
-    setTimeout(() => self.__qkitMarkupImages?.delete(id), 5 * 60 * 1000);
-    const url = chrome.runtime.getURL('markup.html') + '?id=' + encodeURIComponent(id);
-    chrome.tabs.create({ url });
-    sendResponse({ ok: true });
-    return;
+    const entry = { dataUrl, prefix: prefix || 'qakit-screenshot' };
+    chrome.storage.session.set({ [id]: entry })
+      .then(() => {
+        // Drop after 5 minutes to bound storage if the tab is never opened.
+        setTimeout(() => chrome.storage.session.remove(id), 5 * 60 * 1000);
+        const url = chrome.runtime.getURL('markup.html') + '?id=' + encodeURIComponent(id);
+        chrome.tabs.create({ url });
+        sendResponse({ ok: true });
+      })
+      .catch(e => {
+        console.warn('[QAKit] OPEN_IN_EDITOR: session storage failed:', e.message);
+        sendResponse({ ok: false });
+      });
+    return true; // keep channel open for async sendResponse
   }
 
   // Markup page asks for its image. One-shot: the entry is removed after read.
   if (msg.action === 'FETCH_MARKUP_IMAGE') {
     const id = msg.id;
-    const entry = self.__qkitMarkupImages?.get(id);
-    if (entry) self.__qkitMarkupImages.delete(id);
-    sendResponse({ ok: !!entry, entry: entry || null });
-    return true;   // keep channel open for async sendResponse
+    chrome.storage.session.get(id)
+      .then(result => {
+        const entry = result[id] || null;
+        if (entry) chrome.storage.session.remove(id);
+        sendResponse({ ok: !!entry, entry });
+      })
+      .catch(() => sendResponse({ ok: false, entry: null }));
+    return true; // keep channel open for async sendResponse
   }
 
   // Save screenshot — always prompt for save location (saveAs: true) so the
