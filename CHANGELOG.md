@@ -7,16 +7,25 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 ---
 
 
-## [1.0.4] — Unreleased
+## [1.0.4] — 2026-05-10
+
+This is the quality-verified follow-up to 1.0.2/1.0.3. Every feature has been retested end-to-end against the published extension, and a comprehensive automated regression suite has been built to protect all future releases. As advocates of quality engineering, our commitment is to ship software you can rely on.
 
 ### Fixed
-- **Markup editor — service worker memory wipe** — the "✎ Markup" button was silently failing in the published extension with "Screenshot not found (may have expired)". Root cause: the screenshot dataURL was held in an in-memory Map on the service worker global (`self.__qkitMarkupImages`), which Chrome wiped whenever the SW was terminated between opening the markup tab and `markup.js` loading. Fixed by switching to `chrome.storage.session`, which survives SW restarts for the life of the browser session.
+- **Markup editor — "Screenshot not found" error** — the "✎ Markup" button was silently failing after the popup was closed and reopened. Root cause: the screenshot dataURL was held in an in-memory Map on the service worker, which Chrome wiped whenever the SW was terminated between taking the screenshot and the Markup tab loading. Fixed by switching to `chrome.storage.session`, which persists reliably for the lifetime of the browser session regardless of service worker restarts.
+
+### Quality
+- **Full regression test suite** — a comprehensive end-to-end test suite covering the entire extension has been built and validated alongside this release. Every future update will be run against it before shipping.
+- **Complete re-verification of 1.0.2 features** — all features introduced in 1.0.2 were retested against the published extension before this release. Where 1.0.3 was a straight resubmission, 1.0.4 is the version we're confident in.
+
+### Changed
+- Various small polish improvements across the extension based on findings from the regression pass.
 
 ---
 
-## [1.0.3] — 2026-05-09 — Web Store resubmission of 1.0.2
+## [1.0.3] — 2026-05-09
 
-Version 1.0.2 was reverted on the Chrome Web Store; this version number was used for the resubmission with no additional code changes.
+Shortly after 1.0.2 went live on the Chrome Web Store, issues were identified that required the release to be pulled. 1.0.3 is the clean resubmission — same features as 1.0.2, no code changes. The underlying issues are addressed fully in 1.0.4.
 
 ---
 
@@ -119,6 +128,8 @@ Internal pre-release versions (0.0.x) are kept here for historical traceability,
 - **MINOR** — new feature added
 - **PATCH** — bug fix or doc update
 
+[1.0.4]: https://github.com/premnepak/qakit/releases/tag/v1.0.4
+[1.0.3]: https://github.com/premnepak/qakit/releases/tag/v1.0.3
 [1.0.2]: https://github.com/premnepak/qakit/releases/tag/v1.0.2
 [1.0.1]: https://github.com/premnepak/qakit/releases/tag/v1.0.1
-[1.0.0]: https://github.com/your-username/qakit/releases/tag/v1.0.0
+[1.0.0]: https://github.com/premnepak/qakit/releases/tag/v1.0.0

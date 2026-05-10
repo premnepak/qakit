@@ -15,7 +15,9 @@
     "declarativeNetRequest",
     "declarativeNetRequestWithHostAccess",
     "windows",
-    "contextMenus",
+    "contextMenus"
+  ],
+  "optional_permissions": [
     "downloads"
   ],
   "host_permissions": [

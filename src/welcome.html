@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Welcome to QAKit 1.0.4</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,'Segoe UI',Roboto,sans-serif;background:#0d1117;color:#e6edf3;min-height:100vh;display:flex;align-items:flex-start;justify-content:center;padding:48px 16px 80px}
+.card{background:#161b22;border:1px solid #30363d;border-radius:16px;padding:40px 48px;max-width:600px;width:100%}
+.badge{display:inline-block;background:#00e5a0;color:#0f141d;border-radius:8px;padding:4px 12px;font-size:13px;font-weight:800;letter-spacing:.02em;margin-bottom:20px}
+h1{font-size:30px;font-weight:800;color:#e6edf3;margin-bottom:8px;line-height:1.2}
+.subtitle{font-size:15px;color:#8b949e;margin-bottom:32px;line-height:1.6}
+
+.features{background:#0d1117;border:1px solid #21262d;border-radius:10px;padding:20px 24px;margin-bottom:24px}
+.features-heading{font-size:11px;font-weight:700;color:#3fb68b;text-transform:uppercase;letter-spacing:.1em;margin-bottom:16px}
+.feature{display:flex;gap:14px;margin-bottom:14px;align-items:flex-start}
+.feature:last-child{margin-bottom:0}
+.feature-icon{font-size:20px;flex-shrink:0;line-height:1.3}
+.feature strong{display:block;font-size:14px;font-weight:700;color:#e6edf3;margin-bottom:3px}
+.feature span{font-size:13px;color:#8b949e;line-height:1.55}
+
+.perm-box{background:#0a2d20;border:1px solid rgba(0,229,160,.25);border-radius:10px;padding:20px 24px;margin-bottom:28px}
+.perm-box h2{font-size:14px;font-weight:700;color:#00e5a0;margin-bottom:10px}
+.perm-box p{font-size:13px;color:#8b949e;line-height:1.65}
+.perm-box strong{color:#e6edf3}
+
+.actions{display:flex;align-items:center;gap:16px}
+.btn-enable{flex:1;background:#0a6e51;color:#fff;border:none;border-radius:8px;padding:14px 20px;font-size:15px;font-weight:700;cursor:pointer;transition:background .12s;text-align:center}
+.btn-enable:hover{background:#085c44}
+.btn-enable:disabled{background:#1c4535;color:#00e5a0;cursor:default}
+.btn-skip{background:none;border:none;color:#8b949e;font-size:13px;cursor:pointer;text-decoration:underline;white-space:nowrap}
+.btn-skip:hover{color:#e6edf3}
+.status{font-size:13px;color:#00e5a0;margin-top:14px;min-height:18px}
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="badge">v1.0.4</div>
+  <h1>Welcome to QAKit</h1>
+  <p class="subtitle">Your all-in-one browser toolkit for QA engineers and developers. Here's everything that's new and improved since the last verified release.</p>
+
+  <div class="features">
+    <div class="features-heading">What's new in 1.0.4</div>
+    <div class="feature">
+      <span class="feature-icon">✏️</span>
+      <div>
+        <strong>Screenshot Markup Editor</strong>
+        <span>Every screenshot now includes a <strong style="color:#e6edf3">✎ Markup</strong> button. Annotate with pen, arrows, rectangles, highlights, blur/redact, numbered step markers, and text — then save or copy to clipboard.</span>
+      </div>
+    </div>
+    <div class="feature">
+      <span class="feature-icon">🎯</span>
+      <div>
+        <strong>Framework-ready Test Locators</strong>
+        <span>The Element Inspector generates <strong style="color:#e6edf3">Playwright, Cypress, CSS, and XPath</strong> locators at a click. Copy a ready-to-paste line for your test framework — no manual rewriting needed.</span>
+      </div>
+    </div>
+    <div class="feature">
+      <span class="feature-icon">📏</span>
+      <div>
+        <strong>Ruler — stack multiple measurements</strong>
+        <span>Click once to draw, click again to lock it as a permanent on-screen line. Accumulate several measurements side-by-side without losing previous ones. Press Esc to clear.</span>
+      </div>
+    </div>
+    <div class="feature">
+      <span class="feature-icon">⌨️</span>
+      <div>
+        <strong>Keyboard shortcuts work out of the box</strong>
+        <span>Region Screenshot (<strong style="color:#e6edf3">Ctrl+Shift+Z</strong>) and Full Page Screenshot (<strong style="color:#e6edf3">Ctrl+Shift+F</strong>) are pre-configured — no manual setup required after install.</span>
+      </div>
+    </div>
+    <div class="feature">
+      <span class="feature-icon">💾</span>
+      <div>
+        <strong>Screenshot Save always asks where to save</strong>
+        <span>The Save button in screenshot toasts now always opens your OS file picker, regardless of Chrome's download settings.</span>
+      </div>
+    </div>
+    <div class="feature">
+      <span class="feature-icon">✅</span>
+      <div>
+        <strong>Fully tested &amp; verified release</strong>
+        <span>Every feature has been retested end-to-end before this release, backed by a complete automated regression suite to keep future updates reliable.</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="perm-box">
+    <h2>📥 One permission needed for screenshots</h2>
+    <p>To save screenshots to your computer, QAKit needs permission to write files. <strong>Your screenshots are saved only to your local machine</strong> — nothing is uploaded, transmitted, or shared with any server, ever.</p>
+  </div>
+
+  <div class="actions">
+    <button class="btn-enable" id="enableBtn">Enable Screenshot Saving</button>
+    <button class="btn-skip" id="skipBtn">Skip for now</button>
+  </div>
+  <div class="status" id="status"></div>
+</div>
+<script src="welcome.js"></script>
+</body>
+</html>
