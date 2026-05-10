@@ -15,6 +15,8 @@ const state = {
 // Keyed by id; entries auto-delete after 5 min. Survives only while the SW is alive,
 // but that's fine: markup.html opens immediately after OPEN_IN_EDITOR fires.
 const _markupImages = new Map();
+// Firefox lacks chrome.storage.session; fall back to local (same 5-min TTL cleanup applies)
+const _sessionStorage = chrome.storage.session ?? chrome.storage.local;
 
 // ── Per-category event caps ────────────────────────────────────────────────
 // High-frequency categories are capped low so they don't crowd out signal.
@@ -949,8 +951,8 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     const entry = { dataUrl, prefix: prefix || 'qakit-screenshot' };
     _markupImages.set(id, entry);
     setTimeout(() => _markupImages.delete(id), 5 * 60 * 1000);
-    chrome.storage.session.set({ [id]: entry })
-      .then(() => setTimeout(() => chrome.storage.session.remove(id).catch(() => {}), 5 * 60 * 1000))
+    _sessionStorage.set({ [id]: entry })
+      .then(() => setTimeout(() => _sessionStorage.remove(id).catch(() => {}), 5 * 60 * 1000))
       .catch(() => {});
     const url = chrome.runtime.getURL('markup.html') + '?id=' + encodeURIComponent(id);
     chrome.tabs.create({ url });
@@ -969,10 +971,10 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       return;
     }
     // Fallback to session storage (covers SW-restart case for smaller images).
-    chrome.storage.session.get(id)
+    _sessionStorage.get(id)
       .then(result => {
         const entry = result[id] || null;
-        if (entry) chrome.storage.session.remove(id);
+        if (entry) _sessionStorage.remove(id);
         sendResponse({ ok: !!entry, entry });
       })
       .catch(() => sendResponse({ ok: false, entry: null }));
@@ -1090,8 +1092,8 @@ async function injectScreenshotToast(tabId, pngDataUrl, label, downloadPrefix) {
     _markupImages.set(markupId, { dataUrl: pngDataUrl, prefix: downloadPrefix });
     setTimeout(() => _markupImages.delete(markupId), 5 * 60 * 1000);
     // Best-effort session storage for SW-restart resilience (quota may reject large images)
-    chrome.storage.session.set({ [markupId]: { dataUrl: pngDataUrl, prefix: downloadPrefix } })
-      .then(() => setTimeout(() => chrome.storage.session.remove(markupId).catch(() => {}), 5 * 60 * 1000))
+    _sessionStorage.set({ [markupId]: { dataUrl: pngDataUrl, prefix: downloadPrefix } })
+      .then(() => setTimeout(() => _sessionStorage.remove(markupId).catch(() => {}), 5 * 60 * 1000))
       .catch(() => {});
 
     await chrome.scripting.executeScript({

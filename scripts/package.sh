@@ -122,20 +122,56 @@ else
   exit 1
 fi
 
+# ─────────────────────────────────────────────────────────────
+# Firefox build (uses manifest.firefox.json, omits debugger permission)
+# ─────────────────────────────────────────────────────────────
+echo ""
+echo -e "${BLUE}── Building Firefox zip ──${NC}"
+
+FF_ZIP_PATH="$RELEASES_DIR/qakit-firefox-v${NEW_VERSION}.zip"
+
+python3 - << PYEOF
+import json, zipfile, os, pathlib
+src = pathlib.Path('$SRC_DIR')
+ff_manifest = json.load(open(src / 'manifest.firefox.json'))
+ff_manifest['version'] = '$NEW_VERSION'
+skip = {'.DS_Store', 'manifest.firefox.json'}
+with zipfile.ZipFile('$FF_ZIP_PATH', 'w', zipfile.ZIP_DEFLATED) as zf:
+    for f in sorted(src.rglob('*')):
+        if not f.is_file(): continue
+        rel = f.relative_to(src)
+        if rel.name in skip or any(p.startswith('.') or p.endswith('.bak') for p in rel.parts): continue
+        if str(rel) == 'manifest.json':
+            zf.writestr('manifest.json', json.dumps(ff_manifest, indent=2))
+        else:
+            zf.write(f, rel)
+count = len(zipfile.ZipFile('$FF_ZIP_PATH').namelist())
+size = os.path.getsize('$FF_ZIP_PATH')
+print(f'  written: {count} files, {size//1024} KB')
+PYEOF
+
+if [ -f "$FF_ZIP_PATH" ]; then
+  FF_SIZE=$(ls -lh "$FF_ZIP_PATH" | awk '{print $5}')
+  FF_COUNT=$(unzip -l "$FF_ZIP_PATH" | tail -1 | awk '{print $2}')
+  echo -e "${GREEN}✓ ${FF_ZIP_PATH} (${FF_SIZE}, ${FF_COUNT} files)${NC}"
+else
+  echo -e "${YELLOW}⚠ Firefox zip not created (non-fatal)${NC}"
+fi
+
 echo ""
 echo "============================================================"
 echo -e "  ${GREEN}✓ Package built successfully${NC}"
 echo ""
 echo "  Version:  ${NEW_VERSION}"
-echo "  File:     ${ZIP_PATH}"
-echo "  Size:     ${SIZE}"
-echo "  Files:    ${COUNT}"
+echo "  Chrome:   ${ZIP_PATH} (${SIZE})"
+echo "  Firefox:  ${FF_ZIP_PATH} (${FF_SIZE:-n/a})"
 echo ""
 echo "  Next steps:"
-echo "    1. Test the package: load src/ unpacked in chrome://extensions/"
-echo "    2. Update CHANGELOG.md with what changed"
-echo "    3. Commit: git add . && git commit -m 'Release v${NEW_VERSION}'"
-echo "    4. Tag:    git tag -a v${NEW_VERSION} -m 'v${NEW_VERSION}'"
-echo "    5. Push:   git push && git push --tags"
-echo "    6. Create GitHub Release with the zip"
+echo "    1. Test Chrome: load src/ unpacked in chrome://extensions/"
+echo "    2. Test Firefox: load ${FF_ZIP_PATH} in about:debugging"
+echo "    3. Update CHANGELOG.md with what changed"
+echo "    4. Commit: git add . && git commit -m 'Release v${NEW_VERSION}'"
+echo "    5. Tag:    git tag -a v${NEW_VERSION} -m 'v${NEW_VERSION}'"
+echo "    6. Push:   git push && git push --tags"
+echo "    7. Create GitHub Release with both zips"
 echo "============================================================"
