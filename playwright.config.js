@@ -11,7 +11,7 @@ module.exports = defineConfig({
     timeout: 5000,
   },
   workers: process.env.CI ? 4 : undefined,
-  reporter: 'html',
+  reporter: process.env.CI ? [['list'], ['html']] : 'html',
   // Each spec file gets a fresh browser context via the fixtures — no shared use: block needed.
   use: {
     browserName: 'chromium',
