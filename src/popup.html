@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>QAKit v1.0.2</title>
+<title>QAKit v1.0.4</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Syne:wght@700;800&display=swap');
 
@@ -1363,6 +1363,13 @@
 </style>
 </head>
 <body>
+
+<!-- Download permission banner — shown each session until permission is granted -->
+<div id="dlPermBanner" style="display:none;background:#0a2d20;border-bottom:1px solid rgba(0,229,160,.3);padding:7px 12px;align-items:center;gap:8px;font-size:11px;color:#8b949e;flex-shrink:0">
+  <span style="flex:1;line-height:1.4">📥 <strong style="color:#e6edf3">Enable screenshot saving</strong> — your screenshots stay on your machine, nothing is transmitted.</span>
+  <button id="dlPermEnableBtn" style="background:#0a6e51;color:#fff;border:none;border-radius:5px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap">Enable Now</button>
+  <button id="dlPermDismissBtn" style="background:none;border:none;color:#8b949e;font-size:16px;line-height:1;cursor:pointer;padding:0 2px" title="Dismiss">✕</button>
+</div>
 
 <!-- Header -->
 <div class="header">

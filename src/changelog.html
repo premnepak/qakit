@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>QAKit v1.0.2 — What's New</title>
+<title>QAKit v1.0.4 — What's New</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 html{scroll-behavior:smooth}
@@ -63,15 +63,54 @@ code{background:#f0f4f8;border-radius:3px;padding:1px 6px;font-family:monospace;
 <div class="content">
 
   <div class="intro">
-    <strong>Welcome to QAKit 1.0.2.</strong> This page lists the user-facing changes in each release. For a full feature walk-through, see the <a href="help.html" style="color:#047857;font-weight:700">Help &amp; User Guide</a>.
+    <strong>Welcome to QAKit 1.0.4.</strong> This page lists the user-facing changes in each release. For a full feature walk-through, see the <a href="help.html" style="color:#047857;font-weight:700">Help &amp; User Guide</a>.
+  </div>
+
+  <!-- ────────────────────────────────────────────────── 1.0.4 -->
+  <div class="release">
+    <div class="release-head">
+      <span class="release-version">1.0.4</span>
+      <span class="release-date">May 2026</span>
+      <span class="release-tag maint">Released</span>
+    </div>
+
+    <h3><span class="icon">✅</span>Quality &amp; reliability</h3>
+    <ul>
+      <li><strong>Fully verified release</strong> — every feature introduced in 1.0.2 has been retested end-to-end against the published extension before this release. Where 1.0.3 was a straight resubmission, 1.0.4 is the version we're confident in.</li>
+      <li><strong>Regression test suite</strong> — a comprehensive automated test suite covering the full extension has been built alongside this release. Every future update will be validated against it before shipping, so you can expect consistent, reliable behaviour as QAKit grows.</li>
+    </ul>
+
+    <h3><span class="icon">🛠</span>Fixed</h3>
+    <ul>
+      <li><strong>Markup editor — "Screenshot not found" error resolved</strong> — the <strong>✎ Markup</strong> button was silently failing after the popup was closed and reopened. The screenshot was stored in the extension's service worker memory, which Chrome can unload at any time — causing the image to disappear before the Markup tab had a chance to read it. The fix uses <code>chrome.storage.session</code>, a browser-managed store that persists reliably for the lifetime of your browser session regardless of service worker restarts.</li>
+    </ul>
+
+    <h3><span class="icon">✨</span>Polish</h3>
+    <ul>
+      <li>Various small refinements across the extension based on testing feedback gathered during the regression pass.</li>
+    </ul>
+  </div>
+
+  <!-- ────────────────────────────────────────────────── 1.0.3 -->
+  <div class="release">
+    <div class="release-head">
+      <span class="release-version">1.0.3</span>
+      <span class="release-date">May 2026</span>
+      <span class="release-tag maint">Released</span>
+    </div>
+
+    <h3><span class="icon">🔄</span>Maintenance resubmission</h3>
+    <ul>
+      <li>Shortly after 1.0.2 went live on the Chrome Web Store, we identified issues that required the release to be pulled. 1.0.3 is the clean resubmission — same features as 1.0.2, no code changes. The underlying issues are addressed in 1.0.4.</li>
+    </ul>
   </div>
 
   <!-- ────────────────────────────────────────────────── 1.0.2 -->
   <div class="release">
     <div class="release-head">
       <span class="release-version">1.0.2</span>
-      <span class="release-date">In development</span>
-      <span class="release-tag">Upcoming</span>
+      <span class="release-date">May 2026</span>
+      <span class="release-tag maint">Released</span>
     </div>
 
     <h3><span class="icon">✨</span>New</h3>

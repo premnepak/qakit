@@ -194,6 +194,15 @@ function showGeoStatus(msg, type) {
 }
 
 window.initGeolocation = function() {
+  if (!chrome.debugger) {
+    document.querySelectorAll('[data-tab="geo"]').forEach(el => el.style.display = 'none');
+    const statusEl = document.getElementById('geoStatusMsg');
+    if (statusEl) {
+      statusEl.textContent = 'Geolocation spoofing uses the Chrome Debugger API and is not available on this browser.';
+      statusEl.className = 'geo-status-msg geo-status-error';
+    }
+    return;
+  }
   // Populate presets
   const select = document.getElementById('geoPresetSelect');
   if (select) {

@@ -1480,7 +1480,7 @@ document.querySelectorAll('#panel-home .home-tile, #panel-home .home-list-tile')
         (async () => {
           try {
             const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-            if (tab?.id) {
+            if (tab?.id && tab.url?.startsWith('http')) {
               chrome.runtime.sendMessage({ action: 'CAPTURE_FULL_PAGE_AND_TOAST', tabId: tab.id }).catch(() => {});
             }
           } catch(e) { console.error('[QAKit] fullpage tile error', e); }
@@ -1489,8 +1489,15 @@ document.querySelectorAll('#panel-home .home-tile, #panel-home .home-list-tile')
         break;
       case 'element-shot':
         persistActiveTab('home');
-        chrome.runtime.sendMessage({ action: 'TRIGGER_ELEMENT_CAPTURE' }).catch(() => {});
-        window.close();
+        (async () => {
+          try {
+            const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+            if (tab?.id && tab.url?.startsWith('http')) {
+              chrome.runtime.sendMessage({ action: 'TRIGGER_ELEMENT_CAPTURE', tabId: tab.id }).catch(() => {});
+            }
+          } catch(e) { console.error('[QAKit] element tile error', e); }
+          window.close();
+        })();
         break;
 
       // Inspect tools — open Page Kit to the inspect sub-tab
@@ -2320,3 +2327,33 @@ setTimeout(processPendingAction, 120);
 
 // ── Fix 55: floating home pill removed ─────────────────────────────────────
 // ← Home in panel nav bar is the sole back navigation.
+
+// ── Downloads permission banner ─────────────────────────────────────────────
+// Shown each time the popup opens until the user grants the downloads
+// permission (required for screenshot saving). Once granted, the banner
+// never appears again. Dismissing hides it for the current session only.
+document.addEventListener('DOMContentLoaded', () => {
+  const banner      = document.getElementById('dlPermBanner');
+  const enableBtn   = document.getElementById('dlPermEnableBtn');
+  const dismissBtn  = document.getElementById('dlPermDismissBtn');
+  if (!banner) return;
+
+  chrome.permissions.contains({ permissions: ['downloads'] }, (has) => {
+    if (has) return;
+    banner.style.display = 'flex';
+
+    enableBtn.addEventListener('click', () => {
+      chrome.permissions.request({ permissions: ['downloads'] }, (granted) => {
+        if (granted) {
+          banner.style.display = 'none';
+        } else {
+          enableBtn.textContent = 'Try again';
+        }
+      });
+    });
+
+    dismissBtn.addEventListener('click', () => {
+      banner.style.display = 'none';
+    });
+  });
+});

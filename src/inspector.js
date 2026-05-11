@@ -50,10 +50,26 @@
     border: '1px solid rgba(0,229,160,0.45)', color: '#eef0f6',
     maxWidth: '360px', minWidth: '220px',
     boxShadow: '0 10px 36px rgba(0,0,0,.55), 0 0 0 1px rgba(255,255,255,.04)',
-    display: 'none', overflow: 'hidden',
+    display: 'none', overflowX: 'hidden', overflowY: 'auto', maxHeight: '90vh',
     userSelect: 'none',
   });
   document.documentElement.appendChild(badge);
+
+  // Hover + transition styles for candidate locator rows — inline styles can't do :hover
+  if (!document.getElementById('__q-inspector-style')) {
+    const __qStyle = document.createElement('style');
+    __qStyle.id = '__q-inspector-style';
+    __qStyle.textContent =
+      '.__q-cand-row{cursor:pointer;transition:background .12s,border-color .12s;}' +
+      '.__q-cand-row:hover{background:rgba(255,255,255,.07)!important;border-color:rgba(255,255,255,.22)!important;}' +
+      '.__q-cand-row.__q-primary:hover{background:rgba(0,229,160,.13)!important;border-color:rgba(0,229,160,.38)!important;}' +
+      '#__q-inspector-badge{scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.2) transparent;}' +
+      '#__q-inspector-badge::-webkit-scrollbar{width:4px;}' +
+      '#__q-inspector-badge::-webkit-scrollbar-track{background:transparent;}' +
+      '#__q-inspector-badge::-webkit-scrollbar-thumb{background:rgba(255,255,255,.2);border-radius:2px;}' +
+      '#__q-inspector-badge::-webkit-scrollbar-thumb:hover{background:rgba(255,255,255,.35);}';
+    document.documentElement.appendChild(__qStyle);
+  }
 
   // ══════════════════════════════════════════════════════════════════════════
   // MODE 2: SPACING OVERLAY (Figma-style box model)
@@ -766,7 +782,9 @@
           'title="Click ⎘ to copy">' +
         '<span style="color:' + keyColor + ';font-weight:500;font-size:12px;flex-shrink:0;min-width:76px;">' + key + '</span>' +
         '<span style="color:rgba(255,255,255,.45);font-size:12px;flex-shrink:0;">=</span>' +
-        '<span style="color:' + valColor + ';font-size:12px;word-break:break-word;flex:1;">' + displayVal + '</span>' +
+        '<span style="color:' + valColor + ';font-size:12px;word-break:break-word;flex:1;' +
+          'display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;" ' +
+          'title="' + displayVal + '">' + displayVal + '</span>' +
         '<button class="__q-copy-btn" data-copy="' + dataVal + '" ' +
           'style="flex-shrink:0;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.22);' +
           'border-radius:3px;color:rgba(255,255,255,.7);font-size:10px;padding:0 5px;cursor:pointer;' +
@@ -969,7 +987,7 @@
       const color  = active ? st.active : 'rgba(255,255,255,.8)';
       html += '<button class="__q-outstyle-btn" data-style="' + st.id + '" title="' + st.tip + '" ' +
         'style="display:inline-flex;align-items:center;gap:4px;background:' + bg + ';' +
-        'color:' + color + ';border:none;padding:3px 7px;font-size:11.5px;' +
+        'color:' + color + ';border:' + (active ? 'none' : '1px solid rgba(255,255,255,.15)') + ';padding:3px 7px;font-size:11.5px;' +
         'font-weight:' + (active ? '700' : '500') + ';border-radius:4px;cursor:pointer;' +
         'font-family:inherit;line-height:1;' +
         (active ? 'box-shadow:0 0 0 1px rgba(0,229,160,.35);' : '') +
@@ -982,6 +1000,7 @@
     } else {
       // Show top 4 ranked candidates
       const TIER_COLORS = { 1: '#00e5a0', 2: '#7dd3a0', 3: '#ff9f43', 4: '#ff9f43', 5: '#ffb27a', 6: '#ff7575' };
+      const TIER_BG     = { 1: 'rgba(0,229,160,.15)', 2: 'rgba(125,211,160,.13)', 3: 'rgba(255,159,67,.15)', 4: 'rgba(255,159,67,.15)', 5: 'rgba(255,178,122,.13)', 6: 'rgba(255,117,117,.15)' };
       // Filter out candidates that can't be expressed natively in the active
       // output style (e.g. Cypress + non-text XPath). formatForOutput returns
       // null in that case.
@@ -990,28 +1009,42 @@
       if (top.length === 0) {
         html += '<div style="font-size:11.5px;color:rgba(255,120,120,.95);margin-bottom:3px">⚠ No native ' + outStyle + ' locator found</div>';
       }
+      const RANK_BADGES = ['①', '②', '③', '④'];
       top.forEach((c, idx) => {
-        const color  = TIER_COLORS[c.tier] || '#999';
-        const formatted = formatForOutput(c, outStyle);
-        const dispVal   = formatted.length > 80 ? formatted.slice(0, 80) + '…' : formatted;
+        const color      = TIER_COLORS[c.tier] || '#999';
+        const formatted  = formatForOutput(c, outStyle);
+        const dispVal    = formatted.length > 80 ? formatted.slice(0, 80) + '…' : formatted;
+        const labelPill  = '<span style="color:' + color + ';font-size:10.5px;background:' + (TIER_BG[c.tier] || 'rgba(255,255,255,.1)') + ';padding:1px 6px;border-radius:3px;font-weight:700;letter-spacing:.2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + c.label + '</span>';
         const countBadge = c.isUnique
-          ? '<span style="color:#00e5a0;font-size:10.5px;background:rgba(0,229,160,.16);padding:1px 5px;border-radius:3px;margin-right:4px;flex-shrink:0">✓ unique</span>'
-          : '<span style="color:#ff9f43;font-size:10.5px;background:rgba(255,159,67,.16);padding:1px 5px;border-radius:3px;margin-right:4px;flex-shrink:0">⚠ ' + c.count + '×</span>';
-        const isPrimary = idx === 0;
-        const dataVal = String(formatted).replace(/&/g,'&amp;').replace(/"/g,'&quot;');
-        const dispEsc = String(dispVal).replace(/</g,'&lt;').replace(/>/g,'&gt;');
-        html += '<div class="__q-copy-row" data-copy="' + dataVal + '" ' +
-          'style="display:flex;align-items:center;gap:5px;min-width:0;padding:2px 2px;border-radius:3px;' +
-          (isPrimary ? 'background:rgba(0,229,160,.06);' : '') + '">' +
-          '<span style="color:' + color + ';font-size:11px;font-weight:' + (isPrimary ? '700' : '500') +
-            ';flex-shrink:0;min-width:64px;letter-spacing:.2px">' + c.label + '</span>' +
-          countBadge +
-          '<span style="color:' + (isPrimary ? '#fff' : '#dde2ee') + ';font-size:12px;' +
-            'word-break:break-all;flex:1;font-family:ui-monospace,monospace">' + dispEsc + '</span>' +
-          '<button class="__q-copy-btn" data-copy="' + dataVal + '" ' +
-            'style="flex-shrink:0;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.22);' +
-            'border-radius:3px;color:rgba(255,255,255,.7);font-size:10px;padding:0 5px;cursor:pointer;' +
-            'line-height:14px;height:16px;margin-left:2px" title="Copy">⎘</button>' +
+          ? '<span style="color:rgba(0,229,160,.65);font-size:10px;flex-shrink:0">✓ unique</span>'
+          : '<span style="color:rgba(255,159,67,.65);font-size:10px;flex-shrink:0">⚠ ' + c.count + '×</span>';
+        const isPrimary  = idx === 0;
+        const dataVal    = String(formatted).replace(/&/g,'&amp;').replace(/"/g,'&quot;');
+        const dispEsc    = String(dispVal).replace(/</g,'&lt;').replace(/>/g,'&gt;');
+        const titleAttr  = String(formatted).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+        const cardBg     = isPrimary
+          ? 'background:rgba(0,229,160,.07);border:1px solid rgba(0,229,160,.22);'
+          : 'background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.11);';
+        html += '<div class="__q-copy-row __q-cand-row' + (isPrimary ? ' __q-primary' : '') + '" data-copy="' + dataVal + '" ' +
+          'style="display:flex;gap:6px;min-width:0;padding:5px 7px;border-radius:5px;margin-bottom:3px;' + cardBg + '">' +
+          // Col 1 (fixed): label pill on top, count plain text below
+          '<div style="flex-shrink:0;width:86px;display:flex;flex-direction:column;gap:4px;">' +
+            '<div style="display:flex;align-items:center;gap:3px;min-width:0;">' +
+              '<span style="opacity:.4;font-size:10px;flex-shrink:0">' + RANK_BADGES[idx] + '</span>' +
+              labelPill +
+            '</div>' +
+            countBadge +
+          '</div>' +
+          // Col 2 (flex): locator text left, copy button right
+          '<div style="flex:1;min-width:0;display:flex;align-items:flex-start;gap:5px;">' +
+            '<span style="color:' + (isPrimary ? '#fff' : '#c8d0e0') + ';font-size:11.5px;' +
+              'word-break:break-all;flex:1;font-family:ui-monospace,monospace;line-height:1.5;' +
+              'display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;" title="' + titleAttr + '">' + dispEsc + '</span>' +
+            '<button class="__q-copy-btn" data-copy="' + dataVal + '" ' +
+              'style="flex-shrink:0;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.22);' +
+              'border-radius:3px;color:rgba(255,255,255,.7);font-size:10px;padding:0 5px;cursor:pointer;' +
+              'line-height:14px;height:16px;" title="Copy">⎘</button>' +
+          '</div>' +
         '</div>';
       });
       // Note for anchored selectors
@@ -1047,7 +1080,7 @@
       html += '</div>';
     }
 
-    html += '<div style="font-size:10.5px;color:rgba(255,255,255,.6);margin-top:5px;text-align:right;padding:0 2px;line-height:1.5">⎘ copy · Click to pin 📌  · Esc to unpin / exit · Alt/⌥-click to drill in · click crumb above</div>';
+    html += '<div style="font-size:10.5px;color:rgba(255,255,255,.45);margin-top:5px;text-align:center;padding:0 2px;line-height:1.6">press P to 📌 pin/unpin · Esc to Exit<br>⎘ copy · Alt/⌥-click drill · click crumb to navigate</div>';
     html += '</div>';
     badge.innerHTML = html;
     // Wire copy buttons via event delegation (must happen after innerHTML set)
@@ -1485,46 +1518,74 @@
     });
   }
 
-  function positionBadge(el) {
-    const r  = el.getBoundingClientRect();
-    const vw = window.innerWidth;
-    const vh = window.innerHeight;
+  // Place badge fully outside the element's green-border rect.
+  // Priority: right → left → below → above → fallback (top-right clamped).
+  // maxHeight:75vh on the badge ensures bh is always bounded so fits-checks work.
+  function placeBadgeForRect(r) {
+    const vw     = window.innerWidth;
+    const vh     = window.innerHeight;
     badge.style.display = 'block';
     badge.style.left = '0px'; badge.style.top = '0px';
-    const bw = badge.offsetWidth;
-    const bh = badge.offsetHeight;
-    let left = r.left;
-    if (left + bw > vw - 8) left = vw - bw - 8;
-    if (left < 8) left = 8;
-    let top = r.bottom + 10;
-    if (top + bh > vh - 8) top = r.top - bh - 10;
-    if (top < 8) top = 8;
-    badge.style.left = left + 'px';
-    badge.style.top  = top  + 'px';
+    const bw     = badge.offsetWidth;
+    const bh     = badge.offsetHeight;
+    const GAP    = 10;
+    const MARGIN = 8;
+    const clampV = y => Math.min(Math.max(y, MARGIN), vh - bh - MARGIN);
+    const clampH = x => Math.min(Math.max(x, MARGIN), vw - bw - MARGIN);
+
+    // Right of element — badge left edge starts at element right edge
+    if (r.right + GAP + bw <= vw - MARGIN) {
+      badge.style.left = (r.right + GAP) + 'px';
+      badge.style.top  = clampV(r.top)   + 'px';
+      return;
+    }
+    // Left of element — badge right edge ends at element left edge
+    if (r.left - GAP - bw >= MARGIN) {
+      badge.style.left = (r.left - GAP - bw) + 'px';
+      badge.style.top  = clampV(r.top)        + 'px';
+      return;
+    }
+    // Below element
+    if (r.bottom + GAP + bh <= vh - MARGIN) {
+      badge.style.left = clampH(r.right - bw) + 'px';
+      badge.style.top  = (r.bottom + GAP)      + 'px';
+      return;
+    }
+    // Above element
+    if (r.top - GAP - bh >= MARGIN) {
+      badge.style.left = clampH(r.right - bw)  + 'px';
+      badge.style.top  = (r.top - GAP - bh)    + 'px';
+      return;
+    }
+    // Fallback: clamp to top-right of viewport
+    badge.style.left = clampH(r.right + GAP) + 'px';
+    badge.style.top  = MARGIN + 'px';
   }
 
-  // Badge anchored near the mouse cursor — used when highlightEl is a large
-  // ancestor block so the badge stays close to where the user is pointing.
+  function positionBadge(el) {
+    placeBadgeForRect(el.getBoundingClientRect());
+  }
+
   function positionBadgeNearCursor(cx, cy, highlightEl) {
-    const vw = window.innerWidth;
-    const vh = window.innerHeight;
-    badge.style.display = 'block';
-    badge.style.left = '0px'; badge.style.top = '0px';
-    const bw = badge.offsetWidth;
-    const bh = badge.offsetHeight;
-
-    // Prefer to show badge just below and to the right of cursor
-    let left = cx + 12;
-    let top  = cy + 18;
-
-    // Clamp so it doesn't fall off screen
-    if (left + bw > vw - 8) left = cx - bw - 12;
-    if (left < 8) left = 8;
-    if (top + bh > vh - 8) top = cy - bh - 10;
-    if (top < 8) top = 8;
-
-    badge.style.left = left + 'px';
-    badge.style.top  = top  + 'px';
+    if (highlightEl) {
+      placeBadgeForRect(highlightEl.getBoundingClientRect());
+    } else {
+      // No element available — cursor-relative fallback
+      const vw = window.innerWidth;
+      const vh = window.innerHeight;
+      badge.style.display = 'block';
+      badge.style.left = '0px'; badge.style.top = '0px';
+      const bw = badge.offsetWidth;
+      const bh = badge.offsetHeight;
+      let left = cx + 12;
+      let top  = cy + 18;
+      if (left + bw > vw - 8) left = cx - bw - 12;
+      if (left < 8) left = 8;
+      if (top  + bh > vh - 8) top  = cy - bh - 10;
+      if (top  < 8) top  = 8;
+      badge.style.left = left + 'px';
+      badge.style.top  = top  + 'px';
+    }
   }
 
   // ══════════════════════════════════════════════════════════════════════════
@@ -1683,18 +1744,10 @@
       return;
     }
 
-    // FIX 2a: DOM navigation while pinned. Only activate when pinned (so it
-    // doesn't fight with normal typing on unpinned hover).
-    if (!window.__qInspectorPinned) return;
-    const cur = window.__qPinnedEl;
-    if (!cur) return;
-    let next = null;
-    if (e.key === 'ArrowUp')    next = cur.parentElement;
-    else if (e.key === 'ArrowDown')  next = cur.firstElementChild;
-    else if (e.key === 'ArrowLeft')  next = cur.previousElementSibling;
-    else if (e.key === 'ArrowRight') next = cur.nextElementSibling;
-    else if (e.key === 'p' || e.key === 'P') {
+    // P toggles pin regardless of current pin state
+    if (e.key === 'p' || e.key === 'P') {
       window.__qInspectorPinned = !window.__qInspectorPinned;
+      if (window.__qInspectorPinned && lastTarget) window.__qPinnedEl = lastTarget;
       applyPinStyles();
       const pl = badge.querySelector('#__q-pin-label');
       if (pl) {
@@ -1704,9 +1757,21 @@
           pl.textContent = '📌 Pin'; pl.style.color = 'rgba(255,255,255,.5)'; pl.style.borderColor = 'rgba(255,255,255,.15)';
         }
       }
+      if (!window.__qInspectorPinned) lastTarget = null;
       e.preventDefault();
       return;
     }
+
+    // FIX 2a: DOM navigation while pinned. Only activate when pinned (so it
+    // doesn't fight with normal typing on unpinned hover).
+    if (!window.__qInspectorPinned) return;
+    const cur = window.__qPinnedEl;
+    if (!cur) return;
+    let next = null;
+    if (e.key === 'ArrowUp')         next = cur.parentElement;
+    else if (e.key === 'ArrowDown')  next = cur.firstElementChild;
+    else if (e.key === 'ArrowLeft')  next = cur.previousElementSibling;
+    else if (e.key === 'ArrowRight') next = cur.nextElementSibling;
     if (next && next.tagName && !(next.id && next.id.startsWith('__q-'))) {
       e.preventDefault();
       navigateTo(next);

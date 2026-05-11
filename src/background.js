@@ -11,6 +11,13 @@ const state = {
   _lastViewportOpen: 0,
 };
 
+// In-memory markup image store — no quota limits unlike chrome.storage.session.
+// Keyed by id; entries auto-delete after 5 min. Survives only while the SW is alive,
+// but that's fine: markup.html opens immediately after OPEN_IN_EDITOR fires.
+const _markupImages = new Map();
+// Firefox lacks chrome.storage.session; fall back to local (same 5-min TTL cleanup applies)
+const _sessionStorage = chrome.storage.session ?? chrome.storage.local;
+
 // ── Per-category event caps ────────────────────────────────────────────────
 // High-frequency categories are capped low so they don't crowd out signal.
 // All other categories default to DEFAULT_CAT_CAP.
@@ -81,7 +88,15 @@ async function initBackground() {
 }
 
 // ── Extension icon management ────────────────────────────────────────────────
-chrome.runtime.onInstalled.addListener(() => { initBackground(); });
+chrome.runtime.onInstalled.addListener((details) => {
+  initBackground();
+  const version = chrome.runtime.getManifest().version;
+  if (details.reason === 'install' || (details.reason === 'update' && version === '1.0.4')) {
+    // Open in background so the user's active tab never loses focus — screenshots
+    // keep working immediately. User can switch to the welcome tab when ready.
+    chrome.tabs.create({ url: chrome.runtime.getURL('welcome.html'), active: false });
+  }
+});
 chrome.runtime.onStartup.addListener(()   => { initBackground(); });
 
 // ── Shared helper: inject pagescripts and execute a function in MAIN world ───
@@ -728,14 +743,15 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     }
 
     if (stored) {
-      // We already have the screenshot — crop it immediately, no capture needed
-      processRegionCapture(tabId, stored, msg.rect);
+      // Crop + inject toast; keep channel open so SW stays alive until toast is shown
+      processRegionCapture(tabId, stored, msg.rect).then(() => sendResponse({ ok: true }));
+      return true;
     } else {
       // Fallback: try to capture now (may fail in Chrome if window lost focus)
       processRegionCaptureWithDelay(tabId, msg.rect, 300);
+      sendResponse({ ok: true });
+      return;
     }
-    sendResponse({ ok: true });
-    return;
   }
 
   // Element selection: pagescripts.js dispatched __qkitElementSelected with
@@ -755,14 +771,15 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     }
 
     if (stored) {
-      processRegionCapture(tabId, stored, msg.rect);
+      processRegionCapture(tabId, stored, msg.rect).then(() => sendResponse({ ok: true }));
+      return true;
     } else {
       // Shouldn't happen — context-menu handler pre-captures before launching
       // the picker. Fallback to late capture with a delay.
       processRegionCaptureWithDelay(tabId, msg.rect, 300);
+      sendResponse({ ok: true });
+      return;
     }
-    sendResponse({ ok: true });
-    return;
   }
 
   // Legacy: kept for keyboard shortcut path
@@ -778,8 +795,11 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   if (msg.action === 'TRIGGER_ELEMENT_CAPTURE') {
     (async () => {
       try {
-        const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-        if (!tab) { sendResponse({ ok: false, error: 'no active tab' }); return; }
+        // Use tabId passed from popup context — more reliable than querying from SW
+        // where currentWindow is undefined after the popup closes.
+        let tab = msg.tabId ? await chrome.tabs.get(msg.tabId).catch(() => null) : null;
+        if (!tab) [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
+        if (!tab || !tab.url?.startsWith('http')) { sendResponse({ ok: false, error: 'no injectable tab' }); return; }
         // Ensure pagescripts.js (which defines __qkitStartElementCapture) is injected
         await ensureAllInjected(tab.id);
         // Brief delay lets the popup finish closing so the visible-tab capture
@@ -812,9 +832,10 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
 
   // Region/Element crop: capture visible tab + send back for cropping in popup
   if (msg.action === 'CAPTURE_VISIBLE_FOR_CROP') {
-    // Small delay before capture to avoid rate limit when called quickly after other captures
+    // Use sender's windowId — captureVisibleTab(null) is unreliable from SW context.
+    const wid = sender.tab?.windowId ?? null;
     setTimeout(() => {
-      chrome.tabs.captureVisibleTab(null, { format: 'jpeg', quality: 92 }, dataUrl => {
+      chrome.tabs.captureVisibleTab(wid, { format: 'jpeg', quality: 92 }, dataUrl => {
         if (chrome.runtime.lastError) { sendResponse({ error: chrome.runtime.lastError.message }); return; }
         sendResponse({ ok: true, dataUrl });
       });
@@ -906,23 +927,33 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   }
 
   // Open screenshot in QAKit Markup editor (in-extension annotation page).
-  // Image is held in an in-memory map (not chrome.storage.session, which has
-  // a 10 MB quota that full-page captures can exceed). The markup tab pulls
-  // the image via FETCH_MARKUP_IMAGE on load. The service worker stays alive
-  // for the brief window between tab creation and markup.js requesting the
-  // image because the new tab triggers more events.
+  // Image is stored in chrome.storage.session so it survives service-worker
+  // restarts (Chrome aggressively terminates idle SW in production). The markup
+  // tab retrieves it via FETCH_MARKUP_IMAGE on load and the entry is deleted.
   if (msg.action === 'OPEN_IN_EDITOR') {
-    const { dataUrl, prefix } = msg;
+    const { dataUrl, prefix, id: existingId } = msg;
+
+    if (existingId) {
+      // Fast path: image was pre-stored by injectScreenshotToast — open the tab directly.
+      const url = chrome.runtime.getURL('markup.html') + '?id=' + encodeURIComponent(existingId);
+      chrome.tabs.create({ url });
+      sendResponse({ ok: true });
+      return;
+    }
+
     if (!dataUrl) {
       console.warn('[QAKit] OPEN_IN_EDITOR: no dataUrl provided');
       sendResponse({ ok: false });
       return;
     }
+    // Store in memory first (no quota), then best-effort session storage.
     const id = 'mk_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
-    if (!self.__qkitMarkupImages) self.__qkitMarkupImages = new Map();
-    self.__qkitMarkupImages.set(id, { dataUrl, prefix: prefix || 'qakit-screenshot' });
-    // Drop after 5 minutes to bound memory if the tab is never opened.
-    setTimeout(() => self.__qkitMarkupImages?.delete(id), 5 * 60 * 1000);
+    const entry = { dataUrl, prefix: prefix || 'qakit-screenshot' };
+    _markupImages.set(id, entry);
+    setTimeout(() => _markupImages.delete(id), 5 * 60 * 1000);
+    _sessionStorage.set({ [id]: entry })
+      .then(() => setTimeout(() => _sessionStorage.remove(id).catch(() => {}), 5 * 60 * 1000))
+      .catch(() => {});
     const url = chrome.runtime.getURL('markup.html') + '?id=' + encodeURIComponent(id);
     chrome.tabs.create({ url });
     sendResponse({ ok: true });
@@ -932,25 +963,56 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   // Markup page asks for its image. One-shot: the entry is removed after read.
   if (msg.action === 'FETCH_MARKUP_IMAGE') {
     const id = msg.id;
-    const entry = self.__qkitMarkupImages?.get(id);
-    if (entry) self.__qkitMarkupImages.delete(id);
-    sendResponse({ ok: !!entry, entry: entry || null });
-    return true;   // keep channel open for async sendResponse
+    // In-memory store is checked first — no quota issues even for large screenshots.
+    const memEntry = _markupImages.get(id);
+    if (memEntry) {
+      _markupImages.delete(id);
+      sendResponse({ ok: true, entry: memEntry });
+      return;
+    }
+    // Fallback to session storage (covers SW-restart case for smaller images).
+    _sessionStorage.get(id)
+      .then(result => {
+        const entry = result[id] || null;
+        if (entry) _sessionStorage.remove(id);
+        sendResponse({ ok: !!entry, entry });
+      })
+      .catch(() => sendResponse({ ok: false, entry: null }));
+    return true;
   }
 
   // Save screenshot — always prompt for save location (saveAs: true) so the
   // user can choose where the PNG is written, regardless of their Chrome
-  // "Ask where to save" preference.
+  // "Ask where to save" preference. Checks optional downloads permission first;
+  // responds with needsPermission:true so callers can prompt the user.
   if (msg.action === 'SAVE_SCREENSHOT') {
     const { dataUrl, prefix } = msg;
-    const filename = (prefix || 'qakit-screenshot') + '-' + Date.now() + '.png';
-    chrome.downloads.download({
-      url: dataUrl,
-      filename,
-      saveAs: true,
-    }, () => {
-      if (chrome.runtime.lastError) {
-        console.warn('[QAKit] SAVE_SCREENSHOT: download failed:', chrome.runtime.lastError.message);
+    chrome.permissions.contains({ permissions: ['downloads'] }, (has) => {
+      if (!has) {
+        sendResponse({ ok: false, needsPermission: true });
+        return;
+      }
+      const filename = (prefix || 'qakit-screenshot') + '-' + Date.now() + '.png';
+      chrome.downloads.download({
+        url: dataUrl,
+        filename,
+        saveAs: true,
+      }, () => {
+        if (chrome.runtime.lastError) {
+          console.warn('[QAKit] SAVE_SCREENSHOT: download failed:', chrome.runtime.lastError.message);
+        }
+      });
+      sendResponse({ ok: true });
+    });
+    return true;
+  }
+
+  if (msg.action === 'OPEN_WELCOME_PAGE') {
+    chrome.tabs.query({ url: chrome.runtime.getURL('welcome.html') }, (tabs) => {
+      if (tabs.length > 0) {
+        chrome.tabs.update(tabs[0].id, { active: true });
+      } else {
+        chrome.tabs.create({ url: chrome.runtime.getURL('welcome.html'), active: true });
       }
     });
     sendResponse({ ok: true });
@@ -1015,10 +1077,29 @@ function processRegionCaptureWithDelay(tabId, rect, delay = 400) {
 // so the visual and behavior stay identical.
 async function injectScreenshotToast(tabId, pngDataUrl, label, downloadPrefix) {
   try {
+    // Skip injection on extension pages — scripting API cannot target them
+    const tab = await chrome.tabs.get(tabId).catch(() => null);
+    if (!tab || tab.url?.startsWith('chrome-extension://') || tab.url?.startsWith('chrome://')) {
+      console.warn('[QAKit] injectScreenshotToast: skipping non-injectable tab', tab?.url);
+      return;
+    }
+
+    // Pre-store the image so the toast's Markup button only dispatches a small ID.
+    // This avoids routing the full (potentially multi-MB) data URL through the
+    // CustomEvent → content-script → sendMessage chain, which can silently fail
+    // for full-page screenshots that exceed chrome.storage.session quota.
+    const markupId = 'mk_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
+    _markupImages.set(markupId, { dataUrl: pngDataUrl, prefix: downloadPrefix });
+    setTimeout(() => _markupImages.delete(markupId), 5 * 60 * 1000);
+    // Best-effort session storage for SW-restart resilience (quota may reject large images)
+    _sessionStorage.set({ [markupId]: { dataUrl: pngDataUrl, prefix: downloadPrefix } })
+      .then(() => setTimeout(() => _sessionStorage.remove(markupId).catch(() => {}), 5 * 60 * 1000))
+      .catch(() => {});
+
     await chrome.scripting.executeScript({
       target: { tabId },
       world: 'MAIN',
-      func: (imgUrl, toastLabel, dlPrefix) => {
+      func: (imgUrl, toastLabel, dlPrefix, mkId) => {
         // Copy to clipboard
         fetch(imgUrl)
           .then(r => r.blob())
@@ -1075,10 +1156,6 @@ async function injectScreenshotToast(tabId, pngDataUrl, label, downloadPrefix) {
         saveBtn.onmouseover = () => { saveBtn.style.background = '#085c44'; };
         saveBtn.onmouseout  = () => { saveBtn.style.background = '#0a6e51'; };
         saveBtn.onclick = () => {
-          // Dispatch to content.js (isolated world) which forwards to background.
-          // Background uses chrome.downloads.download({ saveAs: true }) so the
-          // "Save As" dialog ALWAYS appears, regardless of Chrome's global
-          // "Ask where to save" preference.
           window.dispatchEvent(new CustomEvent('__qkitSaveScreenshot', {
             detail: { dataUrl: imgUrl, prefix: dlPrefix }
           }));
@@ -1107,8 +1184,10 @@ async function injectScreenshotToast(tabId, pngDataUrl, label, downloadPrefix) {
         editBtn.onmouseover = () => { editBtn.style.background = '#344a72'; };
         editBtn.onmouseout  = () => { editBtn.style.background = '#2a3a5c'; };
         editBtn.onclick = () => {
+          // Dispatch only the pre-stored ID — avoids routing the full data URL
+          // through the event bridge, which silently fails for large screenshots.
           window.dispatchEvent(new CustomEvent('__qkitEditScreenshot', {
-            detail: { dataUrl: imgUrl, prefix: dlPrefix }
+            detail: { id: mkId }
           }));
           toast.remove();
         };
@@ -1122,7 +1201,7 @@ async function injectScreenshotToast(tabId, pngDataUrl, label, downloadPrefix) {
         // Auto-dismiss after 15 seconds
         setTimeout(() => toast.parentNode && toast.remove(), 15000);
       },
-      args: [pngDataUrl, label, downloadPrefix],
+      args: [pngDataUrl, label, downloadPrefix, markupId],
     });
   } catch (e) {
     console.warn('[QAKit] injectScreenshotToast failed:', e.message);
@@ -1141,14 +1220,14 @@ async function processRegionCapture(tabId, dataUrl, rect) {
     octx.drawImage(bmp, x, y, w, h, 0, 0, oc.width, oc.height);
     const outBlob = await oc.convertToBlob({ type: 'image/png' });
 
-    const reader = new FileReader();
-    reader.onloadend = async () => {
-      const pngDataUrl = reader.result;
-      // Deliver to popup if open
-      chrome.runtime.sendMessage({ action: 'DELIVER_CROPPED_SCREENSHOT', dataUrl: pngDataUrl }).catch(() => {});
-      await injectScreenshotToast(tabId, pngDataUrl, 'Region captured', 'qakit-region');
-    };
-    reader.readAsDataURL(outBlob);
+    const pngDataUrl = await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result);
+      reader.onerror  = () => reject(new Error('FileReader failed'));
+      reader.readAsDataURL(outBlob);
+    });
+    chrome.runtime.sendMessage({ action: 'DELIVER_CROPPED_SCREENSHOT', dataUrl: pngDataUrl }).catch(() => {});
+    await injectScreenshotToast(tabId, pngDataUrl, 'Region captured', 'qakit-region');
   } catch (e) {
     console.warn('[QAKit] processRegionCapture: crop failed:', e.message);
   }
@@ -1181,14 +1260,14 @@ async function processFullPageCapture(tabId, captureResult) {
     }
 
     const outBlob = await oc.convertToBlob({ type: 'image/png' });
-    const reader  = new FileReader();
-    reader.onloadend = async () => {
-      const pngDataUrl = reader.result;
-      // Also deliver to popup if it happens to be open
-      chrome.runtime.sendMessage({ action: 'DELIVER_CROPPED_SCREENSHOT', dataUrl: pngDataUrl }).catch(() => {});
-      await injectScreenshotToast(tabId, pngDataUrl, 'Full page captured', 'qakit-fullpage');
-    };
-    reader.readAsDataURL(outBlob);
+    const pngDataUrl = await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result);
+      reader.onerror  = () => reject(new Error('FileReader failed'));
+      reader.readAsDataURL(outBlob);
+    });
+    chrome.runtime.sendMessage({ action: 'DELIVER_CROPPED_SCREENSHOT', dataUrl: pngDataUrl }).catch(() => {});
+    await injectScreenshotToast(tabId, pngDataUrl, 'Full page captured', 'qakit-fullpage');
   } catch (e) {
     console.warn('[QAKit] processFullPageCapture: stitch failed:', e.message);
   }
@@ -1266,6 +1345,12 @@ async function ensureAllInjected(tabId) {
 // 3. Stitch on an offscreen canvas via OffscreenCanvas (SW context)
 // 4. Return final dataUrl
 async function captureFullPage(tabId) {
+  // Resolve windowId up-front so captureVisibleTab always gets an explicit target.
+  // Using null from a service worker context is unreliable — SW has no "current window".
+  const tabInfo = await chrome.tabs.get(tabId).catch(() => null);
+  if (!tabInfo) throw new Error('Tab not found');
+  const windowId = tabInfo.windowId;
+
   await ensurePageScripts(tabId);
 
   const dimRes = await chrome.scripting.executeScript({
@@ -1322,8 +1407,9 @@ async function captureFullPage(tabId) {
       await new Promise(r => setTimeout(r, CAPTURE_DELAY));
 
       const dataUrl = await new Promise((resolve, reject) => {
-        // Use JPEG quality 92 — much faster encoding than PNG for large pages
-        chrome.tabs.captureVisibleTab(null, { format: 'jpeg', quality: 92 }, url => {
+        // Use JPEG quality 92 — much faster encoding than PNG for large pages.
+        // Must use explicit windowId — captureVisibleTab(null) is unreliable from SW context.
+        chrome.tabs.captureVisibleTab(windowId, { format: 'jpeg', quality: 92 }, url => {
           if (chrome.runtime.lastError) reject(new Error(chrome.runtime.lastError.message));
           else resolve(url);
         });

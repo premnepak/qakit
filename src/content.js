@@ -369,7 +369,16 @@
   // Bridge 2: Region capture selection — forward rect to background
   window.addEventListener('__qkitRegionSelected', (e) => {
     try {
-      if (!chrome.runtime?.id) return;
+      if (!chrome.runtime?.id) {
+        // Extension context was invalidated (e.g. extension reloaded without page refresh).
+        // Show an inline notice so the user knows to refresh the page.
+        const msg = document.createElement('div');
+        msg.style.cssText = 'position:fixed;bottom:24px;left:50%;transform:translateX(-50%);z-index:2147483647;background:#b91c1c;color:#fff;font:600 13px/-apple-system,sans-serif;padding:10px 20px;border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,.5)';
+        msg.textContent = '⚠ QAKit: please refresh this page to take screenshots';
+        document.body?.appendChild(msg);
+        setTimeout(() => msg.remove(), 5000);
+        return;
+      }
       chrome.runtime.sendMessage({ action: 'REGION_SELECTED', rect: e.detail }).catch(() => {});
     } catch(_) {}
   });
@@ -424,19 +433,30 @@
   window.addEventListener('__qkitEditScreenshot', (e) => {
     try {
       if (!chrome.runtime?.id) return;
-      const { dataUrl, prefix } = e.detail || {};
-      chrome.runtime.sendMessage({ action: 'OPEN_IN_EDITOR', dataUrl, prefix }).catch(() => {});
+      const { dataUrl, prefix, id } = e.detail || {};
+      if (id) {
+        // Fast path: background pre-stored the image by ID — send only the ID.
+        chrome.runtime.sendMessage({ action: 'OPEN_IN_EDITOR', id }).catch(() => {});
+      } else if (dataUrl) {
+        chrome.runtime.sendMessage({ action: 'OPEN_IN_EDITOR', dataUrl, prefix }).catch(() => {});
+      }
     } catch(_) {}
   });
 
   // Bridge 8: Screenshot "Save" button — forwards to background which uses
   // chrome.downloads.download({ saveAs: true }) so the OS "Save As" dialog
   // always appears, independent of Chrome's global download preference.
+  // If the downloads permission is not yet granted, background opens the
+  // welcome page directly so the user can enable it.
   window.addEventListener('__qkitSaveScreenshot', (e) => {
     try {
       if (!chrome.runtime?.id) return;
       const { dataUrl, prefix } = e.detail || {};
-      chrome.runtime.sendMessage({ action: 'SAVE_SCREENSHOT', dataUrl, prefix }).catch(() => {});
+      chrome.runtime.sendMessage({ action: 'SAVE_SCREENSHOT', dataUrl, prefix }, (resp) => {
+        if (resp?.needsPermission) {
+          chrome.runtime.sendMessage({ action: 'OPEN_WELCOME_PAGE' }).catch(() => {});
+        }
+      });
     } catch(_) {}
   });
 

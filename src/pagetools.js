@@ -353,6 +353,9 @@ window.initPageTools = function () {
     if (!tab?.id || !tab.url?.startsWith('http')) {
       setStatus('Navigate to a webpage first', true); return;
     }
+    if (tab.url?.includes('chromewebstore.google.com')) {
+      setStatus('Screenshots not available on the Chrome Web Store', true); return;
+    }
     showProgress(true); setStatus('Capturing full page… (please wait)');
     try {
       const result = await chrome.runtime.sendMessage({ action: 'CAPTURE_FULL_PAGE', tabId: tab.id });
@@ -411,6 +414,10 @@ window.initPageTools = function () {
     if (!tab?.id || !tab.url?.startsWith('http')) {
       setStatus('Navigate to a webpage first', true); return;
     }
+    const blockedHost = tab.url?.includes('chromewebstore.google.com');
+    if (blockedHost) {
+      setStatus('Screenshots not available on the Chrome Web Store', true); return;
+    }
     setStatus('Preparing region capture…');
 
     // STEP 1: Capture the screenshot NOW while popup is open and has focus.
@@ -419,7 +426,7 @@ window.initPageTools = function () {
     let captureDataUrl = null;
     try {
       captureDataUrl = await new Promise((resolve, reject) => {
-        chrome.tabs.captureVisibleTab(null, { format: 'png' }, (dataUrl) => {
+        chrome.tabs.captureVisibleTab(tab.windowId, { format: 'png' }, (dataUrl) => {
           if (chrome.runtime.lastError) reject(new Error(chrome.runtime.lastError.message));
           else resolve(dataUrl);
         });
@@ -442,9 +449,14 @@ window.initPageTools = function () {
     });
 
     // STEP 3: Inject the region selection overlay — user draws their selection
-    await injectAndRun(tab.id, () => {
-      window.__qkitStartRegionCapture();
-    });
+    try {
+      await injectAndRun(tab.id, () => {
+        window.__qkitStartRegionCapture();
+      });
+    } catch (e) {
+      setStatus('Could not start region capture: ' + e.message, true);
+      return;
+    }
 
     // STEP 4: Close popup — user now drags on the page
     setTimeout(() => window.close(), 80);
@@ -477,14 +489,17 @@ window.initPageTools = function () {
     document.body.appendChild(toast);
 
     document.getElementById('ssDownloadBtn').addEventListener('click', () => {
-      // Route via background so chrome.downloads.download({ saveAs: true })
-      // ALWAYS prompts for save location, regardless of Chrome's global pref.
-      chrome.runtime.sendMessage({
-        action: 'SAVE_SCREENSHOT',
-        dataUrl,
-        prefix: 'qakit-screenshot',
-      }).catch(() => {});
       toast.remove();
+      chrome.runtime.sendMessage({ action: 'SAVE_SCREENSHOT', dataUrl, prefix: 'qakit-screenshot' }, (resp) => {
+        if (resp?.needsPermission) {
+          // Popup is an extension page — can request optional permission directly.
+          chrome.permissions.request({ permissions: ['downloads'] }, (granted) => {
+            if (granted) {
+              chrome.runtime.sendMessage({ action: 'SAVE_SCREENSHOT', dataUrl, prefix: 'qakit-screenshot' }).catch(() => {});
+            }
+          });
+        }
+      });
     });
     document.getElementById('ssEditBtn').addEventListener('click', () => {
       chrome.runtime.sendMessage({
@@ -510,6 +525,9 @@ window.initPageTools = function () {
     const tab = await getActiveTab();
     if (!tab?.id || !tab.url?.startsWith('http')) {
       setStatus('Navigate to a webpage first', true); return;
+    }
+    if (tab.url?.includes('chromewebstore.google.com')) {
+      setStatus('Screenshots not available on the Chrome Web Store', true); return;
     }
     await injectAndRun(tab.id, () => window.__qkitStartAnnotation?.());
     toast('✏ Draw on the page · 📸 to capture with annotations · Esc to exit');

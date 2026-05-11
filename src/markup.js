@@ -819,6 +819,20 @@
     chrome.runtime.sendMessage(
       { action: 'SAVE_SCREENSHOT', dataUrl, prefix: prefix + '-markup' },
       (resp) => {
+        if (resp?.needsPermission) {
+          // Markup editor is an extension page — can request permission directly.
+          chrome.permissions.request({ permissions: ['downloads'] }, (granted) => {
+            if (granted) {
+              chrome.runtime.sendMessage(
+                { action: 'SAVE_SCREENSHOT', dataUrl, prefix: prefix + '-markup' },
+                (r) => { if (r?.ok) setTimeout(() => window.close(), 250); }
+              );
+            } else {
+              showStatus('Permission denied — cannot save as file');
+            }
+          });
+          return;
+        }
         // Close the markup tab once the background has acknowledged the
         // download initiation. Brief delay so the OS Save dialog has time
         // to attach to the parent window before this tab disappears.

@@ -18,5 +18,11 @@
   "validation": {
     "preCommit": "./scripts/validate.sh",
     "postEdit": "./scripts/validate.sh"
+  },
+  "permissions": {
+    "allow": [
+      "Bash(npx playwright *)",
+      "Bash(bash scripts/validate.sh)"
+    ]
   }
 }

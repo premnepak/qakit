@@ -75,8 +75,8 @@ fi
 # ─────────────────────────────────────────────────────────────
 section "2. HTML tag balance"
 python3 << PYEOF
-import re, sys
-import os
+import re, sys, os
+sys.stdout.reconfigure(encoding='utf-8')
 SRC = '$SRC_DIR'
 files = ['popup.html','json-diff-tool.html','text-compare.html','help.html','privacy-policy.html','markup.html']
 all_ok = True
@@ -85,7 +85,7 @@ for fname in files:
     if not os.path.exists(path):
         print(f'  ⚠ {fname} not found')
         continue
-    c = open(path).read()
+    c = open(path, encoding='utf-8').read()
     issues = []
     tags = ['div','button','select','option','label','script','style','span',
             'section','textarea','pre','header','table','tr','td','th',
@@ -111,6 +111,7 @@ if [ $? -ne 0 ]; then FAIL=1; fi
 section "3. Manifest"
 python3 << PYEOF
 import json, sys, os
+sys.stdout.reconfigure(encoding='utf-8')
 try:
     m = json.load(open('$SRC_DIR/manifest.json'))
 except Exception as e:
@@ -165,6 +166,7 @@ if [ $? -ne 0 ]; then FAIL=1; fi
 section "4. Version consistency"
 python3 << PYEOF
 import json, sys
+sys.stdout.reconfigure(encoding='utf-8')
 manifest_ver = json.load(open('$SRC_DIR/manifest.json'))['version']
 pkg_ver = json.load(open('package.json')).get('version','')
 if manifest_ver == pkg_ver:

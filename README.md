@@ -2,7 +2,7 @@
 
 > All-in-one browser toolkit for QA engineers and web developers.
 
-**Status:** v1.0.2 — in development (queued fixes for next Chrome Web Store update)
+**Status:** v1.0.4 — in development (queued fixes for next Chrome Web Store update)
 
 QAKit puts the tools QA engineers and developers reach for every day into a single fast popup — element inspection, screenshot capture, analytics monitoring, network mocking, page audits, cookie management, and more — replacing half a dozen single-purpose extensions and the constant juggling of DevTools tabs.
 
@@ -34,7 +34,7 @@ See [`src/privacy-policy.html`](src/privacy-policy.html) for the full policy.
 *(Coming soon — pending review)*
 
 ### Manual install (developer mode)
-1. Download the latest release zip from [Releases](../../releases) (or `releases/qakit-v1.0.2.zip`)
+1. Download the latest release zip from [Releases](../../releases) (or `releases/qakit-v1.0.4.zip`)
 2. Extract the zip
 3. Open `chrome://extensions/`
 4. Enable **Developer mode** (top right)
@@ -109,7 +109,7 @@ After running `./scripts/package.sh`, the resulting `releases/qakit-vX.Y.Z.zip` 
 
 ## Version
 
-**1.0.2** — see [`CHANGELOG.md`](CHANGELOG.md) for full version history.
+**1.0.4** — see [`CHANGELOG.md`](CHANGELOG.md) for full version history.
 
 ## License
 

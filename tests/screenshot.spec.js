@@ -31,8 +31,8 @@ const FAKE_PNG =
 // Only the functional parts (button labels, onclick handlers, id) are included;
 // visual styling is omitted for brevity.
 // ─────────────────────────────────────────────────────────────────────────────
-async function createPageToast(page, imgUrl = FAKE_PNG, toastLabel = 'Region captured', dlPrefix = 'qakit-region') {
-  await page.evaluate(([imgUrl, toastLabel, dlPrefix]) => {
+async function createPageToast(page, imgUrl = FAKE_PNG, toastLabel = 'Region captured', dlPrefix = 'qakit-region', mkId = 'mk_test_001') {
+  await page.evaluate(([imgUrl, toastLabel, dlPrefix, mkId]) => {
     // Remove stale toast (deduplication — same logic as injectScreenshotToast)
     document.getElementById('__qkit-save-toast')?.remove();
 
@@ -57,9 +57,12 @@ async function createPageToast(page, imgUrl = FAKE_PNG, toastLabel = 'Region cap
 
     const editBtn = document.createElement('button');
     editBtn.textContent = '✎ Markup';
+    // Dispatches only the pre-stored ID — mirrors background.js injectScreenshotToast.
+    // The full data URL is never routed through the event bridge (avoids storage quota
+    // failures for large full-page screenshots).
     editBtn.onclick = () => {
       window.dispatchEvent(new CustomEvent('__qkitEditScreenshot', {
-        detail: { dataUrl: imgUrl, prefix: dlPrefix },
+        detail: { id: mkId },
       }));
       toast.remove();
     };
@@ -71,7 +74,7 @@ async function createPageToast(page, imgUrl = FAKE_PNG, toastLabel = 'Region cap
     toast.appendChild(saveBtn);
     toast.appendChild(editBtn);
     toast.appendChild(closeBtn);
-  }, [imgUrl, toastLabel, dlPrefix]);
+  }, [imgUrl, toastLabel, dlPrefix, mkId]);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -111,8 +114,8 @@ baseTest.describe('Page-injected screenshot toast (injectScreenshotToast)', () =
     await expect(page.locator('#__qkit-save-toast button:has-text("✕")')).toBeVisible();
   });
 
-  baseTest('Edit button dispatches __qkitEditScreenshot with correct dataUrl', async () => {
-    await createPageToast(page, FAKE_PNG, 'Test capture', 'qakit-region');
+  baseTest('Edit button dispatches __qkitEditScreenshot with pre-stored id (not dataUrl)', async () => {
+    await createPageToast(page, FAKE_PNG, 'Test capture', 'qakit-region', 'mk_abc123');
 
     // Step 1: register a listener that stores the event detail on window
     await page.evaluate(() => {
@@ -125,11 +128,13 @@ baseTest.describe('Page-injected screenshot toast (injectScreenshotToast)', () =
     const detail = await page.evaluate(() => window.__editDetail);
 
     expect(detail).not.toBeNull();
-    expect(detail.dataUrl).toBe(FAKE_PNG);
+    // Must dispatch only the pre-stored ID — never the raw data URL through the event bridge.
+    expect(detail.id).toBe('mk_abc123');
+    expect(detail.dataUrl).toBeUndefined();
   });
 
-  baseTest('Edit button dispatches __qkitEditScreenshot with correct prefix', async () => {
-    await createPageToast(page, FAKE_PNG, 'Test capture', 'qakit-element');
+  baseTest('Edit button dispatches __qkitEditScreenshot with id only (no prefix in event)', async () => {
+    await createPageToast(page, FAKE_PNG, 'Test capture', 'qakit-element', 'mk_xyz789');
 
     await page.evaluate(() => {
       window.__editDetail = null;
@@ -139,7 +144,9 @@ baseTest.describe('Page-injected screenshot toast (injectScreenshotToast)', () =
     const detail = await page.evaluate(() => window.__editDetail);
 
     expect(detail).not.toBeNull();
-    expect(detail.prefix).toBe('qakit-element');
+    expect(detail.id).toBe('mk_xyz789');
+    // Prefix is stored server-side with the image — not sent through the event bridge.
+    expect(detail.prefix).toBeUndefined();
   });
 
   baseTest('Edit button removes the toast after dispatching event', async () => {
