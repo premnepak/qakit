@@ -1000,6 +1000,7 @@
     } else {
       // Show top 4 ranked candidates
       const TIER_COLORS = { 1: '#00e5a0', 2: '#7dd3a0', 3: '#ff9f43', 4: '#ff9f43', 5: '#ffb27a', 6: '#ff7575' };
+      const TIER_BG     = { 1: 'rgba(0,229,160,.15)', 2: 'rgba(125,211,160,.13)', 3: 'rgba(255,159,67,.15)', 4: 'rgba(255,159,67,.15)', 5: 'rgba(255,178,122,.13)', 6: 'rgba(255,117,117,.15)' };
       // Filter out candidates that can't be expressed natively in the active
       // output style (e.g. Cypress + non-text XPath). formatForOutput returns
       // null in that case.
@@ -1013,9 +1014,10 @@
         const color      = TIER_COLORS[c.tier] || '#999';
         const formatted  = formatForOutput(c, outStyle);
         const dispVal    = formatted.length > 80 ? formatted.slice(0, 80) + '…' : formatted;
+        const labelPill  = '<span style="color:' + color + ';font-size:10.5px;background:' + (TIER_BG[c.tier] || 'rgba(255,255,255,.1)') + ';padding:1px 6px;border-radius:3px;font-weight:700;letter-spacing:.2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + c.label + '</span>';
         const countBadge = c.isUnique
-          ? '<span style="color:#00e5a0;font-size:10.5px;background:rgba(0,229,160,.16);padding:1px 5px;border-radius:3px;flex-shrink:0">✓ unique</span>'
-          : '<span style="color:#ff9f43;font-size:10.5px;background:rgba(255,159,67,.16);padding:1px 5px;border-radius:3px;flex-shrink:0">⚠ ' + c.count + '×</span>';
+          ? '<span style="color:rgba(0,229,160,.65);font-size:10px;flex-shrink:0">✓ unique</span>'
+          : '<span style="color:rgba(255,159,67,.65);font-size:10px;flex-shrink:0">⚠ ' + c.count + '×</span>';
         const isPrimary  = idx === 0;
         const dataVal    = String(formatted).replace(/&/g,'&amp;').replace(/"/g,'&quot;');
         const dispEsc    = String(dispVal).replace(/</g,'&lt;').replace(/>/g,'&gt;');
@@ -1025,11 +1027,12 @@
           : 'background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.11);';
         html += '<div class="__q-copy-row __q-cand-row' + (isPrimary ? ' __q-primary' : '') + '" data-copy="' + dataVal + '" ' +
           'style="display:flex;gap:6px;min-width:0;padding:5px 7px;border-radius:5px;margin-bottom:3px;' + cardBg + '">' +
-          // Col 1 (fixed): label on top, uniqueness badge below
+          // Col 1 (fixed): label pill on top, count plain text below
           '<div style="flex-shrink:0;width:86px;display:flex;flex-direction:column;gap:4px;">' +
-            '<span style="color:' + color + ';font-size:11px;font-weight:' + (isPrimary ? '700' : '600') + ';letter-spacing:.2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' +
-              '<span style="opacity:.55;margin-right:4px">' + RANK_BADGES[idx] + '</span>' + c.label +
-            '</span>' +
+            '<div style="display:flex;align-items:center;gap:3px;min-width:0;">' +
+              '<span style="opacity:.4;font-size:10px;flex-shrink:0">' + RANK_BADGES[idx] + '</span>' +
+              labelPill +
+            '</div>' +
             countBadge +
           '</div>' +
           // Col 2 (flex): locator text left, copy button right
@@ -1077,7 +1080,7 @@
       html += '</div>';
     }
 
-    html += '<div style="font-size:10.5px;color:rgba(255,255,255,.45);margin-top:5px;text-align:right;padding:0 2px;line-height:1.6">click element to 📌 pin/unpin (P) · Esc exit<br>⎘ copy · Alt/⌥-click drill · click crumb to navigate</div>';
+    html += '<div style="font-size:10.5px;color:rgba(255,255,255,.45);margin-top:5px;text-align:right;padding:0 2px;line-height:1.6">press P to 📌 pin/unpin · Esc exit<br>⎘ copy · Alt/⌥-click drill · click crumb to navigate</div>';
     html += '</div>';
     badge.innerHTML = html;
     // Wire copy buttons via event delegation (must happen after innerHTML set)
