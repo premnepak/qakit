@@ -1080,7 +1080,7 @@
       html += '</div>';
     }
 
-    html += '<div style="font-size:10.5px;color:rgba(255,255,255,.45);margin-top:5px;text-align:right;padding:0 2px;line-height:1.6">press P to 📌 pin/unpin · Esc exit<br>⎘ copy · Alt/⌥-click drill · click crumb to navigate</div>';
+    html += '<div style="font-size:10.5px;color:rgba(255,255,255,.45);margin-top:5px;text-align:center;padding:0 2px;line-height:1.6">press P to 📌 pin/unpin · Esc to Exit<br>⎘ copy · Alt/⌥-click drill · click crumb to navigate</div>';
     html += '</div>';
     badge.innerHTML = html;
     // Wire copy buttons via event delegation (must happen after innerHTML set)
