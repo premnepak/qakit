@@ -36,7 +36,14 @@ async function injectInspector(page, mode = 'spacing') {
 // Using hover() instead of dispatchEvent keeps clientX/clientY at the
 // element's centre, preventing a native mousemove at (0,0) from racing
 // with the rAF callback and picking up the <html> element instead.
+// The double hover+rAF sequence handles a CI Xvfb edge case where Playwright
+// dispatches a synthetic mousemove on <body> after the first rAF flush,
+// causing the inspector to re-render for body (no margins → margin box hidden,
+// no overlay → green overlay hidden). The second hover re-anchors the cursor
+// back onto the target element so the final state is correct.
 async function hoverAndFlush(page, selector) {
+  await page.locator(selector).hover();
+  await page.evaluate(() => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r))));
   await page.locator(selector).hover();
   await page.evaluate(() => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r))));
 }
