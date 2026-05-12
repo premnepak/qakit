@@ -32,11 +32,12 @@ async function injectInspector(page, mode = 'spacing') {
   await page.addScriptTag({ path: INSPECTOR_JS });
 }
 
-// Helper: dispatch a real mousemove event on an element and flush the rAF
+// Helper: move the real cursor over an element and flush the rAF.
+// Using hover() instead of dispatchEvent keeps clientX/clientY at the
+// element's centre, preventing a native mousemove at (0,0) from racing
+// with the rAF callback and picking up the <html> element instead.
 async function hoverAndFlush(page, selector) {
-  const el = page.locator(selector);
-  await el.dispatchEvent('mousemove', { bubbles: true, cancelable: true });
-  // Flush the requestAnimationFrame that inspector.js schedules
+  await page.locator(selector).hover();
   await page.evaluate(() => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r))));
 }
 
