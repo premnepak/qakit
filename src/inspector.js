@@ -1598,7 +1598,8 @@
     if (!window.__qInspectorActive) return;
     // If pinned, badge is frozen — don't update on mouse move
     if (window.__qInspectorPinned) return;
-    const el = e.target;
+    // Use elementFromPoint to get the topmost element under the cursor
+    const el = document.elementFromPoint(e.clientX, e.clientY) || e.target;
     if (el === overlay || el === badge || el === spacingPanel ||
         el === marginBox || el === paddingBox || el === contentBox ||
         (el.id && el.id.startsWith('__q-'))) return;
