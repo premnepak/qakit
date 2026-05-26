@@ -15,7 +15,7 @@ module.exports = defineConfig({
   // Each spec file gets a fresh browser context via the fixtures — no shared use: block needed.
   use: {
     browserName: 'chromium',
-    headless: false, // Chrome extensions require headed mode
+    headless: true, // Run in headless mode for CI compatibility
     launchOptions: {
       args: [
         `--disable-extensions-except=${extensionPath}`,
