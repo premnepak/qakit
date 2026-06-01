@@ -156,6 +156,24 @@ test.describe('Spacing Inspector', () => {
     expect(text).toContain('16 px');
   });
 
+  test('A toggles page-wide gap overlays in spacing mode', async () => {
+    await hoverAndFlush(page, '#box-a');
+    await page.keyboard.press('a');
+
+    await expect(page.locator('#__q-gap-all-layer')).toBeVisible();
+    await expect(page.locator('#__q-gap-all-layer > div')).toHaveCount(6);
+  });
+
+  test('A toggle clears page-wide gap overlays when pressed again', async () => {
+    await hoverAndFlush(page, '#box-a');
+    await page.keyboard.press('a');
+    await expect(page.locator('#__q-gap-all-layer')).toBeVisible();
+
+    await page.keyboard.press('a');
+    await expect(page.locator('#__q-gap-all-layer')).toBeHidden();
+    await expect(page.locator('#__q-gap-all-layer > div')).toHaveCount(0);
+  });
+
   test('overlays hidden after hovering another element', async () => {
     await hoverAndFlush(page, '#box-a');
     await expect(page.locator('#__q-spacing-content')).toBeVisible();
