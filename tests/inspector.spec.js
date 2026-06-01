@@ -65,6 +65,8 @@ const FIXTURE_HTML = `<!DOCTYPE html><html><body style="margin:0;padding:40px;fo
     <div id="left"  style="width:80px;height:40px;background:green;margin-right:16px"></div>
     <div id="right" style="width:80px;height:40px;background:orange"></div>
   </div>
+  <div id="flex-card" style="display:flex;justify-content:center;align-items:center;gap:12px;min-height:48px;border-radius:800px;background:#DF0000;padding:4px 24px;margin-top:40px">
+  </div>
 </body></html>`;
 
 // ─── SPACING INSPECTOR tests ──────────────────────────────────────────────────
@@ -161,7 +163,7 @@ test.describe('Spacing Inspector', () => {
     await page.keyboard.press('a');
 
     await expect(page.locator('#__q-gap-all-layer')).toBeVisible();
-    await expect(page.locator('#__q-gap-all-layer > div')).toHaveCount(6);
+    await expect(page.locator('#__q-gap-all-layer > div')).toHaveCount(8);
   });
 
   test('A toggle clears page-wide gap overlays when pressed again', async () => {
@@ -192,6 +194,65 @@ test.describe('Spacing Inspector', () => {
     if (count > 0) {
       await expect(prevBox).toBeHidden();
     }
+  });
+
+  // ── Layout section ────────────────────────────────────────────────────────
+
+  test('panel shows display value', async () => {
+    await hoverAndFlush(page, '#flex-card');
+    const text = await page.locator('#__q-spacing-panel').innerText();
+    expect(text).toContain('Display');
+    expect(text).toContain('flex');
+  });
+
+  test('panel shows justify-content for flex element', async () => {
+    await hoverAndFlush(page, '#flex-card');
+    const text = await page.locator('#__q-spacing-panel').innerText();
+    expect(text).toContain('Justify');
+    expect(text).toContain('center');
+  });
+
+  test('panel shows align-items for flex element', async () => {
+    await hoverAndFlush(page, '#flex-card');
+    const text = await page.locator('#__q-spacing-panel').innerText();
+    expect(text).toContain('Align');
+    expect(text).toContain('center');
+  });
+
+  test('panel shows css gap for flex element', async () => {
+    await hoverAndFlush(page, '#flex-card');
+    const text = await page.locator('#__q-spacing-panel').innerText();
+    expect(text).toContain('Gap');
+    expect(text).toContain('12px');
+  });
+
+  test('panel shows min-height when non-zero', async () => {
+    await hoverAndFlush(page, '#flex-card');
+    const text = await page.locator('#__q-spacing-panel').innerText();
+    expect(text).toContain('Min height');
+    expect(text).toContain('48px');
+  });
+
+  test('panel does not show flex layout props for non-flex element', async () => {
+    await hoverAndFlush(page, '#box-a');
+    const text = await page.locator('#__q-spacing-panel').innerText();
+    expect(text).not.toContain('Justify');
+    expect(text).not.toContain('Align items');
+  });
+
+  // ── Style section ────────────────────────────────────────────────────────
+
+  test('panel shows border-radius when non-zero', async () => {
+    await hoverAndFlush(page, '#flex-card');
+    const text = await page.locator('#__q-spacing-panel').innerText();
+    expect(text).toContain('Border radius');
+    expect(text).toContain('800px');
+  });
+
+  test('panel does not show border-radius for element with none', async () => {
+    await hoverAndFlush(page, '#box-a');
+    const text = await page.locator('#__q-spacing-panel').innerText();
+    expect(text).not.toContain('Border radius');
   });
 });
 

@@ -1367,9 +1367,18 @@
       fontSize:    cs.fontSize,
       fontWeight:  cs.fontWeight,
       fontFamily:  primaryFont,
+      fontStyle:   cs.fontStyle,
       lineHeight:  cs.lineHeight,
+      letterSpacing: cs.letterSpacing,
       gapToNext,
       gapToPrev,
+      // Layout
+      minHeight:      cs.minHeight,
+      justifyContent: cs.justifyContent,
+      alignItems:     cs.alignItems,
+      cssGap:         cs.gap,
+      // Style
+      borderRadius:   cs.borderRadius,
     };
   }
 
@@ -1547,6 +1556,20 @@
     const vw = window.innerWidth;
     const vh = window.innerHeight;
 
+    // Format spacing values to 2 decimal places
+    function formatSpacing(val) {
+      if (!val || val === 'normal') return val;
+      const match = String(val).match(/^([-\d.]+)(\s*)(.*?)$/);
+      if (!match) return val;
+      const num = parseFloat(match[1]);
+      const space = match[2]; // preserve original spacing
+      const unit = match[3] || '';
+      if (isNaN(num)) return val;
+      // Round to 2 decimal places and remove trailing zeros
+      const rounded = Math.round(num * 100) / 100;
+      return rounded.toString() + space + unit;
+    }
+
     // Colour swatch helper
     function swatch(hex) {
       if (!hex) return '';
@@ -1573,44 +1596,57 @@
       '<div style="padding:8px 10px;display:flex;flex-direction:column;gap:4px;">' +
         // Size
         sRow('W × H', s.w + ' × ' + s.h + ' px', '#00e5a0') +
+        // Layout (display + flex/grid props)
+        '<div style="border-top:1px solid rgba(255,255,255,.12);margin:3px 0 1px;padding-top:4px;">' +
+          sRow('Display', s.display, '#a8d8ea') +
+          (s.minHeight && s.minHeight !== '0px' && s.minHeight !== 'auto' ? sRow('Min height', s.minHeight, '#a8d8ea') : '') +
+          ((s.display === 'flex' || s.display === 'inline-flex' || s.display === 'grid' || s.display === 'inline-grid')
+            ? sRow('Justify', s.justifyContent, '#a8d8ea') +
+              sRow('Align', s.alignItems, '#a8d8ea') +
+              (s.cssGap && s.cssGap !== '0px' && s.cssGap !== 'normal' ? sRow('Gap', s.cssGap, '#a8d8ea') : '')
+            : '') +
+        '</div>' +
         // Gaps between adjacent siblings
         (s.gapToPrev !== null || s.gapToNext !== null
           ? '<div style="border-top:1px solid rgba(255,255,255,.12);margin:3px 0 1px;padding-top:4px;">' +
-            (s.gapToPrev !== null ? sRow((s.gapToPrev.axis === 'V' ? '↑' : '←') + ' Gap to prev', s.gapToPrev.px + ' px', '#ff6b6b') : '') +
-            (s.gapToNext !== null ? sRow((s.gapToNext.axis === 'V' ? '↓' : '→') + ' Gap to next', s.gapToNext.px + ' px', '#ff6b6b') : '') +
+            (s.gapToPrev !== null ? sRow((s.gapToPrev.axis === 'V' ? '↑' : '←') + ' Gap to prev', formatSpacing(s.gapToPrev.px + ' px'), '#ff6b6b') : '') +
+            (s.gapToNext !== null ? sRow((s.gapToNext.axis === 'V' ? '↓' : '→') + ' Gap to next', formatSpacing(s.gapToNext.px + ' px'), '#ff6b6b') : '') +
             '</div>'
           : '') +
         // Padding
         (s.pt||s.pb||s.pl||s.pr
           ? '<div style="border-top:1px solid rgba(255,255,255,.12);margin:3px 0 1px;padding-top:4px;">' +
-            sRow('Padding T/B', s.pt + ' / ' + s.pb + ' px', '#9d8aff') +
-            sRow('Padding L/R', s.pl + ' / ' + s.pr + ' px', '#9d8aff') +
+            sRow('Padding T/B', formatSpacing(s.pt + ' px') + ' / ' + formatSpacing(s.pb + ' px'), '#9d8aff') +
+            sRow('Padding L/R', formatSpacing(s.pl + ' px') + ' / ' + formatSpacing(s.pr + ' px'), '#9d8aff') +
           '</div>' : '') +
         // Margin
         (s.mt||s.mb||s.ml||s.mr
           ? '<div style="border-top:1px solid rgba(255,255,255,.12);margin:3px 0 1px;padding-top:4px;">' +
-            sRow('Margin T/B', s.mt + ' / ' + s.mb + ' px', '#ff9f43') +
-            sRow('Margin L/R', s.ml + ' / ' + s.mr + ' px', '#ff9f43') +
+            sRow('Margin T/B', formatSpacing(s.mt + ' px') + ' / ' + formatSpacing(s.mb + ' px'), '#ff9f43') +
+            sRow('Margin L/R', formatSpacing(s.ml + ' px') + ' / ' + formatSpacing(s.mr + ' px'), '#ff9f43') +
           '</div>' : '') +
         // Border
         (s.bt||s.br||s.bb||s.bl
           ? '<div style="border-top:1px solid rgba(255,255,255,.12);margin:3px 0 1px;padding-top:4px;">' +
-            sRow('Border T/B', s.bt + ' / ' + s.bb + ' px', '#7ec8e3') +
-            sRow('Border L/R', s.bl + ' / ' + s.br + ' px', '#7ec8e3') +
+            sRow('Border T/B', formatSpacing(s.bt + ' px') + ' / ' + formatSpacing(s.bb + ' px'), '#7ec8e3') +
+            sRow('Border L/R', formatSpacing(s.bl + ' px') + ' / ' + formatSpacing(s.br + ' px'), '#7ec8e3') +
           '</div>' : '') +
-        // Colours
-        (s.color || s.bgColor || s.borderColor
+        // Style (border-radius + colours)
+        (s.borderRadius && s.borderRadius !== '0px' || s.color || s.bgColor || s.borderColor
           ? '<div style="border-top:1px solid rgba(255,255,255,.12);margin:3px 0 1px;padding-top:4px;">' +
+            (s.borderRadius && s.borderRadius !== '0px' ? sRow('Border radius', s.borderRadius, '#e8e8f0') : '') +
             colorRow('Text colour', s.color, '#e8e8f0') +
             colorRow('Background', s.bgColor, '#e8e8f0') +
             colorRow('Border colour', s.borderColor, '#e8e8f0') +
           '</div>' : '') +
         // Typography
-        (s.fontFamily
+        (s.fontFamily || s.lineHeight || s.letterSpacing
           ? '<div style="border-top:1px solid rgba(255,255,255,.12);margin:3px 0 1px;padding-top:4px;">' +
-            sRow('Font', s.fontFamily, '#f9c74f') +
-            sRow('Size / Weight', s.fontSize + ' / ' + s.fontWeight, '#f9c74f') +
-            (s.lineHeight && s.lineHeight !== 'normal' ? sRow('Line height', s.lineHeight, '#f9c74f') : '') +
+            (s.fontFamily ? sRow('Font', s.fontFamily, '#f9c74f') : '') +
+            (s.fontStyle && s.fontStyle !== 'normal' ? sRow('Style', s.fontStyle, '#f9c74f') : '') +
+            (s.fontFamily ? sRow('Size / Weight', formatSpacing(s.fontSize) + ' / ' + s.fontWeight, '#f9c74f') : '') +
+            (s.lineHeight && s.lineHeight !== 'normal' ? sRow('Line height', formatSpacing(s.lineHeight), '#f9c74f') : '') +
+            (s.letterSpacing && s.letterSpacing !== 'normal' ? sRow('Letter spacing', formatSpacing(s.letterSpacing), '#f9c74f') : '') +
           '</div>' : '') +
         '<div style="border-top:1px solid rgba(255,255,255,.12);margin:3px 0 0;padding-top:4px;font-size:11px;color:rgba(255,255,255,.58);">' +
           'A = ' + (showAllSpacingGaps ? 'Hide' : 'Show') + ' all page gaps' +
