@@ -1089,7 +1089,9 @@
       html += '</div>';
     }
 
-    html += '<div style="font-size:10.5px;color:rgba(255,255,255,.45);margin-top:5px;text-align:center;padding:0 2px;line-height:1.6">press P to 📌 pin/unpin · Esc to Exit<br>⎘ copy · Alt/⌥-click drill · click crumb to navigate</div>';
+    html += '<div style="font-size:10.5px;color:#7ec8ff;margin-top:5px;text-align:center;padding:0 2px;line-height:1.6;display:flex;justify-content:center;">' +
+      '<span style="display:inline-block;padding:3px 8px;border-radius:4px;border:1px solid rgba(126,200,255,.45);background:rgba(80,160,255,.12);max-width:100%;">Press <strong style="font-weight:800;color:#ff7d7d">P</strong> to 📌 pin/unpin · <strong style="font-weight:800;color:#ff7d7d">Esc</strong> to Exit<br><span style="color:#ff7d7d;font-weight:800">⎘</span> copy · <span style="color:#ff7d7d;font-weight:800">Alt/⌥</span>-click drill · click <span style="color:#ff7d7d;font-weight:800">crumb</span> to navigate</span>' +
+    '</div>';
     html += '</div>';
     badge.innerHTML = html;
     // Wire copy buttons via event delegation (must happen after innerHTML set)
@@ -1648,8 +1650,10 @@
             (s.lineHeight && s.lineHeight !== 'normal' ? sRow('Line height', formatSpacing(s.lineHeight), '#f9c74f') : '') +
             (s.letterSpacing && s.letterSpacing !== 'normal' ? sRow('Letter spacing', formatSpacing(s.letterSpacing), '#f9c74f') : '') +
           '</div>' : '') +
-        '<div style="border-top:1px solid rgba(255,255,255,.12);margin:3px 0 0;padding-top:4px;font-size:11px;color:rgba(255,255,255,.58);">' +
-          'A = ' + (showAllSpacingGaps ? 'Hide' : 'Show') + ' all page gaps' +
+        '<div style="border-top:1px solid rgba(255,255,255,.12);margin:4px 0 0;padding-top:6px;">' +
+          '<span style="display:inline-block;padding:3px 8px;border-radius:6px;border:1px solid rgba(126,200,255,.45);background:rgba(80,160,255,.12);font-size:11.5px;letter-spacing:.05px;color:#7ec8ff;white-space:nowrap;">' +
+            'Press <strong style="font-weight:800;color:#ff7d7d;">A</strong> = ' + (showAllSpacingGaps ? 'Hide' : 'Show') + ' <span style="text-decoration:underline;text-underline-offset:1px;font-weight:700;color:#ff7d7d;">A</span>ll page gaps' +
+          '</span>' +
         '</div>' +
       '</div>';
 
