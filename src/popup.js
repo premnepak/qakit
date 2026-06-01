@@ -2039,7 +2039,7 @@ async function activateInspector(mode) {
           document.documentElement.style.cursor = 'crosshair';
           // Hide stale overlays from previous mode
           ['__q-inspector-overlay','__q-inspector-badge',
-           '__q-spacing-margin','__q-spacing-padding','__q-spacing-content','__q-spacing-panel',
+           '__q-spacing-margin','__q-spacing-padding','__q-spacing-content','__q-spacing-panel','__q-gap-all-layer',
            '__q-dim-w','__q-dim-h','__q-dim-pt','__q-dim-pb','__q-dim-pl','__q-dim-pr',
            '__q-dim-mt','__q-dim-mb','__q-dim-ml','__q-dim-mr'].forEach(id => {
             const el = document.getElementById(id);
@@ -2093,7 +2093,7 @@ async function deactivateInspector() {
         } catch(_) {}
         document.documentElement.style.cursor = '';
         ['__q-inspector-overlay','__q-inspector-badge',
-         '__q-spacing-margin','__q-spacing-padding','__q-spacing-content','__q-spacing-panel',
+         '__q-spacing-margin','__q-spacing-padding','__q-spacing-content','__q-spacing-panel','__q-gap-all-layer',
          '__q-dim-w','__q-dim-h','__q-dim-pt','__q-dim-pb','__q-dim-pl','__q-dim-pr',
          '__q-dim-mt','__q-dim-mb','__q-dim-ml','__q-dim-mr'].forEach(id => {
           const el = document.getElementById(id);
