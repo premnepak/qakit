@@ -141,11 +141,20 @@
   });
   document.documentElement.appendChild(spacingPanel);
 
+  const allGapLayer = document.createElement('div');
+  allGapLayer.id = '__q-gap-all-layer';
+  Object.assign(allGapLayer.style, {
+    position: 'fixed', inset: '0px', pointerEvents: 'none', zIndex: '2147483642',
+    display: 'none',
+  });
+  document.documentElement.appendChild(allGapLayer);
+
   // ── Hide all ──────────────────────────────────────────────────────────────
   function hideAll() {
-    [overlay, badge, marginBox, paddingBox, contentBox, spacingPanel].forEach(el => {
+    [overlay, badge, marginBox, paddingBox, contentBox, spacingPanel, allGapLayer].forEach(el => {
       el.style.display = 'none';
     });
+    allGapLayer.replaceChildren();
     ['__q-dim-w','__q-dim-h','__q-dim-pt','__q-dim-pb','__q-dim-pl','__q-dim-pr',
      '__q-dim-mt','__q-dim-mb','__q-dim-ml','__q-dim-mr',
      '__q-gap-prev','__q-gap-next','__q-gap-prev-lbl','__q-gap-next-lbl'].forEach(id => {
@@ -1145,6 +1154,160 @@
   // SPACING MODE HELPERS
   // ══════════════════════════════════════════════════════════════════════════
 
+  let showAllSpacingGaps = false;
+
+  function detectSiblingGap(elRect, siblingRect, relation) {
+    if (!elRect || !siblingRect) return null;
+    if (relation === 'prev') {
+      const vGap = Math.round(elRect.top - siblingRect.bottom);
+      const hGap = Math.round(elRect.left - siblingRect.right);
+      if (Math.abs(vGap) < 400 && siblingRect.bottom <= elRect.top + 2) {
+        return { axis: 'V', px: vGap, sibRect: siblingRect };
+      }
+      if (Math.abs(hGap) < 400 && siblingRect.right <= elRect.left + 2) {
+        return { axis: 'H', px: hGap, sibRect: siblingRect };
+      }
+      return null;
+    }
+
+    const vGap = Math.round(siblingRect.top - elRect.bottom);
+    const hGap = Math.round(siblingRect.left - elRect.right);
+    if (Math.abs(vGap) < 400 && elRect.bottom <= siblingRect.top + 2) {
+      return { axis: 'V', px: vGap, sibRect: siblingRect };
+    }
+    if (Math.abs(hGap) < 400 && elRect.right <= siblingRect.left + 2) {
+      return { axis: 'H', px: hGap, sibRect: siblingRect };
+    }
+    return null;
+  }
+
+  function getGapBoxMetrics(gap, elRect) {
+    if (!gap || gap.px <= 0) return null;
+    const sr = gap.sibRect;
+    const er = elRect;
+    let top, left, width, height;
+    if (gap.axis === 'V') {
+      const upper = er.bottom <= sr.top ? er : sr;
+      const lower = er.bottom <= sr.top ? sr : er;
+      top = upper.bottom;
+      height = lower.top - upper.bottom;
+      const xL = Math.max(er.left, sr.left);
+      const xR = Math.min(er.right, sr.right);
+      if (xR > xL) {
+        left = xL;
+        width = xR - xL;
+      } else {
+        left = Math.min(er.left, sr.left);
+        width = Math.max(er.right, sr.right) - left;
+      }
+    } else {
+      const lft = er.right <= sr.left ? er : sr;
+      const rgt = er.right <= sr.left ? sr : er;
+      left  = lft.right;
+      width = rgt.left - lft.right;
+      const yT = Math.max(er.top, sr.top);
+      const yB = Math.min(er.bottom, sr.bottom);
+      if (yB > yT) {
+        top = yT;
+        height = yB - yT;
+      } else {
+        top = Math.min(er.top, sr.top);
+        height = Math.max(er.bottom, sr.bottom) - top;
+      }
+    }
+    if (width < 1 || height < 1) return null;
+    return { top, left, width, height, axis: gap.axis };
+  }
+
+  function isGapCandidate(el) {
+    if (!el || el.nodeType !== 1) return false;
+    const tag = el.tagName ? el.tagName.toLowerCase() : '';
+    if (!tag || tag === 'script' || tag === 'style' || tag === 'link' || tag === 'meta') return false;
+    if (el.id && el.id.startsWith('__q-')) return false;
+    const rect = el.getBoundingClientRect();
+    if (rect.width < 1 || rect.height < 1) return false;
+    if (rect.bottom < 0 || rect.top > window.innerHeight || rect.right < 0 || rect.left > window.innerWidth) return false;
+    return true;
+  }
+
+  function renderAllSpacingGaps() {
+    allGapLayer.replaceChildren();
+    if (!showAllSpacingGaps || !window.__qInspectorActive || window.__qInspectorMode !== 'spacing') {
+      allGapLayer.style.display = 'none';
+      return;
+    }
+
+    const lineColor = 'rgba(230,60,60,0.85)';
+    const labelBg = 'rgba(220,50,50,0.92)';
+    let rendered = 0;
+    const nodes = document.body ? document.body.querySelectorAll('*') : [];
+
+    for (const el of nodes) {
+      if (!isGapCandidate(el)) continue;
+      const next = el.nextElementSibling;
+      if (!isGapCandidate(next)) continue;
+      const rect = el.getBoundingClientRect();
+      const nextRect = next.getBoundingClientRect();
+      const gap = detectSiblingGap(rect, nextRect, 'next');
+      const metrics = getGapBoxMetrics(gap, rect);
+      if (!metrics) continue;
+
+      const box = document.createElement('div');
+      Object.assign(box.style, {
+        position: 'absolute',
+        top: metrics.top + 'px',
+        left: metrics.left + 'px',
+        width: metrics.width + 'px',
+        height: metrics.height + 'px',
+        boxSizing: 'border-box',
+        border: 'none',
+        background: metrics.axis === 'V'
+          ? `linear-gradient(to bottom,${lineColor},${lineColor}) center/1px 100% no-repeat,` +
+            `linear-gradient(to right,${lineColor},${lineColor}) 0 0/100% 1px no-repeat,` +
+            `linear-gradient(to right,${lineColor},${lineColor}) 0 100%/100% 1px no-repeat`
+          : `linear-gradient(to right,${lineColor},${lineColor}) 0 center/100% 1px no-repeat,` +
+            `linear-gradient(to bottom,${lineColor},${lineColor}) 0 0/1px 100% no-repeat,` +
+            `linear-gradient(to bottom,${lineColor},${lineColor}) 100% 0/1px 100% no-repeat`,
+      });
+      allGapLayer.appendChild(box);
+
+      const label = document.createElement('div');
+      label.textContent = gap.px + 'px';
+      Object.assign(label.style, {
+        position: 'absolute',
+        fontFamily: 'ui-monospace,"SF Mono",Menlo,Consolas,monospace',
+        fontWeight: '700',
+        fontSize: '11px',
+        lineHeight: '1',
+        padding: '2px 5px',
+        borderRadius: '3px',
+        background: labelBg,
+        color: '#fff',
+        boxShadow: '0 1px 4px rgba(0,0,0,.5)',
+        outline: '1.5px solid rgba(180,0,0,0.7)',
+        whiteSpace: 'nowrap',
+      });
+      allGapLayer.appendChild(label);
+
+      const labelWidth = 32;
+      const labelHeight = 18;
+      let labelLeft = metrics.left + metrics.width / 2 - labelWidth / 2;
+      let labelTop = metrics.top + metrics.height / 2 - labelHeight / 2;
+      if (metrics.axis === 'V') {
+        labelLeft += Math.min(12, metrics.width * 0.25);
+        if (metrics.height < labelHeight + 4) labelTop = Math.max(4, metrics.top - labelHeight - 3);
+      } else {
+        labelTop -= Math.min(12, metrics.height * 0.25);
+        if (metrics.width < labelWidth + 4) labelLeft = Math.min(metrics.left + metrics.width + 3, window.innerWidth - labelWidth - 4);
+      }
+      label.style.left = Math.max(4, Math.min(labelLeft, window.innerWidth - labelWidth - 4)) + 'px';
+      label.style.top = Math.max(4, Math.min(labelTop, window.innerHeight - labelHeight - 4)) + 'px';
+      rendered += 1;
+    }
+
+    allGapLayer.style.display = rendered ? 'block' : 'none';
+  }
+
   function getSpacing(el) {
     const cs  = window.getComputedStyle(el);
     const r   = el.getBoundingClientRect();
@@ -1165,21 +1328,13 @@
     let gapToNext = null;
     const next = el.nextElementSibling;
     if (next) {
-      const nr = next.getBoundingClientRect();
-      const vGap = Math.round(nr.top - r.bottom);
-      const hGap = Math.round(nr.left - r.right);
-      if (Math.abs(vGap) < 400 && r.bottom <= nr.top + 2)      gapToNext = { axis: 'V', px: vGap, sibRect: nr };
-      else if (Math.abs(hGap) < 400 && r.right <= nr.left + 2) gapToNext = { axis: 'H', px: hGap, sibRect: nr };
+      gapToNext = detectSiblingGap(r, next.getBoundingClientRect(), 'next');
     }
     // ── Gap to previous sibling ──────────────────────────────────────────────
     let gapToPrev = null;
     const prev = el.previousElementSibling;
     if (prev) {
-      const pr = prev.getBoundingClientRect();
-      const vGap2 = Math.round(r.top - pr.bottom);
-      const hGap2 = Math.round(r.left - pr.right);
-      if (Math.abs(vGap2) < 400 && pr.bottom <= r.top + 2)     gapToPrev = { axis: 'V', px: vGap2, sibRect: pr };
-      else if (Math.abs(hGap2) < 400 && pr.right <= r.left + 2) gapToPrev = { axis: 'H', px: hGap2, sibRect: pr };
+      gapToPrev = detectSiblingGap(r, prev.getBoundingClientRect(), 'prev');
     }
 
     return {
@@ -1212,9 +1367,18 @@
       fontSize:    cs.fontSize,
       fontWeight:  cs.fontWeight,
       fontFamily:  primaryFont,
+      fontStyle:   cs.fontStyle,
       lineHeight:  cs.lineHeight,
+      letterSpacing: cs.letterSpacing,
       gapToNext,
       gapToPrev,
+      // Layout
+      minHeight:      cs.minHeight,
+      justifyContent: cs.justifyContent,
+      alignItems:     cs.alignItems,
+      cssGap:         cs.gap,
+      // Style
+      borderRadius:   cs.borderRadius,
     };
   }
 
@@ -1235,35 +1399,14 @@
 
   function positionGapBox(boxId, labelId, gap, elRect) {
     const box = makeGapBox(boxId);
-    if (!gap || gap.px <= 0) {
+    const metrics = getGapBoxMetrics(gap, elRect);
+    if (!metrics) {
       box.style.display = 'none';
       const lbl = document.getElementById(labelId);
       if (lbl) lbl.style.display = 'none';
       return;
     }
-    const sr = gap.sibRect;
-    const er = elRect;
-    let top, left, width, height;
-    if (gap.axis === 'V') {
-      const upper = er.bottom <= sr.top ? er : sr;
-      const lower = er.bottom <= sr.top ? sr : er;
-      top = upper.bottom;
-      height = lower.top - upper.bottom;
-      const xL = Math.max(er.left, sr.left);
-      const xR = Math.min(er.right, sr.right);
-      if (xR > xL) { left = xL; width = xR - xL; }
-      else { left = Math.min(er.left, sr.left); width = Math.max(er.right, sr.right) - left; }
-    } else {
-      const lft = er.right <= sr.left ? er : sr;
-      const rgt = er.right <= sr.left ? sr : er;
-      left  = lft.right;
-      width = rgt.left - lft.right;
-      const yT = Math.max(er.top, sr.top);
-      const yB = Math.min(er.bottom, sr.bottom);
-      if (yB > yT) { top = yT; height = yB - yT; }
-      else { top = Math.min(er.top, sr.top); height = Math.max(er.bottom, sr.bottom) - top; }
-    }
-    if (width < 1 || height < 1) { box.style.display = 'none'; return; }
+    const { top, left, width, height } = metrics;
     const lc = 'rgba(230,60,60,0.85)';
     const bg = gap.axis === 'V'
       ? `linear-gradient(to bottom,${lc},${lc}) center/1px 100% no-repeat,` +
@@ -1309,6 +1452,8 @@
   function positionSpacing(el) {
     const s = getSpacing(el);
     const r = s.rect;
+
+    renderAllSpacingGaps();
 
     // Content box = element bounding rect
     Object.assign(contentBox.style, {
@@ -1411,6 +1556,20 @@
     const vw = window.innerWidth;
     const vh = window.innerHeight;
 
+    // Format spacing values to 2 decimal places
+    function formatSpacing(val) {
+      if (!val || val === 'normal') return val;
+      const match = String(val).match(/^([-\d.]+)(\s*)(.*?)$/);
+      if (!match) return val;
+      const num = parseFloat(match[1]);
+      const space = match[2]; // preserve original spacing
+      const unit = match[3] || '';
+      if (isNaN(num)) return val;
+      // Round to 2 decimal places and remove trailing zeros
+      const rounded = Math.round(num * 100) / 100;
+      return rounded.toString() + space + unit;
+    }
+
     // Colour swatch helper
     function swatch(hex) {
       if (!hex) return '';
@@ -1437,45 +1596,61 @@
       '<div style="padding:8px 10px;display:flex;flex-direction:column;gap:4px;">' +
         // Size
         sRow('W × H', s.w + ' × ' + s.h + ' px', '#00e5a0') +
+        // Layout (display + flex/grid props)
+        '<div style="border-top:1px solid rgba(255,255,255,.12);margin:3px 0 1px;padding-top:4px;">' +
+          sRow('Display', s.display, '#a8d8ea') +
+          (s.minHeight && s.minHeight !== '0px' && s.minHeight !== 'auto' ? sRow('Min height', s.minHeight, '#a8d8ea') : '') +
+          ((s.display === 'flex' || s.display === 'inline-flex' || s.display === 'grid' || s.display === 'inline-grid')
+            ? sRow('Justify', s.justifyContent, '#a8d8ea') +
+              sRow('Align', s.alignItems, '#a8d8ea') +
+              (s.cssGap && s.cssGap !== '0px' && s.cssGap !== 'normal' ? sRow('Gap', s.cssGap, '#a8d8ea') : '')
+            : '') +
+        '</div>' +
         // Gaps between adjacent siblings
         (s.gapToPrev !== null || s.gapToNext !== null
           ? '<div style="border-top:1px solid rgba(255,255,255,.12);margin:3px 0 1px;padding-top:4px;">' +
-            (s.gapToPrev !== null ? sRow((s.gapToPrev.axis === 'V' ? '↑' : '←') + ' Gap to prev', s.gapToPrev.px + ' px', '#ff6b6b') : '') +
-            (s.gapToNext !== null ? sRow((s.gapToNext.axis === 'V' ? '↓' : '→') + ' Gap to next', s.gapToNext.px + ' px', '#ff6b6b') : '') +
+            (s.gapToPrev !== null ? sRow((s.gapToPrev.axis === 'V' ? '↑' : '←') + ' Gap to prev', formatSpacing(s.gapToPrev.px + ' px'), '#ff6b6b') : '') +
+            (s.gapToNext !== null ? sRow((s.gapToNext.axis === 'V' ? '↓' : '→') + ' Gap to next', formatSpacing(s.gapToNext.px + ' px'), '#ff6b6b') : '') +
             '</div>'
           : '') +
         // Padding
         (s.pt||s.pb||s.pl||s.pr
           ? '<div style="border-top:1px solid rgba(255,255,255,.12);margin:3px 0 1px;padding-top:4px;">' +
-            sRow('Padding T/B', s.pt + ' / ' + s.pb + ' px', '#9d8aff') +
-            sRow('Padding L/R', s.pl + ' / ' + s.pr + ' px', '#9d8aff') +
+            sRow('Padding T/B', formatSpacing(s.pt + ' px') + ' / ' + formatSpacing(s.pb + ' px'), '#9d8aff') +
+            sRow('Padding L/R', formatSpacing(s.pl + ' px') + ' / ' + formatSpacing(s.pr + ' px'), '#9d8aff') +
           '</div>' : '') +
         // Margin
         (s.mt||s.mb||s.ml||s.mr
           ? '<div style="border-top:1px solid rgba(255,255,255,.12);margin:3px 0 1px;padding-top:4px;">' +
-            sRow('Margin T/B', s.mt + ' / ' + s.mb + ' px', '#ff9f43') +
-            sRow('Margin L/R', s.ml + ' / ' + s.mr + ' px', '#ff9f43') +
+            sRow('Margin T/B', formatSpacing(s.mt + ' px') + ' / ' + formatSpacing(s.mb + ' px'), '#ff9f43') +
+            sRow('Margin L/R', formatSpacing(s.ml + ' px') + ' / ' + formatSpacing(s.mr + ' px'), '#ff9f43') +
           '</div>' : '') +
         // Border
         (s.bt||s.br||s.bb||s.bl
           ? '<div style="border-top:1px solid rgba(255,255,255,.12);margin:3px 0 1px;padding-top:4px;">' +
-            sRow('Border T/B', s.bt + ' / ' + s.bb + ' px', '#7ec8e3') +
-            sRow('Border L/R', s.bl + ' / ' + s.br + ' px', '#7ec8e3') +
+            sRow('Border T/B', formatSpacing(s.bt + ' px') + ' / ' + formatSpacing(s.bb + ' px'), '#7ec8e3') +
+            sRow('Border L/R', formatSpacing(s.bl + ' px') + ' / ' + formatSpacing(s.br + ' px'), '#7ec8e3') +
           '</div>' : '') +
-        // Colours
-        (s.color || s.bgColor || s.borderColor
+        // Style (border-radius + colours)
+        (s.borderRadius && s.borderRadius !== '0px' || s.color || s.bgColor || s.borderColor
           ? '<div style="border-top:1px solid rgba(255,255,255,.12);margin:3px 0 1px;padding-top:4px;">' +
+            (s.borderRadius && s.borderRadius !== '0px' ? sRow('Border radius', s.borderRadius, '#e8e8f0') : '') +
             colorRow('Text colour', s.color, '#e8e8f0') +
             colorRow('Background', s.bgColor, '#e8e8f0') +
             colorRow('Border colour', s.borderColor, '#e8e8f0') +
           '</div>' : '') +
         // Typography
-        (s.fontFamily
+        (s.fontFamily || s.lineHeight || s.letterSpacing
           ? '<div style="border-top:1px solid rgba(255,255,255,.12);margin:3px 0 1px;padding-top:4px;">' +
-            sRow('Font', s.fontFamily, '#f9c74f') +
-            sRow('Size / Weight', s.fontSize + ' / ' + s.fontWeight, '#f9c74f') +
-            (s.lineHeight && s.lineHeight !== 'normal' ? sRow('Line height', s.lineHeight, '#f9c74f') : '') +
+            (s.fontFamily ? sRow('Font', s.fontFamily, '#f9c74f') : '') +
+            (s.fontStyle && s.fontStyle !== 'normal' ? sRow('Style', s.fontStyle, '#f9c74f') : '') +
+            (s.fontFamily ? sRow('Size / Weight', formatSpacing(s.fontSize) + ' / ' + s.fontWeight, '#f9c74f') : '') +
+            (s.lineHeight && s.lineHeight !== 'normal' ? sRow('Line height', formatSpacing(s.lineHeight), '#f9c74f') : '') +
+            (s.letterSpacing && s.letterSpacing !== 'normal' ? sRow('Letter spacing', formatSpacing(s.letterSpacing), '#f9c74f') : '') +
           '</div>' : '') +
+        '<div style="border-top:1px solid rgba(255,255,255,.12);margin:3px 0 0;padding-top:4px;font-size:11px;color:rgba(255,255,255,.58);">' +
+          'A = ' + (showAllSpacingGaps ? 'Hide' : 'Show') + ' all page gaps' +
+        '</div>' +
       '</div>';
 
     spacingPanel.style.display = 'block';
@@ -1737,11 +1912,19 @@
       }
       window.__qInspectorActive = false;
       window.__qInspectorPinned = false;
+      showAllSpacingGaps = false;
       // Cancel any pending rAF to prevent overlay from re-appearing after Esc
       if (rafId) { cancelAnimationFrame(rafId); rafId = null; }
       document.documentElement.style.cursor = '';
       lastTarget = null; hideAll();
       window.dispatchEvent(new CustomEvent('__qInspectorOff'));
+      return;
+    }
+
+    if (window.__qInspectorMode === 'spacing' && (e.key === 'a' || e.key === 'A')) {
+      showAllSpacingGaps = !showAllSpacingGaps;
+      if (lastTarget) positionSpacing(lastTarget);
+      else renderAllSpacingGaps();
       return;
     }
 
