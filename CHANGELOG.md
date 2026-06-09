@@ -14,9 +14,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Updated help/release-policy surfaces (`help.html`, `privacy-policy.html`, `welcome.html`, `changelog.html`) to reflect the new release version.
 - Updated README release references and release-status text to 1.0.5.
 
-### Release
-- Prepared release artifacts for this version (`qakit-v1.0.5.zip` and `qakit-firefox-v1.0.5.zip`).
-
 ---
 
 
