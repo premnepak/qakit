@@ -10,7 +10,7 @@ const { test, expect } = require('./fixtures');
 
 const SAMPLE_JSON = JSON.stringify({
   name: 'qakit',
-  version: '1.0.4',
+  version: '1.0.5',
   features: ['inspect', 'screenshot', 'audit'],
   config: { theme: 'dark', maxEvents: 3000 },
 });

@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "QAKit",
-  "version": "1.0.4",
-  "description": "QAKit — All-in-one toolkit for QA engineers & developers: inspect, capture, audit, mock requests, manage cookies & storage.",
+  "version": "1.0.5",
+  "description": "QAKit \u00e2\u20ac\u201d All-in-one toolkit for QA engineers & developers: inspect, capture, audit, mock requests, manage cookies & storage.",
   "author": "Prem Nepak",
   "homepage_url": "https://github.com/premnepak/qakit",
   "permissions": [

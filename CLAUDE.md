@@ -8,7 +8,7 @@
 
 - **Source code:** `src/`
 - **Manifest:** `src/manifest.json`
-- **Current version:** 1.0.4 (in development — 1.0.2 was reverted on CWS, resubmitted as 1.0.3)
+- **Current version:** 1.0.5 (in development — 1.0.2 was reverted on CWS, resubmitted as 1.0.3)
 - **Documentation:** `docs/`
 - **Tech stack:** Vanilla JavaScript (no framework), Chrome Extension APIs (v3), HTML, CSS
 
