@@ -7,6 +7,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 ---
 
 
+## [1.0.5] — 2026-06-09
+
+### Changed
+- Version bump to **1.0.5** across extension manifests, package metadata, and user-facing pages.
+- Updated help/release-policy surfaces (`help.html`, `privacy-policy.html`, `welcome.html`, `changelog.html`) to reflect the new release version.
+- Updated README release references and release-status text to 1.0.5.
+
+---
+
+
 ## [1.0.4] — 2026-05-10
 
 This is the quality-verified follow-up to 1.0.2/1.0.3. Every feature has been retested end-to-end against the published extension, and a comprehensive automated regression suite has been built to protect all future releases. As advocates of quality engineering, our commitment is to ship software you can rely on.
@@ -128,6 +138,7 @@ Internal pre-release versions (0.0.x) are kept here for historical traceability,
 - **MINOR** — new feature added
 - **PATCH** — bug fix or doc update
 
+[1.0.5]: https://github.com/premnepak/qakit/releases/tag/v1.0.5
 [1.0.4]: https://github.com/premnepak/qakit/releases/tag/v1.0.4
 [1.0.3]: https://github.com/premnepak/qakit/releases/tag/v1.0.3
 [1.0.2]: https://github.com/premnepak/qakit/releases/tag/v1.0.2
