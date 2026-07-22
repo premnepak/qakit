@@ -9,8 +9,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
-### Fixed
-- **Analytics tab intermittently showing 0 events** — on a cold Chrome service-worker wake, the popup's event fetch (`GET_EVENTS`) responded before the worker finished restoring persisted events from `chrome.storage.local`, returning an empty list even though events existed. The fetch now awaits initialization before responding, and the restore no longer clobbers events captured while it was loading.
+---
+
+
+## [1.0.6] — 2026-07-22
 
 ### Added
 - **Adobe DataLayer capture** — the Analytics tool now intercepts `window.adobeDataLayer` (Adobe Client Data Layer / ACDL) events, shown under the new **Adobe DataLayer** category. Hooks ACDL the supported way — pushing a registration function so the catch-all `adobeDataLayer:event` listener is attached before events fire — which correctly handles ACDL deleting event items from the array after dispatch. The interceptor is now also injected early (at document load, not just `complete`) so page-load events (e.g. `page loaded`, `cmp:show`) are captured. Toggle it via Settings → Analytics Providers → **Adobe DataLayer (ACDL)**.
@@ -18,7 +20,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - **Session Storage Keys** setting — an optional comma-separated filter (Settings → Session Storage Keys) that limits the Session Storage tab to specific keys. Leave blank to show all keys, mirroring the existing Local Storage Keys filter.
 
 ### Fixed
+- **Analytics tab intermittently showing 0 events** — on a cold Chrome service-worker wake, the popup's event fetch (`GET_EVENTS`) responded before the worker finished restoring persisted events from `chrome.storage.local`, returning an empty list even though events existed. The fetch now awaits initialization before responding, and the restore no longer clobbers events captured while it was loading.
 - **JSON Viewer — Tree View not scrolling** — with large JSON, the Tree View tab clipped its content and showed no scrollbar. Root cause: switching to Tree mode cleared the pane's inline `display` (set it to `''`) instead of `flex`, so the `<section>` fell back to `display:block` and its `flex-direction:column` layout was ignored, collapsing the flex height chain that gives `.qd-tree-content` its `overflow:auto` scroll region. Fixed by setting the active pane to `display:flex` in both modes.
+
+### Acknowledgments
+- Thank you to **Jirong Han, Geoff Fry, Dev Kunwar, Manasa Esrapu, Hayley Schwartz, Yousef Leblanc, Naveen Saha, Ripon Das, Stacy Huerta, Harry Buckley, Bradford Ramos, Herman Chung, and Terry Lee** for the feedback that drove this release — the Adobe DataLayer support, the Session Storage tool, the Analytics reliability fix, and the JSON Viewer scroll fix all came from user reports and suggestions.
 
 ---
 
@@ -154,6 +160,7 @@ Internal pre-release versions (0.0.x) are kept here for historical traceability,
 - **MINOR** — new feature added
 - **PATCH** — bug fix or doc update
 
+[1.0.6]: https://github.com/premnepak/qakit/releases/tag/v1.0.6
 [1.0.5]: https://github.com/premnepak/qakit/releases/tag/v1.0.5
 [1.0.4]: https://github.com/premnepak/qakit/releases/tag/v1.0.4
 [1.0.3]: https://github.com/premnepak/qakit/releases/tag/v1.0.3
