@@ -7,6 +7,7 @@ const DEFAULT_SETTINGS = {
   domains:            '*',
   testIdAttr:         'data-testid',
   lsKeys:             '',
+  ssKeys:             '',
   cookieFilter:       '',
   consolePaths:       '/scripts/,/blocks/',
   theme:              'light',
@@ -85,6 +86,11 @@ function getLsKeys() {
   return raw.split(',').map(s => s.trim()).filter(Boolean);
 }
 
+function getSsKeys() {
+  const raw = _settings.ssKeys || '';
+  return raw.split(',').map(s => s.trim()).filter(Boolean);
+}
+
 function getVisibleTabs() {
   return _settings.visibleTabs || DEFAULT_SETTINGS.visibleTabs;
 }
@@ -118,6 +124,7 @@ function renderSettingsPanel() {
   document.getElementById('settingDomains').value         = s.domains || '';
   document.getElementById('settingTestIdAttr').value      = s.testIdAttr || '';
   document.getElementById('settingLsKeys').value          = s.lsKeys || '';
+  document.getElementById('settingSsKeys').value          = s.ssKeys || '';
   document.getElementById('settingCookieFilter').value    = s.cookieFilter || '';
   document.getElementById('settingConsolePaths').value    = s.consolePaths || DEFAULT_SETTINGS.consolePaths;
   const lo = document.getElementById('settingLocatorOutput');
@@ -153,6 +160,7 @@ async function handleSaveSettings() {
   const domains         = document.getElementById('settingDomains').value.trim();
   const testIdAttr      = document.getElementById('settingTestIdAttr').value.trim();
   const lsKeys          = document.getElementById('settingLsKeys').value.trim();
+  const ssKeys          = document.getElementById('settingSsKeys').value.trim();
   const cookieFilter    = document.getElementById('settingCookieFilter').value.trim();
 
   // Visible tabs section removed (Option 2 pure launcher — no tab bar).
@@ -174,7 +182,7 @@ async function handleSaveSettings() {
     }
   }
 
-  await saveSettings({ domains, testIdAttr, lsKeys, cookieFilter, consolePaths, theme, visibleTabs, analyticsProviders, locatorOutput });
+  await saveSettings({ domains, testIdAttr, lsKeys, ssKeys, cookieFilter, consolePaths, theme, visibleTabs, analyticsProviders, locatorOutput });
 
   // Apply immediately
   applySettingsToUI();
@@ -288,6 +296,13 @@ function applySettingsToUI() {
   LS_TARGET_KEYS.length = 0;
   newKeys.forEach(k => LS_TARGET_KEYS.push(k));
 
+  // Update SS_TARGET_KEYS (session storage) from settings
+  if (typeof SS_TARGET_KEYS !== 'undefined') {
+    const newSsKeys = getSsKeys();
+    SS_TARGET_KEYS.length = 0;
+    newSsKeys.forEach(k => SS_TARGET_KEYS.push(k));
+  }
+
   window._domainsMatchUrl = domainsMatchUrl;
 }
 
@@ -394,6 +409,15 @@ window.initSettings = async function() {
       preview.textContent = keys.length === 0 ? '✓ Showing all LS keys' : keys.length + ' specific key' + (keys.length === 1 ? '' : 's');
     });
   }
+  const ssKeysInput = document.getElementById('settingSsKeys');
+  if (ssKeysInput) {
+    ssKeysInput.addEventListener('input', () => {
+      const preview = document.getElementById('settingSsKeysPreview');
+      if (!preview) return;
+      const keys = ssKeysInput.value.split(',').map(s => s.trim()).filter(Boolean);
+      preview.textContent = keys.length === 0 ? '✓ Showing all SS keys' : keys.length + ' specific key' + (keys.length === 1 ? '' : 's');
+    });
+  }
   const cookieInput = document.getElementById('settingCookieFilter');
   if (cookieInput) {
     cookieInput.addEventListener('input', () => {
@@ -412,5 +436,6 @@ window.getSettings     = getSettings;
 window.loadSettings    = loadSettings;
 window.domainsMatchUrl = domainsMatchUrl;
 window.getLsKeys       = getLsKeys;
+window.getSsKeys       = getSsKeys;
 window.getVisibleTabs  = getVisibleTabs;
 window.ALL_TABS        = ALL_TABS;

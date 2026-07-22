@@ -264,13 +264,17 @@
     if (msg.action === 'CLEAR')  { window.digitalDataLayer.length = 0; window._qRec._seq = 0; }
     if (msg.action === 'PING')   return true;
 
-    // ── Scan all localStorage keys ────────────────────────────────────────
+    // Pick the web-storage area the popup asked for (defaults to localStorage).
+    const _store = (m) => (m && m.storageType === 'session') ? sessionStorage : localStorage;
+
+    // ── Scan all storage keys ─────────────────────────────────────────────
     if (msg.action === 'SCAN_LS_URLS') {
+      const store = _store(msg);
       const targetKeys = msg.targetKeys || [];
       const found = {};
-      for (let i = 0; i < localStorage.length; i++) {
-        const k = localStorage.key(i);
-        const v = localStorage.getItem(k);
+      for (let i = 0; i < store.length; i++) {
+        const k = store.key(i);
+        const v = store.getItem(k);
         // If targetKeys specified, only include those; otherwise include all
         if (targetKeys.length === 0 || targetKeys.includes(k)) {
           let parsed = null;
@@ -288,10 +292,11 @@
 
     // ── Load (re-read) specific keys ────────────────────────────────────
     if (msg.action === 'GET_LS') {
+      const store = _store(msg);
       const keys = msg.keys || ['dismissed_alerts', 'redirectPopupSelection', 'qff_soft_identity', 'recentAirports'];
       const result = {};
       keys.forEach(key => {
-        const raw = localStorage.getItem(key);
+        const raw = store.getItem(key);
         let parsed = null;
         try { parsed = raw !== null ? JSON.parse(raw) : null; } catch { parsed = raw; }
         result[key] = { raw, found: raw !== null, parsed };
@@ -303,8 +308,9 @@
     // ── Write / edit a key ───────────────────────────────────────────────
     if (msg.action === 'SET_LS') {
       try {
-        localStorage.setItem(msg.key, msg.value);
-        const raw = localStorage.getItem(msg.key);
+        const store = _store(msg);
+        store.setItem(msg.key, msg.value);
+        const raw = store.getItem(msg.key);
         let parsed = null;
         try { parsed = JSON.parse(raw); } catch { parsed = raw; }
         sendResponse({ ok: true, raw, parsed });
@@ -317,7 +323,7 @@
     // ── Delete a key ─────────────────────────────────────────────────────
     if (msg.action === 'DELETE_LS') {
       try {
-        localStorage.removeItem(msg.key);
+        _store(msg).removeItem(msg.key);
         sendResponse({ ok: true });
       } catch (e) {
         sendResponse({ ok: false, error: e.message });

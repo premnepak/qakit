@@ -7,6 +7,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 ---
 
 
+## [Unreleased]
+
+### Added
+- **Session Storage** in the Storage tool — the Storage panel now has **Local Storage / Session Storage** tabs so you can browse, search, edit, and delete `sessionStorage` keys for the current origin, with the same UI as Local Storage.
+- **Session Storage Keys** setting — an optional comma-separated filter (Settings → Session Storage Keys) that limits the Session Storage tab to specific keys. Leave blank to show all keys, mirroring the existing Local Storage Keys filter.
+
+---
+
+
 ## [1.0.5] — 2026-06-09
 
 ### Changed
