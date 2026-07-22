@@ -1559,6 +1559,13 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
     }
     // Install LCP observer early so it catches the entry before user lands
     if (allowed) injectLcpObserver(tabId);
+    // Inject the analytics interceptor EARLY too. Some providers fire during
+    // page load — notably Adobe Client Data Layer (ACDL), which deletes event
+    // items from the array after dispatch, so an interceptor that only arrives
+    // at 'complete' can never see or replay them. Injecting at 'loading' lets
+    // it register its hooks before those events fire. Idempotent (guarded by
+    // window.__qAnalyticsInstalled); the 'complete' pass below is the backstop.
+    if (allowed) injectAnalyticsInterceptor(tabId);
   }
 
   // Inject on page complete for allowed domains

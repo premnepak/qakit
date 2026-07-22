@@ -280,19 +280,20 @@
   }
 
   // ── Adobe Client Data Layer — window.adobeDataLayer (ACDL) ────────────────
-  // ACDL is an event-driven array like dataLayer, but the ACDL "Manager"
-  // library REPLACES adobeDataLayer.push when it initialises — which would
-  // clobber a plain push-proxy. So we use two complementary paths:
-  //   1. Proxy the array's .push — catches events while ACDL is still a plain
-  //      array (before the Manager loads, or sites that never load it).
-  //   2. Register ACDL's native 'adobeDataLayer:event' listener once the
-  //      Manager is present — the supported extension point that survives the
-  //      push replacement.
-  // `nativeActive` guards path 1 from double-dispatching once path 2 is live
-  // (the Manager may call our proxied push as its captured "original").
+  // ACDL (the @adobe/adobe-client-data-layer "Manager") is NOT a plain array.
+  // On init it REPLACES adobeDataLayer.push AND *deletes* event/function items
+  // from the array after processing them — so proxying .push is clobbered and
+  // there is nothing to "replay" from the array. The supported, race-free hook
+  // is to push a FUNCTION: ACDL runs queued functions in array order when the
+  // Manager initialises — a function queued before an event runs before that
+  // event is dispatched (verified against ACDL v3) — and runs it immediately if
+  // the Manager is already live. Inside it we register the catch-all
+  // 'adobeDataLayer:event' listener, which then fires for every event, INCLUDING
+  // ones pushed before the Manager loaded (they are replayed through listeners
+  // on init). Catching page-load events depends on this interceptor running
+  // early — background.js injects it at document-loading, not just 'complete'.
   if (providers.includes('adobedl')) {
     const CATEGORY = 'Adobe DL';
-    let nativeActive = false;
 
     function acdlName(item) {
       if (!item || typeof item !== 'object') return null;
@@ -300,10 +301,10 @@
       if (item.eventInfo && item.eventInfo.eventName)  return String(item.eventInfo.eventName);
       return 'adobeDataLayer.push'; // capture everything — never drop silently
     }
-    function acdlOut(item, extra) {
+    function acdlOut(item) {
       let raw = null;
       try { raw = JSON.parse(JSON.stringify(item)); } catch (_) { raw = { _unserialisable: true }; }
-      const out = Object.assign({ _raw: raw }, extra || {});
+      const out = { _raw: raw };
       if (item.eventInfo)    out.eventInfo    = item.eventInfo;
       if (item.eventDetails) out.eventDetails = item.eventDetails;
       if (item.ecommerce)    out.ecommerce    = item.ecommerce;
@@ -316,64 +317,42 @@
       return out;
     }
 
-    // Path 2 — ACDL's native listener (fires only for pushes carrying an event)
-    const attachNative = (dl) => {
-      if (nativeActive || !dl || typeof dl.addEventListener !== 'function') return;
-      nativeActive = true;
+    const onEvent = function (ev) {
+      if (!ev || typeof ev !== 'object' || ev.__qkitOwn) return;
+      dispatch(acdlName(ev), CATEGORY, acdlOut(ev));
+    };
+
+    // Push a registration function onto the data layer. ACDL invokes it as
+    // fn.call(dataLayer, dataLayer) once the Manager is present, so `this` and
+    // the first arg are both the data layer (which carries addEventListener).
+    const register = (dl) => {
+      if (!Array.isArray(dl) || dl.__qkitAcdlHooked) return;
+      dl.__qkitAcdlHooked = true;
       try {
-        dl.addEventListener('adobeDataLayer:event', function (ev) {
-          if (!ev || ev.__qkitOwn) return;
-          dispatch(acdlName(ev), CATEGORY, acdlOut(ev, { _native: true }));
+        dl.push(function (layer) {
+          const target =
+            (layer && typeof layer.addEventListener === 'function') ? layer :
+            (this  && typeof this.addEventListener  === 'function') ? this  :
+            window.adobeDataLayer;
+          try { target.addEventListener('adobeDataLayer:event', onEvent); } catch (_) {}
         });
-      } catch (_) { nativeActive = false; }
+      } catch (_) {}
     };
 
-    // Path 1 — proxy the array's push (idempotent)
-    const proxyPush = (origPush) => {
-      if (origPush && origPush.__qkitProxied) return origPush;
-      const wrapped = function (...args) {
-        if (!nativeActive) {
-          args.forEach(item => {
-            if (!item || typeof item !== 'object' || item.__qkitOwn) return;
-            dispatch(acdlName(item), CATEGORY, acdlOut(item));
-          });
-        }
-        return origPush.apply(this, args);
-      };
-      wrapped.__qkitProxied = true;
-      return wrapped;
-    };
+    // Hook it now if the array already exists, otherwise catch the page
+    // creating/replacing it. We do NOT create adobeDataLayer ourselves — only
+    // hook when the page actually uses it (avoids inventing a global on pages
+    // that never load ACDL).
+    if (Array.isArray(window.adobeDataLayer)) register(window.adobeDataLayer);
 
-    const install = (dl) => {
-      if (!Array.isArray(dl)) return;
-      if (!(dl.push && dl.push.__qkitProxied)) {
-        dl.push = proxyPush(dl.push.bind(dl));
-        // Replay events already queued before we arrived
-        dl.forEach(item => {
-          if (!item || typeof item !== 'object' || item.__qkitOwn) return;
-          dispatch(acdlName(item), CATEGORY, acdlOut(item, { _replayed: true }));
-        });
-      }
-      attachNative(dl); // in case the Manager is already present
-    };
-
-    if (Array.isArray(window.adobeDataLayer)) install(window.adobeDataLayer);
-
-    // Watch for the array being (re)assigned by the page
     let _acdlRef = window.adobeDataLayer;
     try {
       Object.defineProperty(window, 'adobeDataLayer', {
         configurable: true,
         get() { return _acdlRef; },
-        set(val) { _acdlRef = val; if (Array.isArray(val)) install(val); },
+        set(val) { _acdlRef = val; if (Array.isArray(val)) register(val); },
       });
     } catch (_) {}
-
-    // The Manager loads async — retry attaching the native listener.
-    const tryAttach = () => { if (Array.isArray(window.adobeDataLayer)) attachNative(window.adobeDataLayer); };
-    window.addEventListener('load', tryAttach, { once: true });
-    setTimeout(tryAttach, 1500);
-    setTimeout(tryAttach, 3000);
   }
 
   // ── Tealium ──────────────────────────────────────────────────────────────
