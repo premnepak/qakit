@@ -49,7 +49,12 @@ async function restoreFromStorage() {
   try {
     const stored = await chrome.storage.local.get(['events', 'paused']);
     if (Array.isArray(stored.events)) {
-      state.events = stored.events;
+      // Events can arrive (EVENT handler) while this async get() is in flight on
+      // a fresh SW wake. Prepend the persisted history rather than clobbering
+      // those just-captured live events.
+      state.events = state.events.length
+        ? stored.events.concat(state.events)
+        : stored.events;
     }
     if (typeof stored.paused === 'boolean') {
       state.paused = stored.paused;
@@ -78,13 +83,22 @@ function persistToStorage() {
 }
 
 // ── Idempotent init — consolidates handlers that previously fired twice ───
-let _initDone = false;
-async function initBackground() {
-  if (_initDone) return;
-  _initDone = true;
-  await restoreFromStorage();
-  await restoreHeaderRules();
-  setupContextMenus();
+// Returns a cached promise so callers can AWAIT init completion. This matters
+// on service-worker cold-start: the SW wakes to handle a message (e.g. the
+// popup's GET_EVENTS) with state.events still empty, and restoreFromStorage()
+// is async. Guarding on a boolean set before the awaits would let a concurrent
+// caller see "done" while the restore is still in flight, so callers must be
+// able to await the SAME promise instead. (See GET_EVENTS handler.)
+let _initPromise = null;
+function initBackground() {
+  if (!_initPromise) {
+    _initPromise = (async () => {
+      await restoreFromStorage();
+      await restoreHeaderRules();
+      setupContextMenus();
+    })();
+  }
+  return _initPromise;
 }
 
 // ── Extension icon management ────────────────────────────────────────────────
@@ -642,8 +656,14 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   }
 
   if (msg.action === 'GET_EVENTS') {
-    sendResponse({ events: state.events, paused: state.paused });
-    return true;
+    // Wait for restoreFromStorage() to finish before answering. On a cold SW
+    // wake this message IS what woke the worker, so state.events would still be
+    // [] here — responding synchronously returns zero events even though they
+    // are persisted. Awaiting init fixes the "analytics shows 0 events" refresh.
+    initBackground().then(() => {
+      sendResponse({ events: state.events, paused: state.paused });
+    });
+    return true; // keep the message channel open for the async response
   }
 
   if (msg.action === 'CLEAR_ALL') {
@@ -1539,6 +1559,13 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
     }
     // Install LCP observer early so it catches the entry before user lands
     if (allowed) injectLcpObserver(tabId);
+    // Inject the analytics interceptor EARLY too. Some providers fire during
+    // page load — notably Adobe Client Data Layer (ACDL), which deletes event
+    // items from the array after dispatch, so an interceptor that only arrives
+    // at 'complete' can never see or replay them. Injecting at 'loading' lets
+    // it register its hooks before those events fire. Idempotent (guarded by
+    // window.__qAnalyticsInstalled); the 'complete' pass below is the backstop.
+    if (allowed) injectAnalyticsInterceptor(tabId);
   }
 
   // Inject on page complete for allowed domains
@@ -1698,7 +1725,7 @@ async function injectAnalyticsInterceptor(tabId) {
   try {
     const stored    = await chrome.storage.local.get('qa_tools_settings');
     const providers = stored.qa_tools_settings?.analyticsProviders ||
-      ['gtm','ga4','ddl','wae','adobe','tealium','meta','floodlight','segment'];
+      ['gtm','ga4','ddl','wae','adobe','adobedl','tealium','meta','floodlight','segment'];
 
     // Set providers in MAIN world first
     await chrome.scripting.executeScript({

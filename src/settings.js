@@ -21,7 +21,7 @@ const DEFAULT_SETTINGS = {
   // Analytics providers — which third-party platforms to intercept.
   // NOTE: WAE attribute capture is DOM-based (click handler in content.js) and
   // always active. It's not a toggleable interceptor provider.
-  analyticsProviders: ['gtm','ga4','ddl','adobe','tealium','meta','floodlight','segment'],
+  analyticsProviders: ['gtm','ga4','ddl','adobe','adobedl','tealium','meta','floodlight','segment'],
 };
 
 // All tabs in canonical order

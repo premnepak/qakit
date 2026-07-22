@@ -12,7 +12,7 @@ QAKit puts the tools QA engineers and developers reach for every day into a sing
 |---|---|
 | **Inspect & Measure** | Element Inspector · Spacing Inspector · Pixel Ruler · Responsive Preview |
 | **Capture** | Region Screenshot · Element Screenshot · Full Page Screenshot · Annotate |
-| **Data & Network** | Live Analytics (GTM, GA4, Adobe, Tealium, Meta Pixel, Segment) · Network Mock · Headers Modifier · Page Audit |
+| **Data & Network** | Live Analytics (GTM, GA4, Adobe, Adobe DataLayer, Tealium, Meta Pixel, Segment) · Network Mock · Headers Modifier · Page Audit |
 | **Session & Environment** | Cookie Manager · Local Storage · Console Errors · Environment Marker |
 | **Utilities** | JWT Decoder · Base64 / URL Encode/Decode · Time & Timezone · Geolocation Override · Page Metadata Scanner |
 | **Tools** | JSON Viewer with Tree Explorer · Text Compare with Diff |

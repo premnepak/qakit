@@ -9,7 +9,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Fixed
+- **Analytics tab intermittently showing 0 events** — on a cold Chrome service-worker wake, the popup's event fetch (`GET_EVENTS`) responded before the worker finished restoring persisted events from `chrome.storage.local`, returning an empty list even though events existed. The fetch now awaits initialization before responding, and the restore no longer clobbers events captured while it was loading.
+
 ### Added
+- **Adobe DataLayer capture** — the Analytics tool now intercepts `window.adobeDataLayer` (Adobe Client Data Layer / ACDL) events, shown under the new **Adobe DataLayer** category. Hooks ACDL the supported way — pushing a registration function so the catch-all `adobeDataLayer:event` listener is attached before events fire — which correctly handles ACDL deleting event items from the array after dispatch. The interceptor is now also injected early (at document load, not just `complete`) so page-load events (e.g. `page loaded`, `cmp:show`) are captured. Toggle it via Settings → Analytics Providers → **Adobe DataLayer (ACDL)**.
 - **Session Storage** in the Storage tool — the Storage panel now has **Local Storage / Session Storage** tabs so you can browse, search, edit, and delete `sessionStorage` keys for the current origin, with the same UI as Local Storage.
 - **Session Storage Keys** setting — an optional comma-separated filter (Settings → Session Storage Keys) that limits the Session Storage tab to specific keys. Leave blank to show all keys, mirroring the existing Local Storage Keys filter.
 

@@ -10,6 +10,7 @@
 //   - Meta Pixel (window.fbq)
 //   - Adobe Analytics (window.s.tl, window.s.t, AppMeasurement)
 //   - Adobe Launch / DTM (window._satellite.track)
+//   - Adobe Client Data Layer (window.adobeDataLayer — ACDL)
 //   - Tealium (window.utag.link, window.utag.view, window.utag.track)
 //   - Floodlight / DoubleClick (fetch URLs, img/iframe src pixels)
 //   - Segment (window.analytics.track, window.analytics.page)
@@ -26,7 +27,7 @@
 
   const providers = Array.isArray(window.__qAnalyticsProviders) && window.__qAnalyticsProviders.length
     ? window.__qAnalyticsProviders
-    : ['gtm','ga4','ddl','wae','adobe','tealium','meta','floodlight','segment'];
+    : ['gtm','ga4','ddl','wae','adobe','adobedl','tealium','meta','floodlight','segment'];
 
   let _seq = 0;
   const sessionStart = Date.now();
@@ -276,6 +277,82 @@
     patchSatellite();
     window.addEventListener('load', patchSatellite, { once: true });
     setTimeout(patchSatellite, 1500);
+  }
+
+  // ── Adobe Client Data Layer — window.adobeDataLayer (ACDL) ────────────────
+  // ACDL (the @adobe/adobe-client-data-layer "Manager") is NOT a plain array.
+  // On init it REPLACES adobeDataLayer.push AND *deletes* event/function items
+  // from the array after processing them — so proxying .push is clobbered and
+  // there is nothing to "replay" from the array. The supported, race-free hook
+  // is to push a FUNCTION: ACDL runs queued functions in array order when the
+  // Manager initialises — a function queued before an event runs before that
+  // event is dispatched (verified against ACDL v3) — and runs it immediately if
+  // the Manager is already live. Inside it we register the catch-all
+  // 'adobeDataLayer:event' listener, which then fires for every event, INCLUDING
+  // ones pushed before the Manager loaded (they are replayed through listeners
+  // on init). Catching page-load events depends on this interceptor running
+  // early — background.js injects it at document-loading, not just 'complete'.
+  if (providers.includes('adobedl')) {
+    const CATEGORY = 'Adobe DL';
+
+    function acdlName(item) {
+      if (!item || typeof item !== 'object') return null;
+      if (item.event)                                  return String(item.event);
+      if (item.eventInfo && item.eventInfo.eventName)  return String(item.eventInfo.eventName);
+      return 'adobeDataLayer.push'; // capture everything — never drop silently
+    }
+    function acdlOut(item) {
+      let raw = null;
+      try { raw = JSON.parse(JSON.stringify(item)); } catch (_) { raw = { _unserialisable: true }; }
+      const out = { _raw: raw };
+      if (item.eventInfo)    out.eventInfo    = item.eventInfo;
+      if (item.eventDetails) out.eventDetails = item.eventDetails;
+      if (item.ecommerce)    out.ecommerce    = item.ecommerce;
+      if (item.data)         out.data         = item.data;
+      if (item.component)    out.component    = item.component;
+      if (item.user)         out.user         = item.user;
+      if (item.page)         out.page         = item.page;
+      if (item.product)      out.product      = item.product;
+      if (item.xdm)          out.xdm          = item.xdm;
+      return out;
+    }
+
+    const onEvent = function (ev) {
+      if (!ev || typeof ev !== 'object' || ev.__qkitOwn) return;
+      dispatch(acdlName(ev), CATEGORY, acdlOut(ev));
+    };
+
+    // Push a registration function onto the data layer. ACDL invokes it as
+    // fn.call(dataLayer, dataLayer) once the Manager is present, so `this` and
+    // the first arg are both the data layer (which carries addEventListener).
+    const register = (dl) => {
+      if (!Array.isArray(dl) || dl.__qkitAcdlHooked) return;
+      dl.__qkitAcdlHooked = true;
+      try {
+        dl.push(function (layer) {
+          const target =
+            (layer && typeof layer.addEventListener === 'function') ? layer :
+            (this  && typeof this.addEventListener  === 'function') ? this  :
+            window.adobeDataLayer;
+          try { target.addEventListener('adobeDataLayer:event', onEvent); } catch (_) {}
+        });
+      } catch (_) {}
+    };
+
+    // Hook it now if the array already exists, otherwise catch the page
+    // creating/replacing it. We do NOT create adobeDataLayer ourselves — only
+    // hook when the page actually uses it (avoids inventing a global on pages
+    // that never load ACDL).
+    if (Array.isArray(window.adobeDataLayer)) register(window.adobeDataLayer);
+
+    let _acdlRef = window.adobeDataLayer;
+    try {
+      Object.defineProperty(window, 'adobeDataLayer', {
+        configurable: true,
+        get() { return _acdlRef; },
+        set(val) { _acdlRef = val; if (Array.isArray(val)) register(val); },
+      });
+    } catch (_) {}
   }
 
   // ── Tealium ──────────────────────────────────────────────────────────────

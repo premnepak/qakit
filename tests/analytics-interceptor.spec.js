@@ -260,6 +260,194 @@ test.describe('Analytics Interceptor — Tealium', () => {
   });
 });
 
+// ─── Adobe Client Data Layer (adobeDataLayer / ACDL) ─────────────────────────
+//
+// ACDL is not a plain array — the "Manager" replaces .push, runs pushed
+// FUNCTIONS as fn.call(dataLayer, dataLayer), deletes event/function items from
+// the array after processing, and fires 'adobeDataLayer:event' for every event.
+// These tests install a faithful mock Manager (see initAcdlManager below) so the
+// interceptor's real hook — push(function) → addEventListener — is exercised the
+// way it behaves on a live site like wknd.site, rather than against a plain array.
+
+// Serialized into the page: turns an existing array into an ACDL-style data
+// layer. Pre-existing items are replayed in order (functions run, events fire
+// listeners); afterwards push() processes items live. Events/functions are NOT
+// retained in the array, matching real ACDL.
+const INIT_ACDL_MANAGER = `
+  window.__initAcdlManager = function (arr) {
+    const listeners = [];
+    arr.addEventListener = function (type, handler) { listeners.push({ type, handler }); };
+    arr.removeEventListener = function () {};
+    const fire = (ev) => listeners.forEach(l => l.type === 'adobeDataLayer:event' && l.handler.call(arr, ev));
+    const process = (item) => {
+      if (typeof item === 'function') { item.call(arr, arr); return false; }
+      if (item && item.event)         { fire(item); return false; }
+      return true; // data-only items are retained
+    };
+    const preloaded = arr.splice(0, arr.length);
+    arr.push = function () {
+      const kept = [];
+      for (let i = 0; i < arguments.length; i++) { if (process(arguments[i])) kept.push(arguments[i]); }
+      return Array.prototype.push.apply(arr, kept);
+    };
+    preloaded.forEach(process);
+  };
+`;
+
+test.describe('Analytics Interceptor — Adobe Client Data Layer', () => {
+  test('captures events fired AFTER the Manager initialises', async ({ page }) => {
+    await page.setContent('<html><body></body></html>');
+    await page.evaluate(() => { window.adobeDataLayer = []; });
+    await page.addScriptTag({ content: INIT_ACDL_MANAGER });
+    await injectInterceptor(page, ['adobedl']);
+    // Manager initialises AFTER the interceptor has queued its registration fn
+    await page.evaluate(() => window.__initAcdlManager(window.adobeDataLayer));
+
+    const evt = await page.evaluate(() =>
+      new Promise((resolve) => {
+        window.addEventListener('__qAnalyticsEvent', (e) => resolve(e.detail), { once: true });
+        window.adobeDataLayer.push({ event: 'cmp:show', eventInfo: { path: 'component.hero' } });
+      }),
+    );
+
+    expect(evt.category).toBe('Adobe DL');
+    expect(evt.event).toBe('cmp:show');
+    expect(evt.data.eventInfo.path).toBe('component.hero');
+  });
+
+  test('captures page-load events pushed BEFORE the Manager initialises', async ({ page }) => {
+    // This is the wknd.site scenario: the interceptor runs early, events are
+    // pushed during load, THEN the Manager initialises and replays the queue.
+    await page.setContent('<html><body></body></html>');
+    await page.evaluate(() => { window.adobeDataLayer = []; });
+    await page.addScriptTag({ content: INIT_ACDL_MANAGER });
+    await injectInterceptor(page, ['adobedl']); // interceptor queues its fn first
+
+    const events = await page.evaluate(() =>
+      new Promise((resolve) => {
+        const got = [];
+        window.addEventListener('__qAnalyticsEvent', (e) => {
+          got.push(e.detail.event);
+          if (got.length === 2) resolve(got);
+        });
+        // Component events queued BEFORE the Manager exists…
+        window.adobeDataLayer.push({ event: 'page loaded' });
+        window.adobeDataLayer.push({ event: 'cmp:show', eventInfo: { path: 'hero' } });
+        // …then ACDL loads and replays the queue in order.
+        window.__initAcdlManager(window.adobeDataLayer);
+      }),
+    );
+
+    expect(events).toEqual(['page loaded', 'cmp:show']);
+  });
+
+  test('preserves the rich event payload (eventInfo / page / component)', async ({ page }) => {
+    await page.setContent('<html><body></body></html>');
+    await page.evaluate(() => { window.adobeDataLayer = []; });
+    await page.addScriptTag({ content: INIT_ACDL_MANAGER });
+    await injectInterceptor(page, ['adobedl']);
+    await page.evaluate(() => window.__initAcdlManager(window.adobeDataLayer));
+
+    const evt = await page.evaluate(() =>
+      new Promise((resolve) => {
+        window.addEventListener('__qAnalyticsEvent', (e) => resolve(e.detail), { once: true });
+        window.adobeDataLayer.push({
+          event: 'cmp:click',
+          eventInfo: { path: 'component.button.cta' },
+          page: { name: 'Home' },
+        });
+      }),
+    );
+
+    expect(evt.event).toBe('cmp:click');
+    expect(evt.data.eventInfo.path).toBe('component.button.cta');
+    expect(evt.data.page.name).toBe('Home');
+    expect(evt.data._raw.event).toBe('cmp:click'); // full payload retained under _raw
+  });
+
+  test('works when the Manager is already live at injection time', async ({ page }) => {
+    // Late injection (e.g. at 'complete'): Manager already running. push(fn)
+    // runs immediately, so future events are still captured.
+    await page.setContent('<html><body></body></html>');
+    await page.evaluate(() => { window.adobeDataLayer = []; });
+    await page.addScriptTag({ content: INIT_ACDL_MANAGER });
+    await page.evaluate(() => window.__initAcdlManager(window.adobeDataLayer));
+    await injectInterceptor(page, ['adobedl']);
+
+    const evt = await page.evaluate(() =>
+      new Promise((resolve) => {
+        window.addEventListener('__qAnalyticsEvent', (e) => resolve(e.detail), { once: true });
+        window.adobeDataLayer.push({ event: 'late_bind', component: { id: 'c1' } });
+      }),
+    );
+
+    expect(evt.event).toBe('late_bind');
+    expect(evt.data.component.id).toBe('c1');
+  });
+
+  test('hooks the array even if the page creates it AFTER injection', async ({ page }) => {
+    await page.setContent('<html><body></body></html>');
+    await page.addScriptTag({ content: INIT_ACDL_MANAGER });
+    await injectInterceptor(page, ['adobedl']); // adobeDataLayer does not exist yet
+
+    const evt = await page.evaluate(() =>
+      new Promise((resolve) => {
+        window.addEventListener('__qAnalyticsEvent', (e) => resolve(e.detail), { once: true });
+        window.adobeDataLayer = [];                       // page creates it now
+        window.__initAcdlManager(window.adobeDataLayer);  // ACDL initialises
+        window.adobeDataLayer.push({ event: 'deferred_dl' });
+      }),
+    );
+
+    expect(evt.category).toBe('Adobe DL');
+    expect(evt.event).toBe('deferred_dl');
+  });
+
+  test('each event dispatches exactly once (no double-count)', async ({ page }) => {
+    await page.setContent('<html><body></body></html>');
+    await page.evaluate(() => { window.adobeDataLayer = []; });
+    await page.addScriptTag({ content: INIT_ACDL_MANAGER });
+    await injectInterceptor(page, ['adobedl']);
+    await page.evaluate(() => window.__initAcdlManager(window.adobeDataLayer));
+
+    const count = await page.evaluate(async () => {
+      let n = 0;
+      window.addEventListener('__qAnalyticsEvent', () => n++);
+      window.adobeDataLayer.push({ event: 'once' });
+      await new Promise(r => setTimeout(r, 40));
+      return n;
+    });
+
+    expect(count).toBe(1);
+  });
+
+  test('does not invent an adobeDataLayer global on non-ACDL pages', async ({ page }) => {
+    await page.setContent('<html><body></body></html>');
+    await injectInterceptor(page, ['adobedl']);
+
+    const created = await page.evaluate(() => Array.isArray(window.adobeDataLayer));
+    expect(created).toBe(false);
+  });
+
+  test('disabled adobedl provider is not hooked', async ({ page }) => {
+    await page.setContent('<html><body></body></html>');
+    await page.evaluate(() => { window.adobeDataLayer = []; });
+    await page.addScriptTag({ content: INIT_ACDL_MANAGER });
+    await injectInterceptor(page, ['gtm']); // adobedl NOT enabled
+    await page.evaluate(() => window.__initAcdlManager(window.adobeDataLayer));
+
+    const fired = await page.evaluate(async () => {
+      let n = 0;
+      window.addEventListener('__qAnalyticsEvent', () => n++);
+      window.adobeDataLayer.push({ event: 'should_not_fire' });
+      await new Promise(r => setTimeout(r, 40));
+      return n;
+    });
+
+    expect(fired).toBe(0);
+  });
+});
+
 // ─── Segment / analytics ─────────────────────────────────────────────────────
 
 test.describe('Analytics Interceptor — Segment', () => {
