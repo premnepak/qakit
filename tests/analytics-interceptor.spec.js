@@ -260,6 +260,132 @@ test.describe('Analytics Interceptor — Tealium', () => {
   });
 });
 
+// ─── Adobe Client Data Layer (adobeDataLayer / ACDL) ─────────────────────────
+
+test.describe('Analytics Interceptor — Adobe Client Data Layer', () => {
+  test('adobeDataLayer.push dispatches with "Adobe DL" category', async ({ page }) => {
+    await page.setContent('<html><body></body></html>');
+    await page.evaluate(() => { window.adobeDataLayer = []; });
+    await injectInterceptor(page, ['adobedl']);
+
+    const evt = await page.evaluate(() =>
+      new Promise((resolve) => {
+        window.addEventListener('__qAnalyticsEvent', (e) => resolve(e.detail), { once: true });
+        window.adobeDataLayer.push({ event: 'cmp:show', eventInfo: { path: 'component.hero' } });
+      }),
+    );
+
+    expect(evt.category).toBe('Adobe DL');
+    expect(evt.event).toBe('cmp:show');
+    expect(evt.data.eventInfo.path).toBe('component.hero');
+  });
+
+  test('event name falls back to eventInfo.eventName', async ({ page }) => {
+    await page.setContent('<html><body></body></html>');
+    await page.evaluate(() => { window.adobeDataLayer = []; });
+    await injectInterceptor(page, ['adobedl']);
+
+    const evt = await page.evaluate(() =>
+      new Promise((resolve) => {
+        window.addEventListener('__qAnalyticsEvent', (e) => resolve(e.detail), { once: true });
+        window.adobeDataLayer.push({ eventInfo: { eventName: 'page.load' }, page: { name: 'Home' } });
+      }),
+    );
+
+    expect(evt.event).toBe('page.load');
+    expect(evt.data.page.name).toBe('Home');
+  });
+
+  test('pre-existing adobeDataLayer events are replayed on injection', async ({ page }) => {
+    await page.setContent('<html><body></body></html>');
+    await page.evaluate(() => { window.adobeDataLayer = [{ event: 'acdl_pre', v: 1 }]; });
+
+    const [evt] = await Promise.all([
+      page.evaluate(() =>
+        new Promise((resolve) => {
+          window.addEventListener('__qAnalyticsEvent', (e) => resolve(e.detail), { once: true });
+        }),
+      ),
+      page.addScriptTag({ path: INTERCEPTOR_JS }),
+    ]);
+
+    expect(evt.event).toBe('acdl_pre');
+    expect(evt.data._replayed).toBe(true);
+  });
+
+  test('original adobeDataLayer.push is still called after patching', async ({ page }) => {
+    await page.setContent('<html><body></body></html>');
+    await page.evaluate(() => { window.adobeDataLayer = []; });
+    await injectInterceptor(page, ['adobedl']);
+
+    const len = await page.evaluate(() => {
+      window.adobeDataLayer.push({ event: 'kept' });
+      return window.adobeDataLayer.length;
+    });
+
+    expect(len).toBe(1);
+  });
+
+  test('native adobeDataLayer:event listener path fires (Manager present)', async ({ page }) => {
+    await page.setContent('<html><body></body></html>');
+    // Simulate a minimal ACDL Manager exposing addEventListener
+    await page.evaluate(() => {
+      const listeners = [];
+      window.adobeDataLayer = [];
+      window.adobeDataLayer.addEventListener = (type, cb) => { listeners.push({ type, cb }); };
+      window.adobeDataLayer.__emit = (ev) => listeners.forEach(l => l.type === 'adobeDataLayer:event' && l.cb(ev));
+    });
+    await injectInterceptor(page, ['adobedl']);
+
+    const evt = await page.evaluate(() =>
+      new Promise((resolve) => {
+        window.addEventListener('__qAnalyticsEvent', (e) => resolve(e.detail), { once: true });
+        window.adobeDataLayer.__emit({ event: 'native_evt', eventInfo: { path: 'x' } });
+      }),
+    );
+
+    expect(evt.category).toBe('Adobe DL');
+    expect(evt.event).toBe('native_evt');
+    expect(evt.data._native).toBe(true);
+  });
+
+  test('push does not double-dispatch once native listener is active', async ({ page }) => {
+    await page.setContent('<html><body></body></html>');
+    await page.evaluate(() => {
+      window.adobeDataLayer = [];
+      window.adobeDataLayer.addEventListener = () => {}; // Manager present → native path claimed
+    });
+    await injectInterceptor(page, ['adobedl']);
+
+    const count = await page.evaluate(async () => {
+      let n = 0;
+      window.addEventListener('__qAnalyticsEvent', () => n++);
+      // Manager present means the push-proxy must stay silent to avoid duplicates
+      window.adobeDataLayer.push({ event: 'no_dupe' });
+      await new Promise(r => setTimeout(r, 40));
+      return n;
+    });
+
+    expect(count).toBe(0);
+  });
+
+  test('disabled adobedl provider is not patched', async ({ page }) => {
+    await page.setContent('<html><body></body></html>');
+    await page.evaluate(() => { window.adobeDataLayer = []; });
+    await injectInterceptor(page, ['gtm']); // adobedl NOT enabled
+
+    const fired = await page.evaluate(async () => {
+      let n = 0;
+      window.addEventListener('__qAnalyticsEvent', () => n++);
+      window.adobeDataLayer.push({ event: 'should_not_fire' });
+      await new Promise(r => setTimeout(r, 40));
+      return n;
+    });
+
+    expect(fired).toBe(0);
+  });
+});
+
 // ─── Segment / analytics ─────────────────────────────────────────────────────
 
 test.describe('Analytics Interceptor — Segment', () => {

@@ -10,6 +10,7 @@
 //   - Meta Pixel (window.fbq)
 //   - Adobe Analytics (window.s.tl, window.s.t, AppMeasurement)
 //   - Adobe Launch / DTM (window._satellite.track)
+//   - Adobe Client Data Layer (window.adobeDataLayer — ACDL)
 //   - Tealium (window.utag.link, window.utag.view, window.utag.track)
 //   - Floodlight / DoubleClick (fetch URLs, img/iframe src pixels)
 //   - Segment (window.analytics.track, window.analytics.page)
@@ -26,7 +27,7 @@
 
   const providers = Array.isArray(window.__qAnalyticsProviders) && window.__qAnalyticsProviders.length
     ? window.__qAnalyticsProviders
-    : ['gtm','ga4','ddl','wae','adobe','tealium','meta','floodlight','segment'];
+    : ['gtm','ga4','ddl','wae','adobe','adobedl','tealium','meta','floodlight','segment'];
 
   let _seq = 0;
   const sessionStart = Date.now();
@@ -276,6 +277,103 @@
     patchSatellite();
     window.addEventListener('load', patchSatellite, { once: true });
     setTimeout(patchSatellite, 1500);
+  }
+
+  // ── Adobe Client Data Layer — window.adobeDataLayer (ACDL) ────────────────
+  // ACDL is an event-driven array like dataLayer, but the ACDL "Manager"
+  // library REPLACES adobeDataLayer.push when it initialises — which would
+  // clobber a plain push-proxy. So we use two complementary paths:
+  //   1. Proxy the array's .push — catches events while ACDL is still a plain
+  //      array (before the Manager loads, or sites that never load it).
+  //   2. Register ACDL's native 'adobeDataLayer:event' listener once the
+  //      Manager is present — the supported extension point that survives the
+  //      push replacement.
+  // `nativeActive` guards path 1 from double-dispatching once path 2 is live
+  // (the Manager may call our proxied push as its captured "original").
+  if (providers.includes('adobedl')) {
+    const CATEGORY = 'Adobe DL';
+    let nativeActive = false;
+
+    function acdlName(item) {
+      if (!item || typeof item !== 'object') return null;
+      if (item.event)                                  return String(item.event);
+      if (item.eventInfo && item.eventInfo.eventName)  return String(item.eventInfo.eventName);
+      return 'adobeDataLayer.push'; // capture everything — never drop silently
+    }
+    function acdlOut(item, extra) {
+      let raw = null;
+      try { raw = JSON.parse(JSON.stringify(item)); } catch (_) { raw = { _unserialisable: true }; }
+      const out = Object.assign({ _raw: raw }, extra || {});
+      if (item.eventInfo)    out.eventInfo    = item.eventInfo;
+      if (item.eventDetails) out.eventDetails = item.eventDetails;
+      if (item.ecommerce)    out.ecommerce    = item.ecommerce;
+      if (item.data)         out.data         = item.data;
+      if (item.component)    out.component    = item.component;
+      if (item.user)         out.user         = item.user;
+      if (item.page)         out.page         = item.page;
+      if (item.product)      out.product      = item.product;
+      if (item.xdm)          out.xdm          = item.xdm;
+      return out;
+    }
+
+    // Path 2 — ACDL's native listener (fires only for pushes carrying an event)
+    const attachNative = (dl) => {
+      if (nativeActive || !dl || typeof dl.addEventListener !== 'function') return;
+      nativeActive = true;
+      try {
+        dl.addEventListener('adobeDataLayer:event', function (ev) {
+          if (!ev || ev.__qkitOwn) return;
+          dispatch(acdlName(ev), CATEGORY, acdlOut(ev, { _native: true }));
+        });
+      } catch (_) { nativeActive = false; }
+    };
+
+    // Path 1 — proxy the array's push (idempotent)
+    const proxyPush = (origPush) => {
+      if (origPush && origPush.__qkitProxied) return origPush;
+      const wrapped = function (...args) {
+        if (!nativeActive) {
+          args.forEach(item => {
+            if (!item || typeof item !== 'object' || item.__qkitOwn) return;
+            dispatch(acdlName(item), CATEGORY, acdlOut(item));
+          });
+        }
+        return origPush.apply(this, args);
+      };
+      wrapped.__qkitProxied = true;
+      return wrapped;
+    };
+
+    const install = (dl) => {
+      if (!Array.isArray(dl)) return;
+      if (!(dl.push && dl.push.__qkitProxied)) {
+        dl.push = proxyPush(dl.push.bind(dl));
+        // Replay events already queued before we arrived
+        dl.forEach(item => {
+          if (!item || typeof item !== 'object' || item.__qkitOwn) return;
+          dispatch(acdlName(item), CATEGORY, acdlOut(item, { _replayed: true }));
+        });
+      }
+      attachNative(dl); // in case the Manager is already present
+    };
+
+    if (Array.isArray(window.adobeDataLayer)) install(window.adobeDataLayer);
+
+    // Watch for the array being (re)assigned by the page
+    let _acdlRef = window.adobeDataLayer;
+    try {
+      Object.defineProperty(window, 'adobeDataLayer', {
+        configurable: true,
+        get() { return _acdlRef; },
+        set(val) { _acdlRef = val; if (Array.isArray(val)) install(val); },
+      });
+    } catch (_) {}
+
+    // The Manager loads async — retry attaching the native listener.
+    const tryAttach = () => { if (Array.isArray(window.adobeDataLayer)) attachNative(window.adobeDataLayer); };
+    window.addEventListener('load', tryAttach, { once: true });
+    setTimeout(tryAttach, 1500);
+    setTimeout(tryAttach, 3000);
   }
 
   // ── Tealium ──────────────────────────────────────────────────────────────

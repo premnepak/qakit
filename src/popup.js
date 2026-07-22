@@ -16,6 +16,7 @@ const CATEGORY_COLORS = {
   GA4:          '#4ade80',
   'Meta Pixel': '#1877f2',
   Adobe:        '#e2231a',
+  'Adobe DL':   '#b81d13',
   Tealium:      '#00b5ad',
   Floodlight:   '#fbbc04',
   Segment:      '#52bd95',
@@ -256,6 +257,7 @@ const CATEGORY_TO_PROVIDER = {
   'DDL':        'ddl',
   'GA4':        'ga4',
   'Adobe':      'adobe',
+  'Adobe DL':   'adobedl',
   'Tealium':    'tealium',
   'Meta Pixel': 'meta',
   'Floodlight': 'floodlight',
@@ -265,7 +267,7 @@ const CATEGORY_TO_PROVIDER = {
 // Returns the Set of enabled provider keys from settings (or all if settings unavailable).
 function enabledProviderSet() {
   const providers = (typeof getSettings === 'function' && getSettings().analyticsProviders)
-    || ['gtm','ga4','ddl','adobe','tealium','meta','floodlight','segment'];
+    || ['gtm','ga4','ddl','adobe','adobedl','tealium','meta','floodlight','segment'];
   return new Set(providers);
 }
 
