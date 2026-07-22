@@ -148,7 +148,7 @@ tr:nth-child(even) td{background:#fafbfc}
     <tr><td><strong>Inspect &amp; Measure</strong></td><td>Element Inspector, Spacing Inspector, Ruler, Viewports</td></tr>
     <tr><td><strong>Capture</strong></td><td>Annotate, Region Screenshot, Full Page Screenshot, Element Screenshot</td></tr>
     <tr><td><strong>Data &amp; Network</strong></td><td>Analytics, Network Mock, Headers Modifier, Page Audit</td></tr>
-    <tr><td><strong>Session &amp; Environment</strong></td><td>Environment Marker, Cookie Manager, Local Storage, Console Errors</td></tr>
+    <tr><td><strong>Session &amp; Environment</strong></td><td>Environment Marker, Cookie Manager, Storage (Local &amp; Session), Console Errors</td></tr>
     <tr><td><strong>Utilities</strong></td><td>Time &amp; Epoch, Encode &amp; Decode, Override Geolocation, Page Metadata</td></tr>
     <tr><td><strong>Tools</strong></td><td>JSON Viewer ↗, Text Compare ↗, Help ↗</td></tr>
   </table>
@@ -554,10 +554,11 @@ tr:nth-child(even) td{background:#fafbfc}
     <li>Click <strong>↻ Refresh</strong> to reload the cookie list</li>
   </ul>
 
-  <!-- Local Storage -->
-  <h3>🗄 Local Storage</h3>
-  <p>Browse and manage the <code>localStorage</code> keys for the current origin.</p>
+  <!-- Storage -->
+  <h3>🗄 Storage</h3>
+  <p>Browse and manage <code>localStorage</code> and <code>sessionStorage</code> keys for the current origin.</p>
   <ul>
+    <li><strong>Local Storage / Session Storage</strong> — switch between the two stores with the tabs at the top of the panel</li>
     <li>Lists all keys with truncated values — click any row to expand</li>
     <li><strong>⊞ Expand all / ⊟ Collapse all</strong> — single toggle button cycles between expanded and collapsed state</li>
     <li><strong>🔍 Search</strong> — filter by key name or value</li>
@@ -565,6 +566,7 @@ tr:nth-child(even) td{background:#fafbfc}
     <li>Click the <strong>Delete</strong> button to remove a key</li>
     <li>Click <strong>↻ Refresh</strong> to reload</li>
     <li>Long values are truncated in the collapsed view — expand to see the full content</li>
+    <li>Configure which keys to track for each store in Settings → Local Storage Keys / Session Storage Keys (leave blank to show all)</li>
   </ul>
 
   <!-- Console Errors -->
@@ -767,6 +769,10 @@ tr:nth-child(even) td{background:#fafbfc}
     <div class="card">
       <div class="card-title">🗄 Local Storage Keys</div>
       <p>Comma-separated key names to track. Leave blank to show all keys. Useful if your application has many LS keys and you only care about a specific subset.</p>
+    </div>
+    <div class="card">
+      <div class="card-title">🗄 Session Storage Keys</div>
+      <p>Comma-separated key names to track in the Session Storage tab. Leave blank to show all keys.</p>
     </div>
     <div class="card">
       <div class="card-title">🍪 Cookie Filter</div>

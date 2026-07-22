@@ -33,6 +33,16 @@ let LS_TARGET_KEYS = [
   'recentAirports',
 ];
 
+// Session storage target keys — synced from settings (settingSsKeys). Empty = show all.
+let SS_TARGET_KEYS = [];
+
+// Which web-storage area the Storage panel is currently showing.
+// 'local' → localStorage; 'session' → sessionStorage. Each honours its own target-key filter.
+let _storeType = 'local';
+function storeLabel(t) { return (t || _storeType) === 'session' ? 'Session Storage' : 'Local Storage'; }
+function storeApiName(t) { return (t || _storeType) === 'session' ? 'sessionStorage' : 'localStorage'; }
+function storeTargetKeys(t) { return (t || _storeType) === 'session' ? SS_TARGET_KEYS : LS_TARGET_KEYS; }
+
 let allEvents  = [];
 let paused     = false;
 let searchQuery   = '';
@@ -633,25 +643,27 @@ async function sendToContentScript(tabId, msg) {
 
 async function execLS(tabId, operation) {
   try {
-    const TARGET_KEYS = LS_TARGET_KEYS;
+    // Each store honours its own configured target keys (empty = scan all).
+    const TARGET_KEYS = storeTargetKeys();
     const results = await chrome.scripting.executeScript({
       target: { tabId },
-      func: (op, keys) => {
+      func: (op, keys, storeType) => {
+        const store = storeType === 'session' ? sessionStorage : localStorage;
         if (op.type === 'SCAN') {
           const found = {};
           if (keys.length === 0) {
-            // No target keys configured — return ALL localStorage keys
-            for (let i = 0; i < localStorage.length; i++) {
-              const k = localStorage.key(i);
+            // No target keys configured — return ALL keys for this store
+            for (let i = 0; i < store.length; i++) {
+              const k = store.key(i);
               if (!k) continue;
-              const raw = localStorage.getItem(k);
+              const raw = store.getItem(k);
               let parsed = null;
               try { parsed = raw !== null ? JSON.parse(raw) : null; } catch { parsed = raw; }
               found[k] = { raw, parsed, found: true };
             }
           } else {
             keys.forEach(k => {
-              const raw = localStorage.getItem(k);
+              const raw = store.getItem(k);
               let parsed = null;
               try { parsed = raw !== null ? JSON.parse(raw) : null; } catch { parsed = raw; }
               found[k] = { raw, parsed, found: raw !== null };
@@ -662,7 +674,7 @@ async function execLS(tabId, operation) {
         if (op.type === 'GET') {
           const result = {};
           (op.keys || keys).forEach(k => {
-            const raw = localStorage.getItem(k);
+            const raw = store.getItem(k);
             let parsed = null;
             try { parsed = raw !== null ? JSON.parse(raw) : null; } catch { parsed = raw; }
             result[k] = { raw, found: raw !== null, parsed };
@@ -671,8 +683,8 @@ async function execLS(tabId, operation) {
         }
         if (op.type === 'SET') {
           try {
-            localStorage.setItem(op.key, op.value);
-            const raw = localStorage.getItem(op.key);
+            store.setItem(op.key, op.value);
+            const raw = store.getItem(op.key);
             let parsed = null;
             try { parsed = JSON.parse(raw); } catch { parsed = raw; }
             return { ok: true, raw, parsed };
@@ -680,12 +692,12 @@ async function execLS(tabId, operation) {
         }
         if (op.type === 'DELETE') {
           try {
-            localStorage.removeItem(op.key);
+            store.removeItem(op.key);
             return { ok: true };
           } catch(e) { return { ok: false, error: e.message }; }
         }
       },
-      args: [operation, TARGET_KEYS],
+      args: [operation, TARGET_KEYS, _storeType],
     });
     return results?.[0]?.result ?? null;
   } catch(e) {
@@ -701,7 +713,7 @@ async function getActiveTab() {
 
 async function fetchAndRenderLS() {
   const container = document.getElementById('lsContent');
-  container.innerHTML = '<div class="empty"><div class="empty-icon">⟳</div><div class="empty-text">Scanning localStorage…</div></div>';
+  container.innerHTML = '<div class="empty"><div class="empty-icon">⟳</div><div class="empty-text">Scanning ' + storeApiName() + '…</div></div>';
 
   const tab = await getActiveTab();
 
@@ -716,11 +728,11 @@ async function fetchAndRenderLS() {
   let res = await execLS(tab.id, { type: 'SCAN' });
   if (!res || !res.ls) {
     // Fallback: send message to content script
-    res = await sendToContentScript(tab.id, { action: 'SCAN_LS_URLS', targetKeys: LS_TARGET_KEYS });
+    res = await sendToContentScript(tab.id, { action: 'SCAN_LS_URLS', targetKeys: storeTargetKeys(), storageType: _storeType });
   }
 
   if (!res || !res.ls) {
-    container.innerHTML = '<div class="empty"><div class="empty-icon">⚠️</div><div class="empty-text">Could not read localStorage.<br>Please reload the page and try again.</div></div>';
+    container.innerHTML = '<div class="empty"><div class="empty-icon">⚠️</div><div class="empty-text">Could not read ' + storeApiName() + '.<br>Please reload the page and try again.</div></div>';
     return;
   }
 
@@ -782,8 +794,8 @@ function buildCardBody(key, info) {
     '<div class="ls-edit-section">' +
     '<textarea class="ls-edit-area" rows="3">' + escapeHtml(info.raw || '') + '</textarea>' +
     '<div class="ls-edit-actions">' +
-    '<button class="ls-btn ls-btn-save">💾 Save to localStorage</button>' +
-    '<span class="ls-edit-hint">Writes directly to localStorage</span>' +
+    '<button class="ls-btn ls-btn-save">💾 Save to ' + storeApiName() + '</button>' +
+    '<span class="ls-edit-hint">Writes directly to ' + storeApiName() + '</span>' +
     '</div></div></details></div>';
 }
 
@@ -797,7 +809,7 @@ function rebindCardEvents(card, key) {
     const newVal   = textarea ? textarea.value.trim() : '';
     if (!newVal) return;
     const tab = await getActiveTab();
-    let res = await sendToContentScript(tab.id, { action: 'SET_LS', key, value: newVal });
+    let res = await sendToContentScript(tab.id, { action: 'SET_LS', key, value: newVal, storageType: _storeType });
     if (!res) res = await execLS(tab.id, { type: 'SET', key, value: newVal });
     if (res && res.ok) {
       const newInfo = { raw: res.raw, found: true, parsed: res.parsed };
@@ -835,7 +847,7 @@ function renderLSCards(ls, tabId, currentUrl) {
   if (allKeys.length === 0) {
     const empty = document.createElement('div');
     empty.className = 'empty';
-    empty.innerHTML = '<div class="empty-icon">◎</div><div class="empty-text">Local Storage is empty for this origin</div>';
+    empty.innerHTML = '<div class="empty-icon">◎</div><div class="empty-text">' + storeLabel() + ' is empty for this origin</div>';
     container.appendChild(empty);
     return;
   }
@@ -895,13 +907,13 @@ function renderLSCards(ls, tabId, currentUrl) {
     row.querySelector('.ls-btn-load').addEventListener('click', async (e) => {
       e.stopPropagation();
       const tab = await getActiveTab();
-      let res = await sendToContentScript(tab.id, { action: 'GET_LS', keys: [key] });
+      let res = await sendToContentScript(tab.id, { action: 'GET_LS', keys: [key], storageType: _storeType });
       if (!res?.ls) res = await execLS(tab.id, { type: 'GET', keys: [key] });
       if (res?.ls?.[key]) {
         const newInfo = res.ls[key];
         if (!newInfo.found) {
           row.remove();
-          showLsToast(key + ' no longer in localStorage');
+          showLsToast(key + ' no longer in ' + storeApiName());
           return;
         }
         Object.assign(info, newInfo);
@@ -933,7 +945,7 @@ function renderLSCards(ls, tabId, currentUrl) {
       }
       deleteBtn.dataset.confirming = 'false';
       const tab = await getActiveTab();
-      let res = await sendToContentScript(tab.id, { action: 'DELETE_LS', key });
+      let res = await sendToContentScript(tab.id, { action: 'DELETE_LS', key, storageType: _storeType });
       if (!res) res = await execLS(tab.id, { type: 'DELETE', key });
       if (res?.ok) {
         row.remove();
@@ -1927,6 +1939,23 @@ document.getElementById('ddlPlatformFilter')?.addEventListener('change', (e) => 
 });
 
 document.getElementById('lsRefreshBtn').addEventListener('click', fetchAndRenderLS);
+
+// Local / Session storage selector — switch the active store then reload.
+function setStoreType(type) {
+  _storeType = type === 'session' ? 'session' : 'local';
+  document.querySelectorAll('#panel-ls .pt-subtab[data-store]').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.store === _storeType);
+  });
+  const label = document.getElementById('lsTypeLabel');
+  if (label) label.textContent = '🗄 ' + storeLabel();
+  // Reset search + expand state so the two stores don't share stale UI.
+  const search = document.getElementById('lsSearch');
+  if (search && search.value) { search.value = ''; search.dispatchEvent(new Event('input')); }
+  fetchAndRenderLS();
+}
+document.querySelectorAll('#panel-ls .pt-subtab[data-store]').forEach(btn => {
+  btn.addEventListener('click', () => setStoreType(btn.dataset.store));
+});
 
 // Storage search — filter rows by key OR value substring
 document.getElementById('lsSearch')?.addEventListener('input', (e) => {
