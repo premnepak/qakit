@@ -105,7 +105,7 @@ function initBackground() {
 chrome.runtime.onInstalled.addListener((details) => {
   initBackground();
   const version = chrome.runtime.getManifest().version;
-  if (details.reason === 'install' || (details.reason === 'update' && version === '1.0.5')) {
+  if (details.reason === 'install' || (details.reason === 'update' && version === '1.0.6')) {
     // Open in background so the user's active tab never loses focus — screenshots
     // keep working immediately. User can switch to the welcome tab when ready.
     chrome.tabs.create({ url: chrome.runtime.getURL('welcome.html'), active: false });

@@ -143,7 +143,19 @@ The privacy policy makes all of this explicit and binding.
 - **No framework** — no React, no Vue, no Lit. Direct DOM manipulation throughout. Reason: smaller bundle, no runtime cost, no version churn.
 - **No package.json** in `src/` — there are no JS dependencies. Node is used only for syntax validation in `scripts/validate.sh`.
 - **No `chrome.storage.sync`** — explicitly local-only for privacy.
-- **No tests** — the project has been validated through manual smoke testing across the ~20 tools. Future contributors may want to add Playwright tests for regressions; this is not a regression in itself.
+
+## Testing
+
+The project has a **Playwright suite** (`tests/`, 19 spec files) that loads the unpacked extension from `src/` into a persistent Chromium context. Key pieces:
+
+- `tests/fixtures.js` — shared fixtures: `context` (extension loaded), `extensionId` (resolved from the service worker URL), and `popupPage` (an already-opened `popup.html`). Note it launches with `headless: false` because Chrome extensions don't load in headless mode; CI runs the whole thing under `xvfb-run`.
+- `tests/regressions.spec.js` — pins the high-risk fixes from `FIX_HISTORY.md` (e.g. Fix 57b theme toggle, Fix 78 Page Audit history). Keep these green or document the intentional change in `CHANGELOG.md`.
+- `scripts/regression-check.js` — a static, browserless sanity check on `manifest.json` and the critical fixes (`node scripts/regression-check.js`).
+- CI: `.github/workflows/validate.yml` runs `validate.sh`, then the Playwright suite, then publishes the HTML report to GitHub Pages.
+
+Run locally with `npm test` (or `npx playwright test`); `npm run test:report` opens the last HTML report.
+
+**Config caveat:** the `use` block in `playwright.config.js` (headless + `--load-extension` args) is effectively unused — every test builds its own context via `fixtures.js`. Don't rely on those config values.
 
 ## File ownership
 

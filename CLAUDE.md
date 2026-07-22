@@ -8,7 +8,7 @@
 
 - **Source code:** `src/`
 - **Manifest:** `src/manifest.json`
-- **Current version:** 1.0.5 (in development — 1.0.2 was reverted on CWS, resubmitted as 1.0.3)
+- **Current version:** 1.0.6 (in development — 1.0.2 was reverted on CWS, resubmitted as 1.0.3)
 - **Documentation:** `docs/`
 - **Tech stack:** Vanilla JavaScript (no framework), Chrome Extension APIs (v3), HTML, CSS
 
@@ -109,10 +109,11 @@ The script handles version bumping across all files, validation, and zip creatio
 2. **Create a branch:** `git checkout -b fix/issue-NN-short-description`
 3. **Implement minimal fix only** — no scope creep, no "while I'm in here" cleanup
 4. **Run `./scripts/validate.sh`** — must pass
-5. **Test the exact flow the user reported** — don't assume the fix works
-6. **Commit:** `git commit -m "Fix #NN: short description"`
-7. **Update `CHANGELOG.md`** if the fix is user-facing
-8. **Push and create PR** (or merge directly if working solo)
+5. **Run the tests** — `npm test` (Playwright suite in `tests/`) and, for a quick static check, `node scripts/regression-check.js`. If your change touches a high-risk fix, keep `tests/regressions.spec.js` green.
+6. **Test the exact flow the user reported** — don't assume the fix works
+7. **Commit:** `git commit -m "Fix #NN: short description"`
+8. **Update `CHANGELOG.md`** if the fix is user-facing
+9. **Push and create PR** (or merge directly if working solo)
 
 ## 🚫 Common pitfalls (learned the hard way)
 
