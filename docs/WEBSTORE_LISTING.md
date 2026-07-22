@@ -33,7 +33,7 @@ Capture
 • Annotate any page before capturing (arrows, shapes, text, highlights)
 
 Data & Network
-• Live Analytics feed — captures GTM, GA4, Adobe, Tealium, Meta Pixel, Segment, Floodlight, and DDL events as they fire
+• Live Analytics feed — captures GTM, GA4, Adobe, Adobe DataLayer, Tealium, Meta Pixel, Segment, Floodlight, and DDL events as they fire
 • Network Mock — intercept HTTP requests and return custom JSON, status codes, redirects, or block them entirely
 • Headers Modifier — inject auth tokens, override CORS, or customise any request/response header
 
@@ -75,7 +75,7 @@ Key features to test:
 
 3. Page Audit — Click "Audit" tile, then "Run". Should scan for broken links (HEAD requests to URLs on the page), broken images, a11y issues, console errors, spelling, security headers. Different URL = rich banner; same URL = full results.
 
-4. Analytics — Click "Analytics" tile. Should capture GTM, GA4, Adobe Analytics, Tealium, Meta Pixel, Segment, Floodlight events fired by the page in real time.
+4. Analytics — Click "Analytics" tile. Should capture GTM, GA4, Adobe Analytics, Adobe DataLayer, Tealium, Meta Pixel, Segment, Floodlight events fired by the page in real time.
 
 5. Network Mock — Click "Net Mock" tile. Create rule: match URL pattern, return custom JSON. Reload page — rule should fire.
 

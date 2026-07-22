@@ -73,6 +73,12 @@ code{background:#f0f4f8;border-radius:3px;padding:1px 6px;font-family:monospace;
       <span class="release-tag">In development</span>
     </div>
 
+    <h3><span class="icon">📡</span>Analytics tool</h3>
+    <ul>
+      <li><strong>Adobe DataLayer capture</strong> — the Analytics tool now monitors <code>adobeDataLayer</code> (Adobe Client Data Layer) events, shown under the new <strong>Adobe DataLayer</strong> category. Events such as <code>cmp:show</code> and <code>cmp:click</code> are captured, including those fired during page load. Toggle it under <strong>Settings → Analytics Providers → Adobe DataLayer (ACDL)</strong>.</li>
+      <li><strong>Fixed — Analytics tab sometimes showing 0 events</strong> — after the browser suspended the extension in the background, reopening the popup could briefly show an empty list even though events had been captured. The event list now loads reliably every time.</li>
+    </ul>
+
     <h3><span class="icon">🗄</span>Storage tool</h3>
     <ul>
       <li><strong>Session Storage support</strong> — the Storage panel now has <strong>Local Storage / Session Storage</strong> tabs. Browse, search, edit, and delete <code>sessionStorage</code> keys for the current origin with the same interface as Local Storage.</li>
