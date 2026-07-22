@@ -17,6 +17,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - **Session Storage** in the Storage tool — the Storage panel now has **Local Storage / Session Storage** tabs so you can browse, search, edit, and delete `sessionStorage` keys for the current origin, with the same UI as Local Storage.
 - **Session Storage Keys** setting — an optional comma-separated filter (Settings → Session Storage Keys) that limits the Session Storage tab to specific keys. Leave blank to show all keys, mirroring the existing Local Storage Keys filter.
 
+### Fixed
+- **JSON Viewer — Tree View not scrolling** — with large JSON, the Tree View tab clipped its content and showed no scrollbar. Root cause: switching to Tree mode cleared the pane's inline `display` (set it to `''`) instead of `flex`, so the `<section>` fell back to `display:block` and its `flex-direction:column` layout was ignored, collapsing the flex height chain that gives `.qd-tree-content` its `overflow:auto` scroll region. Fixed by setting the active pane to `display:flex` in both modes.
+
 ---
 
 

@@ -31,7 +31,7 @@ function switchMode(mode) {
   });
   document.querySelectorAll('.qd-mode-pane').forEach(el => {
     const isActive = el.dataset.modePane === mode;
-    el.style.display = isActive ? (mode === 'tree' ? '' : 'flex') : 'none';
+    el.style.display = isActive ? 'flex' : 'none';
   });
   saveWorkspace({ mode });
 }
