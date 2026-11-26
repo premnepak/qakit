@@ -11,123 +11,123 @@ const { test, expect } = require('./fixtures');
 
 const HDR_KEY = 'qa_header_rules';
 
-async function openHeadersPanel(popupPage) {
-  await popupPage.click('.home-tile[data-tab="headers"]');
-  await expect(popupPage.locator('#panel-headers')).toHaveClass(/active/);
+async function openHeadersPanel(popup) {
+  await popup.homeTile('headers').click();
+  await expect(popup.panel('headers')).toHaveClass(/active/);
 }
 
-async function createHeaderRule(popupPage, opts = {}) {
+async function createHeaderRule(popup, opts = {}) {
   const {
     urlFilter = '*',
     header    = 'X-Test-Header',
     value     = 'test-value',
     op        = 'set',
   } = opts;
-  await popupPage.click('#hdrAddBtn');
-  await expect(popupPage.locator('#hdrModal')).toBeVisible();
-  await popupPage.fill('#hdrUrlFilter', urlFilter);
-  await popupPage.fill('#hdrHeaderName', header);
-  await popupPage.selectOption('#hdrOp', op);
-  if (op !== 'remove') await popupPage.fill('#hdrHeaderValue', value);
-  await popupPage.click('#hdrModalSave');
-  await expect(popupPage.locator('#hdrModal')).toBeHidden({ timeout: 3000 });
+  await popup.hdrAddBtn.click();
+  await expect(popup.hdrModal).toBeVisible();
+  await popup.hdrUrlFilter.fill( urlFilter);
+  await popup.hdrHeaderName.fill( header);
+  await popup.hdrOp.selectOption( op);
+  if (op !== 'remove') await popup.hdrHeaderValue.fill( value);
+  await popup.hdrModalSave.click();
+  await expect(popup.hdrModal).toBeHidden({ timeout: 3000 });
 }
 
 test.describe('Headers Modifier — rule management', () => {
-  test.beforeEach(async ({ popupPage }) => {
+  test.beforeEach(async ({ popup, popupPage }) => {
     await popupPage.evaluate((k) => chrome.storage.local.remove(k), HDR_KEY);
     await popupPage.reload();
-    await popupPage.waitForSelector('#panel-home');
-    await openHeadersPanel(popupPage);
+    await popup.panel('home').waitFor();
+    await openHeadersPanel(popup);
   });
 
-  test('empty state is shown when no rules exist', async ({ popupPage }) => {
-    const list = popupPage.locator('#hdrRuleList');
+  test('empty state is shown when no rules exist', async ({ popup, popupPage }) => {
+    const list = popup.hdrRuleList;
     await expect(list.locator('.empty')).toBeVisible();
     await expect(list.locator('.net-rule-card')).toHaveCount(0);
   });
 
-  test('creating a rule adds a card to the list', async ({ popupPage }) => {
-    await createHeaderRule(popupPage, { header: 'Authorization', value: 'Bearer token123' });
-    await expect(popupPage.locator('#hdrRuleList .net-rule-card')).toHaveCount(1);
+  test('creating a rule adds a card to the list', async ({ popup, popupPage }) => {
+    await createHeaderRule(popup, { header: 'Authorization', value: 'Bearer token123' });
+    await expect(popup.hdrRuleListNetRuleCard).toHaveCount(1);
   });
 
-  test('rule card shows the header name and value', async ({ popupPage }) => {
-    await createHeaderRule(popupPage, { header: 'X-Custom', value: 'my-value', urlFilter: '*.example.com*' });
-    const card = popupPage.locator('#hdrRuleList .net-rule-card').first();
+  test('rule card shows the header name and value', async ({ popup, popupPage }) => {
+    await createHeaderRule(popup, { header: 'X-Custom', value: 'my-value', urlFilter: '*.example.com*' });
+    const card = popup.hdrRuleListNetRuleCard.first();
     await expect(card).toContainText('X-Custom');
     await expect(card).toContainText('my-value');
     await expect(card).toContainText('*.example.com*');
   });
 
-  test('"remove" operation hides the value input field', async ({ popupPage }) => {
-    await popupPage.click('#hdrAddBtn');
-    await expect(popupPage.locator('#hdrModal')).toBeVisible();
-    await popupPage.selectOption('#hdrOp', 'remove');
-    await expect(popupPage.locator('#hdrValueRow')).toBeHidden();
-    await popupPage.click('#hdrModalCancel');
+  test('"remove" operation hides the value input field', async ({ popup, popupPage }) => {
+    await popup.hdrAddBtn.click();
+    await expect(popup.hdrModal).toBeVisible();
+    await popup.hdrOp.selectOption( 'remove');
+    await expect(popup.hdrValueRow).toBeHidden();
+    await popup.hdrModalCancel.click();
   });
 
-  test('"set" and "add" operations show the value input field', async ({ popupPage }) => {
-    await popupPage.click('#hdrAddBtn');
+  test('"set" and "add" operations show the value input field', async ({ popup, popupPage }) => {
+    await popup.hdrAddBtn.click();
     for (const op of ['set', 'add']) {
-      await popupPage.selectOption('#hdrOp', op);
-      await expect(popupPage.locator('#hdrValueRow')).toBeVisible();
+      await popup.hdrOp.selectOption( op);
+      await expect(popup.hdrValueRow).toBeVisible();
     }
-    await popupPage.click('#hdrModalCancel');
+    await popup.hdrModalCancel.click();
   });
 
-  test('delete removes the rule immediately (single click)', async ({ popupPage }) => {
-    await createHeaderRule(popupPage, { header: 'X-Delete-Me' });
-    await expect(popupPage.locator('#hdrRuleList .net-rule-card')).toHaveCount(1);
-    await popupPage.click('.net-rule-btn.del');
-    await expect(popupPage.locator('#hdrRuleList .net-rule-card')).toHaveCount(0);
+  test('delete removes the rule immediately (single click)', async ({ popup, popupPage }) => {
+    await createHeaderRule(popup, { header: 'X-Delete-Me' });
+    await expect(popup.hdrRuleListNetRuleCard).toHaveCount(1);
+    await popup.netRuleBtnDel.click();
+    await expect(popup.hdrRuleListNetRuleCard).toHaveCount(0);
   });
 
-  test('toggle button changes the rule enabled state', async ({ popupPage }) => {
-    await createHeaderRule(popupPage, { header: 'X-Toggle' });
-    const toggle = popupPage.locator('#hdrRuleList .net-rule-toggle').first();
+  test('toggle button changes the rule enabled state', async ({ popup, popupPage }) => {
+    await createHeaderRule(popup, { header: 'X-Toggle' });
+    const toggle = popup.hdrRuleListNetRuleToggle.first();
     const wasBefore = await toggle.evaluate((el) => el.classList.contains('on'));
     await toggle.click();
     const isAfter = await toggle.evaluate((el) => el.classList.contains('on'));
     expect(isAfter).toBe(!wasBefore);
   });
 
-  test('edit rule opens modal pre-populated with existing values', async ({ popupPage }) => {
-    await createHeaderRule(popupPage, { header: 'X-Editable', value: 'original', urlFilter: '*foo.com*' });
-    await popupPage.click('.net-rule-btn.edit');
-    await expect(popupPage.locator('#hdrModal')).toBeVisible();
-    await expect(popupPage.locator('#hdrModalTitle')).toHaveText('Edit Header Rule');
-    await expect(popupPage.locator('#hdrHeaderName')).toHaveValue('X-Editable');
-    await expect(popupPage.locator('#hdrHeaderValue')).toHaveValue('original');
-    await expect(popupPage.locator('#hdrUrlFilter')).toHaveValue('*foo.com*');
-    await popupPage.click('#hdrModalCancel');
+  test('edit rule opens modal pre-populated with existing values', async ({ popup, popupPage }) => {
+    await createHeaderRule(popup, { header: 'X-Editable', value: 'original', urlFilter: '*foo.com*' });
+    await popup.netRuleBtnEdit.click();
+    await expect(popup.hdrModal).toBeVisible();
+    await expect(popup.hdrModalTitle).toHaveText('Edit Header Rule');
+    await expect(popup.hdrHeaderName).toHaveValue('X-Editable');
+    await expect(popup.hdrHeaderValue).toHaveValue('original');
+    await expect(popup.hdrUrlFilter).toHaveValue('*foo.com*');
+    await popup.hdrModalCancel.click();
   });
 
-  test('editing and saving a rule updates the card', async ({ popupPage }) => {
-    await createHeaderRule(popupPage, { header: 'X-Before', value: 'v1' });
-    await popupPage.click('.net-rule-btn.edit');
-    await popupPage.fill('#hdrHeaderName', 'X-After');
-    await popupPage.fill('#hdrHeaderValue', 'v2');
-    await popupPage.click('#hdrModalSave');
-    const card = popupPage.locator('#hdrRuleList .net-rule-card').first();
+  test('editing and saving a rule updates the card', async ({ popup, popupPage }) => {
+    await createHeaderRule(popup, { header: 'X-Before', value: 'v1' });
+    await popup.netRuleBtnEdit.click();
+    await popup.hdrHeaderName.fill( 'X-After');
+    await popup.hdrHeaderValue.fill( 'v2');
+    await popup.hdrModalSave.click();
+    const card = popup.hdrRuleListNetRuleCard.first();
     await expect(card).toContainText('X-After');
     await expect(card).toContainText('v2');
   });
 
-  test('multiple rules are all listed', async ({ popupPage }) => {
-    await createHeaderRule(popupPage, { header: 'X-One',   value: '1' });
-    await createHeaderRule(popupPage, { header: 'X-Two',   value: '2' });
-    await createHeaderRule(popupPage, { header: 'X-Three', value: '3' });
-    await expect(popupPage.locator('#hdrRuleList .net-rule-card')).toHaveCount(3);
+  test('multiple rules are all listed', async ({ popup, popupPage }) => {
+    await createHeaderRule(popup, { header: 'X-One',   value: '1' });
+    await createHeaderRule(popup, { header: 'X-Two',   value: '2' });
+    await createHeaderRule(popup, { header: 'X-Three', value: '3' });
+    await expect(popup.hdrRuleListNetRuleCard).toHaveCount(3);
   });
 
-  test('Clear All button removes every rule', async ({ popupPage }) => {
-    await createHeaderRule(popupPage, { header: 'X-A' });
-    await createHeaderRule(popupPage, { header: 'X-B' });
-    await expect(popupPage.locator('#hdrRuleList .net-rule-card')).toHaveCount(2);
+  test('Clear All button removes every rule', async ({ popup, popupPage }) => {
+    await createHeaderRule(popup, { header: 'X-A' });
+    await createHeaderRule(popup, { header: 'X-B' });
+    await expect(popup.hdrRuleListNetRuleCard).toHaveCount(2);
     popupPage.once('dialog', (d) => d.accept());
-    await popupPage.click('#hdrClearAllBtn');
-    await expect(popupPage.locator('#hdrRuleList .net-rule-card')).toHaveCount(0);
+    await popup.hdrClearAllBtn.click();
+    await expect(popup.hdrRuleListNetRuleCard).toHaveCount(0);
   });
 });

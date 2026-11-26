@@ -38,91 +38,91 @@ function makeConversionHelpers() {
   return { detectEpochUnit, epochToMs };
 }
 
-async function openTimePanel(popupPage) {
-  await popupPage.click('.home-tile[data-tab="time"]');
-  await expect(popupPage.locator('#panel-time')).toHaveClass(/active/);
+async function openTimePanel(popup) {
+  await popup.homeTile('time').click();
+  await expect(popup.panel('time')).toHaveClass(/active/);
 }
 
 // ─── Suite 1: Popup panel UI ─────────────────────────────────────────────────
 
 test.describe('Time panel — UI', () => {
-  test('panel opens from home tile', async ({ popupPage }) => {
-    await openTimePanel(popupPage);
-    await expect(popupPage.locator('#panel-time')).toBeVisible();
+  test('panel opens from home tile', async ({ popup, popupPage }) => {
+    await openTimePanel(popup);
+    await expect(popup.panel('time')).toBeVisible();
   });
 
-  test('World Clock sub-tab is active by default', async ({ popupPage }) => {
-    await openTimePanel(popupPage);
-    await expect(popupPage.locator('.time-subtab[data-sub="clock"]')).toHaveClass(/active/);
-    await expect(popupPage.locator('#timesub-clock')).toHaveClass(/active/);
+  test('World Clock sub-tab is active by default', async ({ popup, popupPage }) => {
+    await openTimePanel(popup);
+    await expect(popup.subtab('time', 'clock')).toHaveClass(/active/);
+    await expect(popup.timesubClock).toHaveClass(/active/);
   });
 
-  test('World Clock grid renders city rows', async ({ popupPage }) => {
-    await openTimePanel(popupPage);
-    await expect(popupPage.locator('#worldClockGrid')).toBeVisible();
+  test('World Clock grid renders city rows', async ({ popup, popupPage }) => {
+    await openTimePanel(popup);
+    await expect(popup.worldClockGrid).toBeVisible();
     // Grid renders .wc-row elements (one per city)
-    await expect(popupPage.locator('#worldClockGrid .wc-row').first()).toBeAttached({ timeout: 3000 });
+    await expect(popup.worldClockGridWcRow.first()).toBeAttached({ timeout: 3000 });
   });
 
-  test('city filter input is visible and accepts input', async ({ popupPage }) => {
-    await openTimePanel(popupPage);
-    await expect(popupPage.locator('#clockFilter')).toBeVisible();
-    await popupPage.fill('#clockFilter', 'Sydney');
-    await expect(popupPage.locator('#clockFilter')).toHaveValue('Sydney');
+  test('city filter input is visible and accepts input', async ({ popup, popupPage }) => {
+    await openTimePanel(popup);
+    await expect(popup.clockFilter).toBeVisible();
+    await popup.clockFilter.fill( 'Sydney');
+    await expect(popup.clockFilter).toHaveValue('Sydney');
   });
 
-  test('Epoch & Timezone sub-tab is reachable', async ({ popupPage }) => {
-    await openTimePanel(popupPage);
-    await popupPage.click('.time-subtab[data-sub="timestamp"]');
-    await expect(popupPage.locator('#timesub-timestamp')).toBeVisible();
+  test('Epoch & Timezone sub-tab is reachable', async ({ popup, popupPage }) => {
+    await openTimePanel(popup);
+    await popup.subtab('time', 'timestamp').click();
+    await expect(popup.timesubTimestamp).toBeVisible();
   });
 
-  test('epoch input and unit selector are present', async ({ popupPage }) => {
-    await openTimePanel(popupPage);
-    await popupPage.click('.time-subtab[data-sub="timestamp"]');
-    await expect(popupPage.locator('#epochInput')).toBeVisible();
-    await expect(popupPage.locator('#epochUnit')).toBeVisible();
+  test('epoch input and unit selector are present', async ({ popup, popupPage }) => {
+    await openTimePanel(popup);
+    await popup.subtab('time', 'timestamp').click();
+    await expect(popup.epochInput).toBeVisible();
+    await expect(popup.epochUnit).toBeVisible();
   });
 
-  test('human date input and Now button are present', async ({ popupPage }) => {
-    await openTimePanel(popupPage);
-    await popupPage.click('.time-subtab[data-sub="timestamp"]');
-    await expect(popupPage.locator('#humanDateInput')).toBeAttached();
-    await expect(popupPage.locator('#humanNowBtn')).toBeVisible();
+  test('human date input and Now button are present', async ({ popup, popupPage }) => {
+    await openTimePanel(popup);
+    await popup.subtab('time', 'timestamp').click();
+    await expect(popup.humanDateInput).toBeAttached();
+    await expect(popup.humanNowBtn).toBeVisible();
   });
 
-  test('"Now" button fills the epoch input with a current timestamp', async ({ popupPage }) => {
-    await openTimePanel(popupPage);
-    await popupPage.click('.time-subtab[data-sub="timestamp"]');
-    await popupPage.click('#epochNowBtn');
-    const val = await popupPage.locator('#epochInput').inputValue();
+  test('"Now" button fills the epoch input with a current timestamp', async ({ popup, popupPage }) => {
+    await openTimePanel(popup);
+    await popup.subtab('time', 'timestamp').click();
+    await popup.epochNowBtn.click();
+    const val = await popup.epochInput.inputValue();
     expect(val.length).toBeGreaterThan(0);
     expect(Number(val)).toBeGreaterThan(0);
   });
 
-  test('timezone converter From and To selects are populated', async ({ popupPage }) => {
-    await openTimePanel(popupPage);
-    await popupPage.click('.time-subtab[data-sub="timestamp"]');
-    const fromCount = await popupPage.locator('#tzFrom option').count();
-    const toCount   = await popupPage.locator('#tzTo option').count();
+  test('timezone converter From and To selects are populated', async ({ popup, popupPage }) => {
+    await openTimePanel(popup);
+    await popup.subtab('time', 'timestamp').click();
+    const fromCount = await popup.tzFromOption.count();
+    const toCount   = await popup.tzToOption.count();
     expect(fromCount).toBeGreaterThan(10);
     expect(toCount).toBeGreaterThan(10);
   });
 
-  test('timezone swap button is visible', async ({ popupPage }) => {
-    await openTimePanel(popupPage);
-    await popupPage.click('.time-subtab[data-sub="timestamp"]');
-    await expect(popupPage.locator('#tzSwapBtn')).toBeVisible();
+  test('timezone swap button is visible', async ({ popup, popupPage }) => {
+    await openTimePanel(popup);
+    await popup.subtab('time', 'timestamp').click();
+    await expect(popup.tzSwapBtn).toBeVisible();
   });
 
-  test('swap button exchanges From and To timezone values', async ({ popupPage }) => {
-    await openTimePanel(popupPage);
-    await popupPage.click('.time-subtab[data-sub="timestamp"]');
-    const fromBefore = await popupPage.locator('#tzFrom').inputValue();
-    const toBefore   = await popupPage.locator('#tzTo').inputValue();
-    await popupPage.click('#tzSwapBtn');
-    const fromAfter = await popupPage.locator('#tzFrom').inputValue();
-    const toAfter   = await popupPage.locator('#tzTo').inputValue();
+  test('swap button exchanges From and To timezone values', async ({ popup, popupPage }) => {
+    await openTimePanel(popup);
+    await popup.subtab('time', 'timestamp').click();
+    const fromBefore = await popup.tzFrom.inputValue();
+    const toBefore   = await popup.tzTo.inputValue();
+    await popup.tzSwapBtn.click();
+    const fromAfter = await popup.tzFrom.inputValue();
+    const toAfter   = await popup.tzTo.inputValue();
     expect(fromAfter).toBe(toBefore);
     expect(toAfter).toBe(fromBefore);
   });

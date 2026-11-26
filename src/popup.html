@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>QAKit v1.0.6</title>
+<title>QAKit v1.1.0</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Syne:wght@700;800&display=swap');
 
@@ -1408,6 +1408,7 @@
     <div class="tab" data-tab="audit">Page Audit</div>
     <div class="tab" data-tab="ddl">Analytics</div>
     <div class="tab" data-tab="net">Net Mock</div>
+    <div class="tab" data-tab="rules">Rules</div>
     <div class="tab" data-tab="tools">Tools</div>
     <!-- Secondary tabs live in the overflow menu. popup.js shows/hides them
          based on visibleTabs settings. Marked data-overflow. -->
@@ -1458,36 +1459,28 @@
   <div class="home-scroll">
     <div class="home-alerts" id="homeAlerts" style="display:none"></div>
 
-    <!-- ── INSPECT & MEASURE ── Inspect, Spacing, Ruler, Viewports -->
+    <!-- ── QUICK TOOLS ── two rows of most-used actions -->
     <div class="home-section">
-      <div class="home-section-label">INSPECT &amp; MEASURE</div>
+      <div class="home-section-label">QUICK TOOLS</div>
       <div class="home-grid">
         <div class="home-tile" data-action="inspect"><div class="home-tile-icon">🔍</div><div class="home-tile-name">Inspect</div><div class="home-tile-hint">⌘⇧Q</div></div>
         <div class="home-tile" data-action="spacing"><div class="home-tile-icon">📐</div><div class="home-tile-name">Spacing</div><div class="home-tile-hint">⌘⇧Y</div></div>
-        <div class="home-tile" data-action="ruler"><div class="home-tile-icon">📏</div><div class="home-tile-name">Ruler</div><div class="home-tile-hint">measure</div></div>
         <div class="home-tile" data-action="viewports"><div class="home-tile-icon">📱</div><div class="home-tile-name">Viewports</div><div class="home-tile-hint">preview</div></div>
-      </div>
-    </div>
-
-    <!-- ── CAPTURE ── Annotate, Region, Full Page, Element -->
-    <div class="home-section">
-      <div class="home-section-label">CAPTURE</div>
-      <div class="home-grid">
+        <div class="home-tile" data-tab="audit"><div class="home-tile-icon">🔬</div><div class="home-tile-name">Page Audit</div><div class="home-tile-hint" id="homeHintAudit">a11y · perf</div></div>
+        <div class="home-tile" data-tab="ddl"><div class="home-tile-icon">⚡</div><div class="home-tile-name">Analytics</div><div class="home-tile-hint" id="homeHintEvents">0 events</div></div>
         <div class="home-tile" data-action="annotate"><div class="home-tile-icon">✏</div><div class="home-tile-name">Annotate</div><div class="home-tile-hint">draw</div></div>
         <div class="home-tile" data-action="region"><div class="home-tile-icon">⬚</div><div class="home-tile-name">Region</div><div class="home-tile-hint">⌘⇧Z</div></div>
         <div class="home-tile" data-action="fullpage"><div class="home-tile-icon">📄</div><div class="home-tile-name">Full Page</div><div class="home-tile-hint">⌘⇧F</div></div>
-        <div class="home-tile" data-action="element-shot"><div class="home-tile-icon">🖼</div><div class="home-tile-name">Element</div><div class="home-tile-hint">1 click</div></div>
       </div>
     </div>
 
-    <!-- ── DATA & NETWORK ── Analytics, Net Mock, Headers, Page Audit -->
+    <!-- ── DATA & NETWORK ── Net Mock, Rules, Headers -->
     <div class="home-section">
       <div class="home-section-label">DATA &amp; NETWORK</div>
-      <div class="home-grid">
-        <div class="home-tile" data-tab="ddl"><div class="home-tile-icon">⚡</div><div class="home-tile-name">Analytics</div><div class="home-tile-hint" id="homeHintEvents">0 events</div></div>
+      <div class="home-grid home-grid-3">
         <div class="home-tile" data-tab="net"><div class="home-tile-icon">⟷</div><div class="home-tile-name">Net Mock</div><div class="home-tile-hint" id="homeHintMocks">0 rules</div></div>
+        <div class="home-tile" data-tab="rules"><div class="home-tile-icon">🧩</div><div class="home-tile-name">Net Rules</div><div class="home-tile-hint" id="homeHintUnifiedRules">0 unified rules</div></div>
         <div class="home-tile" data-tab="headers"><div class="home-tile-icon">🏷</div><div class="home-tile-name">Headers</div><div class="home-tile-hint">inject</div></div>
-        <div class="home-tile" data-tab="audit"><div class="home-tile-icon">🔬</div><div class="home-tile-name">Page Audit</div><div class="home-tile-hint" id="homeHintAudit">a11y · perf</div></div>
       </div>
     </div>
 
@@ -1705,7 +1698,8 @@
         <button id="lsSearchClear" style="position:absolute;right:4px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--muted);cursor:pointer;padding:2px 6px;font-size:11px;display:none" title="Clear search">✕</button>
       </div>
       <button class="btn-ghost" id="lsToggleAllBtn" style="padding:4px 8px;font-size:9px" title="Expand/Collapse all keys">⊞ Expand all</button>
-      <button class="btn-accent" id="lsRefreshBtn" style="padding:4px 9px;font-size:9px" title="Refresh">↻</button>
+      <button class="btn-accent" id="lsAddBtn" style="padding:4px 8px;font-size:9px" title="Add a new storage key">+ Add</button>
+      <button class="btn-ghost" id="lsRefreshBtn" style="padding:4px 9px;font-size:9px" title="Refresh">↻</button>
     </div>
     <div id="lsContent" style="overflow-y:auto;flex:1">
       <div class="empty">
@@ -1875,17 +1869,18 @@
     <input class="search" id="cookieSearch" placeholder="Filter cookies…" style="flex:1;margin:0;padding:4px 8px;height:auto" />
     <span id="cookieCount" style="font-size:9px;color:var(--muted);white-space:nowrap"></span>
     <button class="btn-ghost" id="cookieToggleAllBtn" style="padding:4px 8px;font-size:9px" title="Expand/Collapse all cookies">⊞ Expand</button>
-    <button class="btn-accent" id="cookieRefreshBtn" title="Refresh cookies for the current domain" style="padding:4px 10px;font-size:9px;">↻ Refresh</button>
+    <button class="btn-accent" id="cookieAddBtn" style="padding:4px 8px;font-size:9px" title="Add a new cookie for the current domain">+ Add</button>
+    <button class="btn-ghost" id="cookieRefreshBtn" title="Refresh cookies for the current domain" style="padding:4px 10px;font-size:9px;">↻ Refresh</button>
   </div>
   <div class="ls-panel" style="padding:6px 8px;overflow-y:auto;flex:1" id="cookieList">
     <div class="empty"><div class="empty-icon">🍪</div><div class="empty-text">Click Refresh to load cookies</div></div>
   </div>
 </div>
 
-<!-- Cookie Edit Modal -->
+<!-- Cookie Add/Edit Modal -->
 <div class="net-modal-overlay" id="cookieEditOverlay" style="display:none">
   <div class="net-modal" style="width:340px">
-    <div class="net-modal-title">Edit Cookie</div>
+    <div class="net-modal-title" id="ckModalTitle">Edit Cookie</div>
     <label class="net-label">Name</label>
     <input class="net-input" id="ckEditName" />
     <label class="net-label">Value</label>
@@ -1897,6 +1892,21 @@
     <div class="net-modal-actions">
       <button class="btn-ghost" id="ckEditCancel">Cancel</button>
       <button class="btn-accent" id="ckEditSave">💾 Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- Storage Add Key Modal -->
+<div class="net-modal-overlay" id="lsAddOverlay" style="display:none">
+  <div class="net-modal" style="width:340px">
+    <div class="net-modal-title" id="lsAddModalTitle">Add Local Storage Key</div>
+    <label class="net-label">Key</label>
+    <input class="net-input" id="lsAddKey" placeholder="my_key" />
+    <label class="net-label">Value</label>
+    <textarea class="net-textarea" id="lsAddValue" rows="4" placeholder="String or JSON value"></textarea>
+    <div class="net-modal-actions">
+      <button class="btn-ghost" id="lsAddCancel">Cancel</button>
+      <button class="btn-accent" id="lsAddSave">💾 Save</button>
     </div>
   </div>
 </div>
@@ -1946,6 +1956,167 @@
         ⚠️ Uses Chrome Debugger API. A banner will briefly appear in the tab. Reload the page after applying for geolocation-dependent content to update.
       </div>
     </div>
+  </div>
+</div>
+
+<!-- Unified Rules Panel -->
+<div class="panel" id="panel-rules">
+  <div class="net-panel">
+    <div id="rulesComposerBlock" style="padding:8px 10px;border-bottom:1px solid var(--border);background:var(--surface)">
+      <div style="font-size:10px;font-weight:700;color:var(--text);margin-bottom:6px">Create Rule</div>
+      <div id="rulesComposerHint" style="font-size:8.5px;color:var(--muted);margin-bottom:8px">Pick one flow below. Each flow has its own focused panel.</div>
+
+      <div id="rulesTypeTiles" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:8px">
+        <button type="button" class="btn-ghost rules-type-tile" data-rules-type="modify-header" style="padding:7px 6px;font-size:8.5px;cursor:pointer">Modify Headers</button>
+        <button type="button" class="btn-ghost rules-type-tile" data-rules-type="redirect-request" style="padding:7px 6px;font-size:8.5px;cursor:pointer">Redirect</button>
+        <button type="button" class="btn-ghost rules-type-tile" data-rules-type="cancel-request" style="padding:7px 6px;font-size:8.5px;cursor:pointer">Block</button>
+      </div>
+
+      <select class="net-select" id="rulesQuickType" style="display:none">
+        <option value="modify-header">Modify Header</option>
+        <option value="cancel-request">Cancel Request</option>
+        <option value="redirect-request">Redirect Request</option>
+      </select>
+
+      <div id="rulesBuilderHeaders" style="display:none;margin-bottom:7px;padding:8px;border:1px solid var(--border);border-radius:7px;background:var(--bg)">
+        <div style="font-size:9px;font-weight:700;color:var(--text);margin-bottom:6px">Headers Rule</div>
+        <div style="display:grid;grid-template-columns:1fr 110px;gap:6px;margin-bottom:6px">
+          <input class="net-input" id="rulesHeaderPattern" placeholder="When request URL matches this pattern" />
+          <select class="net-select" id="rulesHeaderMatchType" style="width:100%">
+            <option value="wildcard">wildcard</option>
+            <option value="contains">contains</option>
+            <option value="regex">regex</option>
+          </select>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 84px 90px;gap:6px;margin-bottom:6px">
+          <input class="net-input" id="rulesQuickHeader" placeholder="Header name (e.g. Authorization)" />
+          <select class="net-select" id="rulesQuickHeaderOp" style="width:100%">
+            <option value="set">set</option>
+            <option value="add">add</option>
+            <option value="remove">remove</option>
+          </select>
+          <select class="net-select" id="rulesQuickTarget" style="width:100%">
+            <option value="request">request</option>
+            <option value="response">response</option>
+          </select>
+        </div>
+        <div id="rulesQuickHeaderValueWrap" style="margin-bottom:6px">
+          <input class="net-input" id="rulesQuickHeaderValue" placeholder="Header value" />
+        </div>
+        <div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:6px">
+          <button type="button" class="btn-ghost rules-template-btn" data-rules-template="header-auth" style="padding:3px 7px;font-size:8px;cursor:pointer">Add Authorization</button>
+          <button type="button" class="btn-ghost rules-template-btn" data-rules-template="header-remove-csp" style="padding:3px 7px;font-size:8px;cursor:pointer">Remove CSP</button>
+        </div>
+        <details>
+          <summary style="font-size:8.5px;color:var(--muted);cursor:pointer">Advanced options</summary>
+          <div style="display:flex;gap:6px;align-items:center;margin-top:6px">
+            <input class="net-input" id="rulesHeaderGroupId" placeholder="group" style="flex:1" />
+            <button class="btn-ghost" id="rulesGroupEnableBtn" style="padding:4px 8px;font-size:9px">Enable Group</button>
+            <button class="btn-ghost" id="rulesGroupDisableBtn" style="padding:4px 8px;font-size:9px">Disable Group</button>
+          </div>
+        </details>
+      </div>
+
+      <div id="rulesBuilderRedirect" style="display:none;margin-bottom:7px;padding:8px;border:1px solid var(--border);border-radius:7px;background:var(--bg)">
+        <div style="font-size:9px;font-weight:700;color:var(--text);margin-bottom:6px">Redirect Rule</div>
+        <div style="display:grid;grid-template-columns:1fr 110px;gap:6px;margin-bottom:6px">
+          <input class="net-input" id="rulesRedirectPattern" placeholder="When request URL matches this pattern" />
+          <select class="net-select" id="rulesRedirectMatchType" style="width:100%">
+            <option value="wildcard">wildcard</option>
+            <option value="contains">contains</option>
+            <option value="regex">regex</option>
+          </select>
+        </div>
+        <input class="net-input" id="rulesQuickRedirectUrl" placeholder="Redirect to URL" style="margin-bottom:6px" />
+        <div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:6px">
+          <button type="button" class="btn-ghost rules-template-btn" data-rules-template="redirect-local" style="padding:3px 7px;font-size:8px;cursor:pointer">Prod -> localhost</button>
+          <button type="button" class="btn-ghost rules-template-btn" data-rules-template="redirect-staging" style="padding:3px 7px;font-size:8px;cursor:pointer">Prod -> staging</button>
+        </div>
+        <details>
+          <summary style="font-size:8.5px;color:var(--muted);cursor:pointer">Advanced options</summary>
+          <div style="display:flex;gap:6px;align-items:center;margin-top:6px">
+            <input class="net-input" id="rulesRedirectGroupId" placeholder="group" style="flex:1" />
+            <button class="btn-ghost" id="rulesRedirectGroupEnableBtn" style="padding:4px 8px;font-size:9px">Enable Group</button>
+            <button class="btn-ghost" id="rulesRedirectGroupDisableBtn" style="padding:4px 8px;font-size:9px">Disable Group</button>
+          </div>
+        </details>
+      </div>
+
+      <div id="rulesBuilderBlock" style="display:none;margin-bottom:7px;padding:8px;border:1px solid var(--border);border-radius:7px;background:var(--bg)">
+        <div style="font-size:9px;font-weight:700;color:var(--text);margin-bottom:6px">Block Rule</div>
+        <div style="font-size:8.5px;color:var(--muted);margin-bottom:6px">Matching requests are cancelled before they reach the destination.</div>
+        <div style="display:grid;grid-template-columns:1fr 110px;gap:6px;margin-bottom:6px">
+          <input class="net-input" id="rulesBlockPattern" placeholder="When request URL matches this pattern" />
+          <select class="net-select" id="rulesBlockMatchType" style="width:100%">
+            <option value="wildcard">wildcard</option>
+            <option value="contains">contains</option>
+            <option value="regex">regex</option>
+          </select>
+        </div>
+        <div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:6px">
+          <button type="button" class="btn-ghost rules-template-btn" data-rules-template="block-tracking" style="padding:3px 7px;font-size:8px;cursor:pointer">Block tracking pixels</button>
+          <button type="button" class="btn-ghost rules-template-btn" data-rules-template="block-thirdparty" style="padding:3px 7px;font-size:8px;cursor:pointer">Block 3rd-party scripts</button>
+        </div>
+        <details>
+          <summary style="font-size:8.5px;color:var(--muted);cursor:pointer">Advanced options</summary>
+          <div style="display:flex;gap:6px;align-items:center;margin-top:6px">
+            <input class="net-input" id="rulesBlockGroupId" placeholder="group" style="flex:1" />
+            <button class="btn-ghost" id="rulesBlockGroupEnableBtn" style="padding:4px 8px;font-size:9px">Enable Group</button>
+            <button class="btn-ghost" id="rulesBlockGroupDisableBtn" style="padding:4px 8px;font-size:9px">Disable Group</button>
+          </div>
+        </details>
+      </div>
+
+      <div id="rulesComposerValidation" style="min-height:14px;margin-bottom:6px;font-size:8.5px;color:var(--muted)"></div>
+
+      <div style="display:flex;justify-content:flex-end;gap:6px">
+        <button class="btn-accent" id="rulesQuickCreateBtn" style="padding:5px 9px;font-size:9px">Save Rule</button>
+      </div>
+    </div>
+
+    <details id="rulesManageSection" style="border-bottom:1px solid var(--border)">
+      <summary style="padding:8px 10px;font-size:9px;color:var(--muted);cursor:pointer;user-select:none">Manage Existing Rules</summary>
+
+      <div class="net-toolbar" style="gap:6px;flex-wrap:wrap">
+        <button class="btn-ghost" id="rulesRefreshBtn" style="padding:4px 8px;font-size:9px">↻ Refresh</button>
+        <button class="btn-ghost" id="rulesPauseBtn" style="padding:4px 8px;font-size:9px">⏸ Pause All</button>
+        <button class="btn-ghost" id="rulesExportBtn" style="padding:4px 8px;font-size:9px">⬇ Export</button>
+        <button class="btn-ghost" id="rulesImportBtn" style="padding:4px 8px;font-size:9px">⬆ Import</button>
+        <input type="file" id="rulesImportFile" accept="application/json,.json" style="display:none">
+      </div>
+
+      <div style="padding:8px 10px;border-top:1px solid var(--border);display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+        <input class="net-input" id="rulesFilterText" placeholder="Search by name, group, pattern" style="flex:1;min-width:150px" />
+        <select class="net-select" id="rulesFilterType" style="width:140px">
+          <option value="all">All Types</option>
+          <option value="modify-header">modify-header</option>
+          <option value="cancel-request">cancel-request</option>
+          <option value="redirect-request">redirect-request</option>
+        </select>
+        <select class="net-select" id="rulesSortBy" style="width:120px">
+          <option value="priority-asc">Priority ↑</option>
+          <option value="priority-desc">Priority ↓</option>
+          <option value="name-asc">Name A-Z</option>
+          <option value="name-desc">Name Z-A</option>
+        </select>
+      </div>
+
+      <div id="rulesBulkBar" style="display:none;padding:7px 10px;border-top:1px solid var(--border);gap:6px;align-items:center;flex-wrap:wrap;background:var(--surface)">
+        <button class="btn-ghost" id="rulesEnableSelectedBtn" style="padding:3px 8px;font-size:8.5px">Enable Selected</button>
+        <button class="btn-ghost" id="rulesDisableSelectedBtn" style="padding:3px 8px;font-size:8.5px">Disable Selected</button>
+        <button class="btn-ghost" id="rulesDeleteSelectedBtn" style="padding:3px 8px;font-size:8.5px;color:var(--warn)">Delete Selected</button>
+        <span style="font-size:8.5px;color:var(--muted)">Actions apply to selected rules.</span>
+        <span id="rulesSelectedCount" style="font-size:8.5px;color:var(--muted);font-family:monospace">selected=0</span>
+      </div>
+
+      <div id="rulesGroupChips" style="padding:6px 10px;border-top:1px solid var(--border);display:flex;gap:5px;flex-wrap:wrap;background:var(--bg)"></div>
+
+      <div id="rulesStatus" style="padding:7px 10px;font-size:8.5px;color:var(--muted);font-family:monospace;border-top:1px solid var(--border)">Loading unified rules…</div>
+
+      <div id="rulesList" style="max-height:220px;overflow:auto;background:var(--bg);border-top:1px solid var(--border)">
+        <div style="padding:8px 10px;font-size:9px;color:var(--muted)">No unified rules loaded</div>
+      </div>
+    </details>
   </div>
 </div>
 
@@ -2181,9 +2352,104 @@
       <option value="script">Scripts only</option>
       <option value="image">Images only</option>
     </select>
+    <label class="net-label">Modify</label>
+    <select class="net-select" id="hdrTarget" style="width:100%">
+      <option value="request">Request headers</option>
+      <option value="response">Response headers</option>
+      <option value="both">Both request and response headers</option>
+    </select>
     <div class="net-modal-actions">
       <button class="btn-ghost" id="hdrModalCancel">Cancel</button>
       <button class="btn-accent" id="hdrModalSave">💾 Save Rule</button>
+    </div>
+  </div>
+</div>
+
+<!-- Unified Rule Edit Modal -->
+<div class="net-modal-overlay" id="rulesEditModal" style="display:none">
+  <div class="net-modal" style="width:380px">
+    <div class="net-modal-title" id="rulesEditModalTitle">Edit Unified Rule</div>
+
+    <label class="net-label">Rule Name</label>
+    <input class="net-input" id="rulesEditName" placeholder="Rule name" />
+
+    <div style="display:flex;gap:6px;align-items:center">
+      <div style="flex:1">
+        <label class="net-label">Rule Type</label>
+        <select class="net-select" id="rulesEditType" style="width:100%">
+          <option value="modify-header">modify-header</option>
+          <option value="cancel-request">cancel-request</option>
+          <option value="redirect-request">redirect-request</option>
+        </select>
+      </div>
+      <div style="width:110px">
+        <label class="net-label">Priority</label>
+        <input class="net-input" id="rulesEditPriority" type="number" min="1" max="9999" value="100" />
+      </div>
+    </div>
+
+    <label class="net-label">Group</label>
+    <input class="net-input" id="rulesEditGroup" placeholder="default" />
+
+    <label class="net-label">URL Pattern</label>
+    <input class="net-input" id="rulesEditPattern" placeholder="*://example.com/*" />
+
+    <div style="display:flex;gap:6px;align-items:center">
+      <div style="flex:1">
+        <label class="net-label">Match Type</label>
+        <select class="net-select" id="rulesEditMatchType" style="width:100%">
+          <option value="wildcard">wildcard</option>
+          <option value="contains">contains</option>
+          <option value="regex">regex</option>
+        </select>
+      </div>
+      <div style="flex:1">
+        <label class="net-label">Request Type</label>
+        <select class="net-select" id="rulesEditReqType" style="width:100%">
+          <option value="all">all</option>
+          <option value="xhr">xhr</option>
+          <option value="doc">doc</option>
+          <option value="script">script</option>
+          <option value="image">image</option>
+        </select>
+      </div>
+    </div>
+
+    <div id="rulesEditHeaderBlock" style="display:none">
+      <label class="net-label">Header Name</label>
+      <input class="net-input" id="rulesEditHeader" placeholder="x-test-header" />
+      <div style="display:flex;gap:6px;align-items:center">
+        <div style="flex:1">
+          <label class="net-label">Operation</label>
+          <select class="net-select" id="rulesEditHeaderOp" style="width:100%">
+            <option value="set">set</option>
+            <option value="add">add</option>
+            <option value="remove">remove</option>
+          </select>
+        </div>
+        <div style="flex:1">
+          <label class="net-label">Target</label>
+          <select class="net-select" id="rulesEditTarget" style="width:100%">
+            <option value="request">request</option>
+            <option value="response">response</option>
+            <option value="both">both</option>
+          </select>
+        </div>
+      </div>
+      <div id="rulesEditValueRow">
+        <label class="net-label">Header Value</label>
+        <input class="net-input" id="rulesEditValue" placeholder="value" />
+      </div>
+    </div>
+
+    <div id="rulesEditRedirectBlock" style="display:none">
+      <label class="net-label">Redirect URL</label>
+      <input class="net-input" id="rulesEditRedirectUrl" placeholder="https://example.com/new-path" />
+    </div>
+
+    <div class="net-modal-actions">
+      <button class="btn-ghost" id="rulesEditCancelBtn">Cancel</button>
+      <button class="btn-accent" id="rulesEditSaveBtn">Save Rule</button>
     </div>
   </div>
 </div>
@@ -2317,6 +2583,15 @@
         <button class="btn-ghost" id="settingExportBtn" style="flex:1;padding:5px 8px;font-size:9.5px">⬇ Export as JSON</button>
         <button class="btn-ghost" id="settingImportBtn" style="flex:1;padding:5px 8px;font-size:9.5px">⬆ Import JSON</button>
         <input type="file" id="settingImportFile" accept="application/json,.json" style="display:none">
+      </div>
+    </div>
+
+    <div class="setting-group">
+      <div class="setting-group-title">🧩 Rules Management</div>
+      <div class="setting-desc">Rules are managed from the dedicated Rules tab for a clearer workflow.</div>
+      <div style="display:flex;gap:6px;align-items:center;margin-top:6px">
+        <button class="btn-ghost" id="settingOpenRulesBtn" style="padding:5px 8px;font-size:9.5px">Open Rules Tab</button>
+        <span style="font-size:8.5px;color:var(--muted)">Create, group, import/export, and edit rules there.</span>
       </div>
     </div>
 

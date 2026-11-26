@@ -94,7 +94,7 @@ async function restoreAnalyticsFilters() {
 }
 
 // Register listeners after DOM is ready
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
   const searchBox = document.getElementById('searchInput');
   if (searchBox) {
     searchBox.addEventListener('input', (e) => {
@@ -986,6 +986,7 @@ const PANEL_LABELS = {
   audit:      'Page Audit',
   ddl:        'Analytics',
   net:        'Network Mock',
+  rules:      'Unified Rules',
   headers:    'Headers Modifier',
   ls:         'Local Storage',
   time:       'Time & Epoch',
@@ -1063,6 +1064,9 @@ function switchToTab(tabId) {
   // Auto-load Storage when user switches to it
   if (tabId === 'ls' && typeof fetchAndRenderLS === 'function') {
     fetchAndRenderLS();
+  }
+  if (tabId === 'rules' && typeof refreshUnifiedRulesPanel === 'function') {
+    setTimeout(refreshUnifiedRulesPanel, 80);
   }
 }
 
@@ -1284,6 +1288,17 @@ function updateHomePanel() {
     if (mockDot) mockDot.style.display = activeMocks > 0 ? '' : 'none';
   }).catch(() => {});
 
+  chrome.runtime.sendMessage({ action: 'GET_UNIFIED_RULES' }, (res) => {
+    const hintUnified = document.getElementById('homeHintUnifiedRules');
+    if (!hintUnified) return;
+    if (!res?.ok || !Array.isArray(res.rules)) {
+      hintUnified.textContent = 'unavailable';
+      return;
+    }
+    const count = res.rules.length;
+    hintUnified.textContent = count + (count === 1 ? ' unified rule' : ' unified rules');
+  });
+
   // Last audit grade — show pill in status strip + tile when present
   chrome.storage.local.get('qa_audit_last').then(s => {
     const last = s.qa_audit_last;
@@ -1460,6 +1475,1119 @@ document.querySelectorAll('#panel-home .home-metric.clickable').forEach(tile => 
   });
 });
 
+// ── Unified Rules API bridge (Phase 1 foundation) ─────────────────────────
+// Exposed on window for upcoming Rules workspace UI and interim manual testing.
+window.qakitUnifiedRulesApi = {
+  list: async () => chrome.runtime.sendMessage({ action: 'GET_UNIFIED_RULES' }),
+  upsert: async (rule) => chrome.runtime.sendMessage({ action: 'UPSERT_UNIFIED_RULE', rule }),
+  remove: async (id) => chrome.runtime.sendMessage({ action: 'DELETE_UNIFIED_RULE', id }),
+  toggle: async (id, enabled) => chrome.runtime.sendMessage({ action: 'TOGGLE_UNIFIED_RULE', id, enabled }),
+  exportPack: async () => chrome.runtime.sendMessage({ action: 'EXPORT_UNIFIED_RULES' }),
+  dryRunImport: async (pack, strategy) => chrome.runtime.sendMessage({ action: 'DRY_RUN_IMPORT_UNIFIED_RULES', pack, strategy }),
+  importPack: async (pack, strategy) => chrome.runtime.sendMessage({ action: 'IMPORT_UNIFIED_RULES', pack, strategy }),
+  setPaused: async (paused) => chrome.runtime.sendMessage({ action: 'SET_UNIFIED_RULES_PAUSED', paused }),
+  setGroupState: async (groupId, enabled) => chrome.runtime.sendMessage({ action: 'SET_UNIFIED_GROUP_STATE', groupId, enabled }),
+};
+
+function refreshAllUnifiedRulesViews() {
+  refreshUnifiedRulesPanel();
+}
+
+function unifiedRuleSearchText(rule) {
+  const parts = [
+    rule.name,
+    rule.type,
+    rule.groupId,
+    rule.source?.urlPattern,
+    rule.source?.matchType,
+    rule.action?.header,
+    rule.action?.redirectUrl,
+  ]
+    .filter(Boolean)
+    .map(v => String(v).toLowerCase());
+  return parts.join(' ');
+}
+
+const _unifiedRulesById = new Map();
+let _editingUnifiedRuleId = null;
+const RULES_PANEL_PREFS_KEY = 'qakit_rules_panel_prefs_v1';
+const _rulesPanelState = {
+  groupFilter: 'all',
+  filteredIds: [],
+  selectedIds: [],
+};
+
+function selectedRuleIdSet() {
+  return new Set(_rulesPanelState.selectedIds || []);
+}
+
+function syncSelectedRulesWithCurrentRules(currentRules) {
+  const valid = new Set((currentRules || []).map(r => String(r.id || '')).filter(Boolean));
+  _rulesPanelState.selectedIds = (_rulesPanelState.selectedIds || []).filter(id => valid.has(id));
+}
+
+function setRuleSelected(ruleId, selected) {
+  const id = String(ruleId || '');
+  if (!id) return;
+  const next = selectedRuleIdSet();
+  if (selected) next.add(id);
+  else next.delete(id);
+  _rulesPanelState.selectedIds = Array.from(next);
+  updateRulesSelectedCount();
+}
+
+function updateRulesSelectedCount() {
+  const el = document.getElementById('rulesSelectedCount');
+  const count = (_rulesPanelState.selectedIds || []).length;
+  if (el) el.textContent = 'selected=' + count;
+  const bulk = document.getElementById('rulesBulkBar');
+  if (bulk) bulk.style.display = count > 0 ? 'flex' : 'none';
+}
+
+function setRulesComposerOpen(open) {
+  const block = document.getElementById('rulesComposerBlock');
+  const newBtn = document.getElementById('rulesNewBtn');
+  if (block) block.style.display = open ? '' : 'none';
+  if (newBtn) newBtn.textContent = open ? 'Close Composer' : '+ New Rule';
+  if (open) {
+    updateRulesQuickComposerUI();
+    validateRulesQuickComposer(false);
+  }
+}
+
+function setRulesQuickType(type) {
+  const t = String(type || 'cancel-request');
+  const select = document.getElementById('rulesQuickType');
+  if (select) select.value = t;
+
+  document.querySelectorAll('#rulesTypeTiles .rules-type-tile').forEach((btn) => {
+    const active = btn.getAttribute('data-rules-type') === t;
+    btn.style.borderColor = active ? 'var(--accent)' : 'var(--border)';
+    btn.style.color = active ? 'var(--accent)' : 'var(--text)';
+    btn.style.background = active ? 'color-mix(in srgb, var(--accent) 14%, var(--surface))' : 'var(--surface)';
+  });
+
+  const headerPanel = document.getElementById('rulesBuilderHeaders');
+  const redirectPanel = document.getElementById('rulesBuilderRedirect');
+  const blockPanel = document.getElementById('rulesBuilderBlock');
+  if (headerPanel) headerPanel.style.display = t === 'modify-header' ? '' : 'none';
+  if (redirectPanel) redirectPanel.style.display = t === 'redirect-request' ? '' : 'none';
+  if (blockPanel) blockPanel.style.display = t === 'cancel-request' ? '' : 'none';
+
+  updateRulesQuickComposerUI();
+}
+
+function setRulesQuickMatchType(matchType) {
+  const m = String(matchType || 'wildcard');
+  const type = document.getElementById('rulesQuickType')?.value || 'cancel-request';
+  const matchFieldId =
+    type === 'modify-header' ? 'rulesHeaderMatchType' :
+    type === 'redirect-request' ? 'rulesRedirectMatchType' :
+    'rulesBlockMatchType';
+  const select = document.getElementById(matchFieldId);
+  if (select) select.value = m;
+}
+
+function updateRulesQuickComposerUI() {
+  const type = document.getElementById('rulesQuickType')?.value || 'cancel-request';
+  const op = document.getElementById('rulesQuickHeaderOp')?.value || 'set';
+
+  const hintEl = document.getElementById('rulesComposerHint');
+  const headerValueWrapEl = document.getElementById('rulesQuickHeaderValueWrap');
+  const createBtn = document.getElementById('rulesQuickCreateBtn');
+
+  if (hintEl) {
+    if (type === 'redirect-request') hintEl.textContent = 'Redirect matching requests to another destination URL.';
+    else if (type === 'modify-header') hintEl.textContent = 'Change request/response headers for matching traffic.';
+    else hintEl.textContent = 'Block matching requests during testing.';
+  }
+
+  if (headerValueWrapEl) headerValueWrapEl.style.display = (type === 'modify-header' && op !== 'remove') ? '' : 'none';
+
+  if (createBtn) {
+    if (type === 'redirect-request') createBtn.textContent = 'Save Redirect Rule';
+    else if (type === 'modify-header') createBtn.textContent = 'Save Header Rule';
+    else createBtn.textContent = 'Save Block Rule';
+  }
+
+  validateRulesQuickComposer(false);
+}
+
+function setRulesComposerValidation(message, isError) {
+  const el = document.getElementById('rulesComposerValidation');
+  if (!el) return;
+  el.textContent = message || '';
+  el.style.color = isError ? 'var(--warn)' : 'var(--muted)';
+}
+
+function validateRulesQuickComposer(showToast) {
+  const type = document.getElementById('rulesQuickType')?.value || 'cancel-request';
+  const urlPattern = (
+    type === 'modify-header'
+      ? document.getElementById('rulesHeaderPattern')?.value
+      : type === 'redirect-request'
+        ? document.getElementById('rulesRedirectPattern')?.value
+        : document.getElementById('rulesBlockPattern')?.value
+  ) || '';
+  const urlPatternTrimmed = urlPattern.trim();
+  const redirectUrl = (document.getElementById('rulesQuickRedirectUrl')?.value || '').trim();
+  const header = (document.getElementById('rulesQuickHeader')?.value || '').trim();
+  const op = (document.getElementById('rulesQuickHeaderOp')?.value || 'set').trim();
+  const value = (document.getElementById('rulesQuickHeaderValue')?.value || '').trim();
+
+  if (!urlPatternTrimmed) {
+    const msg = 'Add a URL pattern to match requests.';
+    setRulesComposerValidation(msg, true);
+    if (showToast) showLsToast('Enter a URL pattern', true);
+    return { ok: false, message: msg };
+  }
+
+  if (type === 'redirect-request' && !redirectUrl) {
+    const msg = 'Enter the destination URL for redirect.';
+    setRulesComposerValidation(msg, true);
+    if (showToast) showLsToast('Enter a redirect URL', true);
+    return { ok: false, message: msg };
+  }
+
+  if (type === 'modify-header' && !header) {
+    const msg = 'Enter a header name for this rule.';
+    setRulesComposerValidation(msg, true);
+    if (showToast) showLsToast('Enter a header name', true);
+    return { ok: false, message: msg };
+  }
+
+  if (type === 'modify-header' && op !== 'remove' && !value) {
+    const msg = 'Enter a header value or switch operation to remove.';
+    setRulesComposerValidation(msg, true);
+    if (showToast) showLsToast('Enter a header value', true);
+    return { ok: false, message: msg };
+  }
+
+  const okMsg =
+    type === 'redirect-request'
+      ? 'Ready to create redirect rule.'
+      : type === 'modify-header'
+        ? 'Ready to create header rule.'
+        : 'Ready to create block rule.';
+  setRulesComposerValidation(okMsg, false);
+  return { ok: true, message: okMsg };
+}
+
+function applyRulesQuickTemplate(templateId) {
+  const id = String(templateId || '');
+  const headerPatternEl = document.getElementById('rulesHeaderPattern');
+  const redirectPatternEl = document.getElementById('rulesRedirectPattern');
+  const blockPatternEl = document.getElementById('rulesBlockPattern');
+  const redirectEl = document.getElementById('rulesQuickRedirectUrl');
+  const headerEl = document.getElementById('rulesQuickHeader');
+  const headerOpEl = document.getElementById('rulesQuickHeaderOp');
+  const headerTargetEl = document.getElementById('rulesQuickTarget');
+  const headerValueEl = document.getElementById('rulesQuickHeaderValue');
+  const headerMatchEl = document.getElementById('rulesHeaderMatchType');
+  const redirectMatchEl = document.getElementById('rulesRedirectMatchType');
+  const blockMatchEl = document.getElementById('rulesBlockMatchType');
+
+  if (id === 'block-tracking') {
+    setRulesQuickType('cancel-request');
+    if (blockPatternEl) blockPatternEl.value = '*://*.doubleclick.net/*';
+    if (blockMatchEl) blockMatchEl.value = 'wildcard';
+  } else if (id === 'block-thirdparty') {
+    setRulesQuickType('cancel-request');
+    if (blockPatternEl) blockPatternEl.value = '*://cdn.thirdparty.com/*';
+    if (blockMatchEl) blockMatchEl.value = 'wildcard';
+  } else if (id === 'redirect-local') {
+    setRulesQuickType('redirect-request');
+    if (redirectPatternEl) redirectPatternEl.value = '*://api.example.com/*';
+    if (redirectMatchEl) redirectMatchEl.value = 'wildcard';
+    if (redirectEl) redirectEl.value = 'http://localhost:3000';
+  } else if (id === 'redirect-staging') {
+    setRulesQuickType('redirect-request');
+    if (redirectPatternEl) redirectPatternEl.value = '*://api.example.com/*';
+    if (redirectMatchEl) redirectMatchEl.value = 'wildcard';
+    if (redirectEl) redirectEl.value = 'https://staging-api.example.com';
+  } else if (id === 'header-auth') {
+    setRulesQuickType('modify-header');
+    if (headerPatternEl) headerPatternEl.value = '*://api.example.com/*';
+    if (headerMatchEl) headerMatchEl.value = 'wildcard';
+    if (headerEl) headerEl.value = 'Authorization';
+    if (headerOpEl) headerOpEl.value = 'set';
+    if (headerTargetEl) headerTargetEl.value = 'request';
+    if (headerValueEl) headerValueEl.value = 'Bearer test-token';
+  } else if (id === 'header-remove-csp') {
+    setRulesQuickType('modify-header');
+    if (headerPatternEl) headerPatternEl.value = '*://*/*';
+    if (headerMatchEl) headerMatchEl.value = 'wildcard';
+    if (headerEl) headerEl.value = 'Content-Security-Policy';
+    if (headerOpEl) headerOpEl.value = 'remove';
+    if (headerTargetEl) headerTargetEl.value = 'response';
+    if (headerValueEl) headerValueEl.value = '';
+  }
+
+  updateRulesQuickComposerUI();
+}
+
+function bindRulesPanelDelegatedActions() {
+  if (window.__qakitRulesDelegatedBound) return;
+  window.__qakitRulesDelegatedBound = true;
+
+  document.addEventListener('click', (e) => {
+    const target = e.target;
+    if (!target || !(target instanceof Element)) return;
+
+    const launchTile = target.closest('#panel-rules .rules-launch-tile');
+    if (launchTile) {
+      e.preventDefault();
+      const id = launchTile.id;
+      setRulesComposerOpen(true);
+      if (id === 'rulesQuickLaunchHeaderBtn') setRulesQuickType('modify-header');
+      else if (id === 'rulesQuickLaunchRedirectBtn') setRulesQuickType('redirect-request');
+      else setRulesQuickType('cancel-request');
+      return;
+    }
+
+    const typeTile = target.closest('#panel-rules .rules-type-tile');
+    if (typeTile) {
+      e.preventDefault();
+      const type = typeTile.getAttribute('data-rules-type') || 'cancel-request';
+      setRulesQuickType(type);
+      return;
+    }
+
+    const matchChip = target.closest('#panel-rules .rules-match-chip');
+    if (matchChip) {
+      e.preventDefault();
+      const matchType = matchChip.getAttribute('data-rules-match') || 'wildcard';
+      setRulesQuickMatchType(matchType);
+      return;
+    }
+
+    const templateBtn = target.closest('#panel-rules .rules-template-btn');
+    if (templateBtn) {
+      e.preventDefault();
+      const templateId = templateBtn.getAttribute('data-rules-template') || '';
+      applyRulesQuickTemplate(templateId);
+    }
+  });
+}
+
+function describeUnifiedRule(rule) {
+  const r = rule || {};
+  const src = r.source || {};
+  const action = r.action || {};
+  const pattern = String(src.urlPattern || '*');
+  if (r.type === 'cancel-request') {
+    return 'Block requests matching ' + pattern;
+  }
+  if (r.type === 'redirect-request') {
+    const to = String(action.redirectUrl || action.to || '(missing target)');
+    return 'Redirect ' + pattern + ' to ' + to;
+  }
+  if (r.type === 'modify-header') {
+    const op = String(action.op || 'set');
+    const header = String(action.header || 'header');
+    const target = String(action.target || 'request');
+    if (op === 'remove') return 'Remove ' + header + ' on ' + target + ' for ' + pattern;
+    return (op === 'add' ? 'Add ' : 'Set ') + header + ' on ' + target + ' for ' + pattern;
+  }
+  return String(r.name || 'Custom rule');
+}
+
+async function loadRulesPanelPrefs() {
+  try {
+    const s = await chrome.storage.local.get(RULES_PANEL_PREFS_KEY);
+    const prefs = s?.[RULES_PANEL_PREFS_KEY] || {};
+    _rulesPanelState.groupFilter = String(prefs.groupFilter || 'all');
+
+    const filterTextEl = document.getElementById('rulesFilterText');
+    const filterTypeEl = document.getElementById('rulesFilterType');
+    const sortEl = document.getElementById('rulesSortBy');
+    if (filterTextEl && typeof prefs.filterText === 'string') filterTextEl.value = prefs.filterText;
+    if (filterTypeEl && typeof prefs.filterType === 'string') filterTypeEl.value = prefs.filterType;
+    if (sortEl && typeof prefs.sortBy === 'string') sortEl.value = prefs.sortBy;
+  } catch {}
+}
+
+function persistRulesPanelPrefs() {
+  const filterTextEl = document.getElementById('rulesFilterText');
+  const filterTypeEl = document.getElementById('rulesFilterType');
+  const sortEl = document.getElementById('rulesSortBy');
+  const prefs = {
+    groupFilter: _rulesPanelState.groupFilter || 'all',
+    filterText: filterTextEl?.value || '',
+    filterType: filterTypeEl?.value || 'all',
+    sortBy: sortEl?.value || 'priority-asc',
+  };
+  chrome.storage.local.set({ [RULES_PANEL_PREFS_KEY]: prefs }).catch(() => {});
+}
+
+function renderRulesGroupChips(rules, groupStates) {
+  const chipsEl = document.getElementById('rulesGroupChips');
+  if (!chipsEl) return;
+
+  const counts = new Map();
+  (rules || []).forEach((r) => {
+    const gid = String(r.groupId || 'default');
+    counts.set(gid, (counts.get(gid) || 0) + 1);
+  });
+  const allCount = (rules || []).length;
+  const groups = Array.from(counts.keys()).sort((a, b) => a.localeCompare(b));
+
+  const allActive = _rulesPanelState.groupFilter === 'all';
+  let html =
+    '<button class="btn-ghost rules-group-chip" data-group="all" style="padding:2px 7px;font-size:8px;' +
+    (allActive ? 'border-color:var(--accent);color:var(--accent);' : '') +
+    '">all (' + allCount + ')</button>';
+
+  html += groups.map((gid) => {
+    const active = _rulesPanelState.groupFilter === gid;
+    const enabled = (groupStates || {})[gid] !== false;
+    return (
+      '<button class="btn-ghost rules-group-chip" data-group="' + escapeHtml(gid) + '" style="padding:2px 7px;font-size:8px;' +
+      (active ? 'border-color:var(--accent);color:var(--accent);' : '') +
+      '">' + escapeHtml(gid) + ' (' + counts.get(gid) + ') ' + (enabled ? 'on' : 'off') + '</button>'
+    );
+  }).join('');
+
+  chipsEl.innerHTML = html;
+  chipsEl.querySelectorAll('.rules-group-chip').forEach(btn => {
+    btn.addEventListener('click', () => {
+      _rulesPanelState.groupFilter = btn.getAttribute('data-group') || 'all';
+      persistRulesPanelPrefs();
+      refreshUnifiedRulesPanel();
+    });
+  });
+}
+
+async function bulkToggleRuleIds(ids, enabled, label) {
+  const list = (ids || []).filter(Boolean);
+  if (!list.length) {
+    showLsToast('No rules to update', true);
+    return;
+  }
+
+  let okCount = 0;
+  for (const id of list) {
+    const out = await window.qakitUnifiedRulesApi.toggle(id, !!enabled);
+    if (out?.ok) okCount++;
+  }
+  showLsToast((label || 'Updated') + ' ' + okCount + ' / ' + list.length + ' rule(s)');
+  refreshAllUnifiedRulesViews();
+}
+
+async function bulkDeleteRuleIds(ids, label) {
+  const list = (ids || []).filter(Boolean);
+  if (!list.length) {
+    showLsToast('No rules to delete', true);
+    return;
+  }
+  if (!confirm('Delete ' + list.length + ' rule(s)?')) return;
+
+  let okCount = 0;
+  for (const id of list) {
+    const out = await window.qakitUnifiedRulesApi.remove(id);
+    if (out?.ok) okCount++;
+  }
+  showLsToast((label || 'Deleted') + ' ' + okCount + ' / ' + list.length + ' rule(s)');
+  _rulesPanelState.selectedIds = (_rulesPanelState.selectedIds || []).filter(id => !list.includes(id));
+  updateRulesSelectedCount();
+  refreshAllUnifiedRulesViews();
+}
+
+function updateRulesEditTypeUI() {
+  const type = document.getElementById('rulesEditType')?.value || 'cancel-request';
+  const headerBlock = document.getElementById('rulesEditHeaderBlock');
+  const redirectBlock = document.getElementById('rulesEditRedirectBlock');
+  const valueRow = document.getElementById('rulesEditValueRow');
+  const op = document.getElementById('rulesEditHeaderOp')?.value || 'set';
+  if (headerBlock) headerBlock.style.display = type === 'modify-header' ? '' : 'none';
+  if (redirectBlock) redirectBlock.style.display = type === 'redirect-request' ? '' : 'none';
+  if (valueRow) valueRow.style.display = (type === 'modify-header' && op !== 'remove') ? '' : 'none';
+}
+
+function closeRulesEditModal() {
+  const modal = document.getElementById('rulesEditModal');
+  if (modal) modal.style.display = 'none';
+  _editingUnifiedRuleId = null;
+}
+
+function openRulesEditModal(ruleId) {
+  const rule = _unifiedRulesById.get(String(ruleId));
+  if (!rule) {
+    showLsToast('Rule not found in cache', true);
+    return;
+  }
+
+  _editingUnifiedRuleId = String(rule.id || '');
+  const modal = document.getElementById('rulesEditModal');
+  const setVal = (id, value) => {
+    const el = document.getElementById(id);
+    if (el) el.value = value == null ? '' : String(value);
+  };
+
+  setVal('rulesEditName', rule.name || '');
+  setVal('rulesEditType', rule.type || 'cancel-request');
+  setVal('rulesEditPriority', Number.isFinite(rule.priority) ? rule.priority : 100);
+  setVal('rulesEditGroup', rule.groupId || 'default');
+  setVal('rulesEditPattern', rule.source?.urlPattern || '*');
+  setVal('rulesEditMatchType', rule.source?.matchType || 'wildcard');
+  setVal('rulesEditReqType', rule.source?.requestType || 'all');
+
+  setVal('rulesEditHeader', rule.action?.header || '');
+  setVal('rulesEditHeaderOp', rule.action?.op || 'set');
+  setVal('rulesEditTarget', rule.action?.target || 'request');
+  setVal('rulesEditValue', rule.action?.value || '');
+  setVal('rulesEditRedirectUrl', rule.action?.redirectUrl || rule.action?.to || '');
+
+  updateRulesEditTypeUI();
+  if (modal) modal.style.display = 'flex';
+}
+
+async function saveRulesEditModal() {
+  if (!_editingUnifiedRuleId) return;
+  const existing = _unifiedRulesById.get(_editingUnifiedRuleId);
+  if (!existing) {
+    showLsToast('Rule no longer exists', true);
+    return;
+  }
+
+  const type = (document.getElementById('rulesEditType')?.value || 'cancel-request').trim();
+  const name = (document.getElementById('rulesEditName')?.value || '').trim();
+  const groupId = (document.getElementById('rulesEditGroup')?.value || '').trim() || 'default';
+  const urlPattern = (document.getElementById('rulesEditPattern')?.value || '').trim();
+  const matchType = (document.getElementById('rulesEditMatchType')?.value || 'wildcard').trim();
+  const requestType = (document.getElementById('rulesEditReqType')?.value || 'all').trim();
+  const priorityRaw = Number.parseInt(document.getElementById('rulesEditPriority')?.value || '100', 10);
+  const priority = Number.isFinite(priorityRaw) ? priorityRaw : 100;
+
+  if (!name) {
+    showLsToast('Rule name is required', true);
+    return;
+  }
+  if (!urlPattern) {
+    showLsToast('URL pattern is required', true);
+    return;
+  }
+
+  let action = {};
+  if (type === 'redirect-request') {
+    const redirectUrl = (document.getElementById('rulesEditRedirectUrl')?.value || '').trim();
+    if (!redirectUrl) {
+      showLsToast('Redirect URL is required', true);
+      return;
+    }
+    action = { redirectUrl };
+  } else if (type === 'modify-header') {
+    const header = (document.getElementById('rulesEditHeader')?.value || '').trim();
+    const op = (document.getElementById('rulesEditHeaderOp')?.value || 'set').trim();
+    const target = (document.getElementById('rulesEditTarget')?.value || 'request').trim();
+    const value = (document.getElementById('rulesEditValue')?.value || '').trim();
+    if (!header) {
+      showLsToast('Header name is required', true);
+      return;
+    }
+    if (op !== 'remove' && !value) {
+      showLsToast('Header value is required for set/add', true);
+      return;
+    }
+    action = {
+      header,
+      op,
+      target,
+      ...(op !== 'remove' ? { value } : {}),
+    };
+  }
+
+  const rule = {
+    id: existing.id,
+    type,
+    name,
+    enabled: existing.enabled !== false,
+    priority,
+    groupId,
+    source: {
+      urlPattern,
+      matchType,
+      requestType,
+    },
+    action,
+    metadata: {
+      ...(existing.metadata || {}),
+      updatedBy: 'rules-panel-edit',
+    },
+    createdAt: existing.createdAt,
+  };
+
+  const out = await window.qakitUnifiedRulesApi.upsert(rule);
+  if (!out?.ok) {
+    showLsToast('Save failed: ' + (out?.error || 'unknown'), true);
+    return;
+  }
+  showLsToast('Rule saved ✓');
+  closeRulesEditModal();
+  refreshAllUnifiedRulesViews();
+}
+
+async function refreshUnifiedRulesPanel() {
+  const statusEl = document.getElementById('rulesStatus');
+  const listEl = document.getElementById('rulesList');
+  const pauseBtn = document.getElementById('rulesPauseBtn');
+  const textFilterEl = document.getElementById('rulesFilterText');
+  const typeFilterEl = document.getElementById('rulesFilterType');
+  const sortEl = document.getElementById('rulesSortBy');
+  if (!statusEl || !listEl || !window.qakitUnifiedRulesApi) return;
+
+  statusEl.textContent = 'Loading unified rules...';
+  try {
+    const res = await window.qakitUnifiedRulesApi.list();
+    if (!res?.ok) {
+      statusEl.textContent = 'Failed to load rules: ' + (res?.error || 'unknown');
+      return;
+    }
+
+    const rules = Array.isArray(res.rules) ? res.rules : [];
+    _unifiedRulesById.clear();
+    rules.forEach(rule => {
+      if (rule.id) _unifiedRulesById.set(String(rule.id), rule);
+    });
+    const info = res.info || {};
+    const paused = !!info.paused;
+    const groupStates = info.groupStates || {};
+    if (pauseBtn) pauseBtn.textContent = paused ? '▶ Resume All' : '⏸ Pause All';
+
+    const q = (textFilterEl?.value || '').trim().toLowerCase();
+    const typeFilter = typeFilterEl?.value || 'all';
+    const sortMode = sortEl?.value || 'priority-asc';
+    const groupFilter = _rulesPanelState.groupFilter || 'all';
+
+    renderRulesGroupChips(rules, groupStates);
+
+    let filtered = rules.slice();
+    if (typeFilter !== 'all') filtered = filtered.filter(r => r.type === typeFilter);
+    if (groupFilter !== 'all') filtered = filtered.filter(r => String(r.groupId || 'default') === groupFilter);
+    if (q) filtered = filtered.filter(r => unifiedRuleSearchText(r).includes(q));
+
+    if (sortMode === 'priority-desc') {
+      filtered.sort((a, b) => (b.priority || 0) - (a.priority || 0));
+    } else if (sortMode === 'name-asc') {
+      filtered.sort((a, b) => String(a.name || '').localeCompare(String(b.name || '')));
+    } else if (sortMode === 'name-desc') {
+      filtered.sort((a, b) => String(b.name || '').localeCompare(String(a.name || '')));
+    } else {
+      filtered.sort((a, b) => (a.priority || 0) - (b.priority || 0));
+    }
+
+    statusEl.textContent =
+      rules.length + ' rules · ' + filtered.length + ' shown · group ' + groupFilter +
+      (paused ? ' · rule set paused' : '');
+
+    _rulesPanelState.filteredIds = filtered
+      .map(r => String(r.id || ''))
+      .filter(Boolean);
+
+    const selectedIds = selectedRuleIdSet();
+
+    if (filtered.length === 0) {
+      listEl.innerHTML = '<div style="padding:8px 10px;font-size:9px;color:var(--muted)">No matching rules</div>';
+      return;
+    }
+
+    listEl.innerHTML = filtered.map((r) => {
+      const id = escapeHtml(String(r.id || ''));
+      const name = escapeHtml(String(r.name || 'Untitled Rule'));
+      const type = escapeHtml(String(r.type || 'custom'));
+      const group = escapeHtml(String(r.groupId || 'default'));
+      const pattern = escapeHtml(String(r.source?.urlPattern || '*'));
+      const summary = escapeHtml(describeUnifiedRule(r));
+      const enabled = r.enabled !== false;
+      const groupEnabled = groupStates[String(r.groupId || 'default')] !== false;
+      const effective = enabled && groupEnabled && !paused;
+      const hitCount = Number(r.metadata?.diagnostics?.hitCount || 0);
+      const selected = selectedIds.has(String(r.id || ''));
+      return (
+        '<div style="padding:8px 10px;border-bottom:1px solid var(--border)">' +
+          '<div style="display:flex;align-items:center;gap:6px">' +
+            '<input type="checkbox" class="rules-select" data-rule-id="' + id + '" ' + (selected ? 'checked' : '') + ' title="Select rule" />' +
+            '<span style="font-size:9.5px;font-weight:700;color:var(--text);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + summary + '</span>' +
+            '<button class="btn-ghost rules-toggle" data-rule-id="' + id + '" data-enabled="' + (enabled ? '1' : '0') + '" style="padding:2px 7px;font-size:8.5px">' + (enabled ? 'Disable' : 'Enable') + '</button>' +
+            '<button class="btn-ghost rules-edit" data-rule-id="' + id + '" style="padding:2px 7px;font-size:8.5px">Edit</button>' +
+            '<button class="btn-ghost rules-clone" data-rule-id="' + id + '" style="padding:2px 7px;font-size:8.5px">Duplicate</button>' +
+            '<button class="btn-ghost rules-delete" data-rule-id="' + id + '" style="padding:2px 7px;font-size:8.5px;color:var(--warn)">Delete</button>' +
+          '</div>' +
+          '<div style="display:flex;gap:7px;flex-wrap:wrap;margin-top:4px;font-size:8px;color:var(--muted)">' +
+            '<span>name=' + name + '</span>' +
+            '<span>type=' + type + '</span>' +
+            '<span>group=' + group + '</span>' +
+            '<span>priority=' + (Number.isFinite(r.priority) ? r.priority : 100) + '</span>' +
+            '<span>effective=' + (effective ? 'on' : 'off') + '</span>' +
+            '<span>hits=' + hitCount + '</span>' +
+          '</div>' +
+          '<div style="margin-top:3px;font-size:8px;color:var(--muted);font-family:monospace;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + pattern + '</div>' +
+        '</div>'
+      );
+    }).join('');
+
+    listEl.querySelectorAll('.rules-toggle').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const id = btn.getAttribute('data-rule-id');
+        const enabled = btn.getAttribute('data-enabled') === '1';
+        const out = await window.qakitUnifiedRulesApi.toggle(id, !enabled);
+        if (!out?.ok) {
+          showLsToast('Toggle failed: ' + (out?.error || 'unknown'), true);
+          return;
+        }
+        showLsToast('Rule updated ✓');
+        refreshAllUnifiedRulesViews();
+      });
+    });
+
+    listEl.querySelectorAll('.rules-delete').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const id = btn.getAttribute('data-rule-id');
+        if (!id) return;
+        if (!confirm('Delete this unified rule?')) return;
+        const out = await window.qakitUnifiedRulesApi.remove(id);
+        if (!out?.ok) {
+          showLsToast('Delete failed: ' + (out?.error || 'unknown'), true);
+          return;
+        }
+        showLsToast('Rule deleted ✓');
+        refreshAllUnifiedRulesViews();
+      });
+    });
+
+    listEl.querySelectorAll('.rules-edit').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const id = btn.getAttribute('data-rule-id');
+        if (!id) return;
+        openRulesEditModal(id);
+      });
+    });
+
+    listEl.querySelectorAll('.rules-select').forEach(chk => {
+      chk.addEventListener('change', () => {
+        const id = chk.getAttribute('data-rule-id');
+        if (!id) return;
+        setRuleSelected(id, !!chk.checked);
+      });
+    });
+
+    listEl.querySelectorAll('.rules-clone').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const id = btn.getAttribute('data-rule-id');
+        if (!id) return;
+        const out = await cloneUnifiedRule(id);
+        if (!out?.ok) {
+          showLsToast('Duplicate failed: ' + (out?.error || 'unknown'), true);
+          return;
+        }
+        showLsToast('Rule duplicated ✓');
+        refreshAllUnifiedRulesViews();
+      });
+    });
+  } catch (e) {
+    statusEl.textContent = 'Unified rules error: ' + e.message;
+  }
+}
+
+async function importUnifiedRulesPackFromFile(file) {
+  if (!file) return;
+  try {
+    const text = await file.text();
+    const pack = JSON.parse(text);
+    const preview = await window.qakitUnifiedRulesApi.dryRunImport(pack, 'merge');
+    if (!preview?.ok) {
+      showLsToast('Import preview failed: ' + (preview?.error || 'invalid pack'), true);
+      return;
+    }
+
+    const s = preview.summary || {};
+    const ok = confirm(
+      'Import rules pack?\n\n' +
+      'Current: ' + (s.currentCount || 0) + '\n' +
+      'Incoming: ' + (s.incomingCount || 0) + '\n' +
+      'New: ' + (s.newCount || 0) + '\n' +
+      'Update: ' + (s.updateCount || 0) + '\n' +
+      'After merge: ' + (s.nextCount || 0)
+    );
+    if (!ok) return;
+
+    const imported = await window.qakitUnifiedRulesApi.importPack(pack, 'merge');
+    if (!imported?.ok) {
+      showLsToast('Import failed: ' + (imported?.error || 'unknown'), true);
+      return;
+    }
+    showLsToast('Rules pack imported ✓');
+    refreshAllUnifiedRulesViews();
+  } catch (e) {
+    showLsToast('Import parse failed: ' + e.message, true);
+  }
+}
+
+async function createUnifiedQuickRule(config) {
+  const cfg = config || {};
+  const type = String(cfg.type || 'cancel-request');
+  const matchType = String(cfg.matchType || 'wildcard');
+  const urlPattern = String(cfg.urlPattern || '*');
+  const groupId = String(cfg.groupId || 'default');
+  const redirectUrl = String(cfg.redirectUrl || '');
+  const header = String(cfg.header || '');
+  const op = String(cfg.op || 'set');
+  const target = String(cfg.target || 'request');
+  const value = String(cfg.value || '');
+
+  let name = 'Rule ' + urlPattern;
+  let action = {};
+
+  if (type === 'cancel-request') {
+    name = 'Block ' + urlPattern;
+  } else if (type === 'redirect-request') {
+    name = 'Redirect ' + urlPattern;
+    action = { redirectUrl };
+  } else if (type === 'modify-header') {
+    name = 'Header ' + op + ' ' + header;
+    action = {
+      header,
+      op,
+      target,
+      ...(op !== 'remove' ? { value } : {}),
+    };
+  }
+
+  const rule = {
+    type,
+    name,
+    enabled: true,
+    priority: 200,
+    groupId,
+    source: {
+      urlPattern,
+      matchType,
+      requestType: 'all',
+    },
+    action,
+    metadata: {
+      createdBy: 'unified-quick-create',
+    },
+  };
+  return window.qakitUnifiedRulesApi.upsert(rule);
+}
+
+async function cloneUnifiedRule(ruleId) {
+  const existing = _unifiedRulesById.get(String(ruleId));
+  if (!existing) return { ok: false, error: 'rule not found' };
+
+  const baseName = String(existing.name || 'Untitled Rule');
+  const clone = {
+    ...existing,
+    id: undefined,
+    name: baseName + ' (copy)',
+    enabled: true,
+    metadata: {
+      ...(existing.metadata || {}),
+      createdBy: 'rules-panel-clone',
+      clonedFromId: existing.id,
+    },
+  };
+  return window.qakitUnifiedRulesApi.upsert(clone);
+}
+
+document.addEventListener('DOMContentLoaded', async () => {
+  bindRulesPanelDelegatedActions();
+
+  const settingOpenRulesBtn = document.getElementById('settingOpenRulesBtn');
+
+  const rulesRefreshBtn = document.getElementById('rulesRefreshBtn');
+  const rulesPauseBtn = document.getElementById('rulesPauseBtn');
+  const rulesExportBtn = document.getElementById('rulesExportBtn');
+  const rulesImportBtn = document.getElementById('rulesImportBtn');
+  const rulesImportFile = document.getElementById('rulesImportFile');
+  const rulesFilterText = document.getElementById('rulesFilterText');
+  const rulesFilterType = document.getElementById('rulesFilterType');
+  const rulesSortBy = document.getElementById('rulesSortBy');
+  const rulesQuickType = document.getElementById('rulesQuickType');
+  const rulesHeaderPattern = document.getElementById('rulesHeaderPattern');
+  const rulesHeaderMatchType = document.getElementById('rulesHeaderMatchType');
+  const rulesHeaderGroupId = document.getElementById('rulesHeaderGroupId');
+  const rulesRedirectPattern = document.getElementById('rulesRedirectPattern');
+  const rulesRedirectMatchType = document.getElementById('rulesRedirectMatchType');
+  const rulesRedirectGroupId = document.getElementById('rulesRedirectGroupId');
+  const rulesBlockPattern = document.getElementById('rulesBlockPattern');
+  const rulesBlockMatchType = document.getElementById('rulesBlockMatchType');
+  const rulesBlockGroupId = document.getElementById('rulesBlockGroupId');
+  const rulesQuickRedirectUrl = document.getElementById('rulesQuickRedirectUrl');
+  const rulesQuickHeader = document.getElementById('rulesQuickHeader');
+  const rulesQuickHeaderOp = document.getElementById('rulesQuickHeaderOp');
+  const rulesQuickHeaderValue = document.getElementById('rulesQuickHeaderValue');
+  const rulesQuickTarget = document.getElementById('rulesQuickTarget');
+  const rulesQuickCreateBtn = document.getElementById('rulesQuickCreateBtn');
+  const rulesQuickLaunchBlockBtn = document.getElementById('rulesQuickLaunchBlockBtn');
+  const rulesQuickLaunchRedirectBtn = document.getElementById('rulesQuickLaunchRedirectBtn');
+  const rulesQuickLaunchHeaderBtn = document.getElementById('rulesQuickLaunchHeaderBtn');
+  const rulesNewBtn = document.getElementById('rulesNewBtn');
+  const rulesComposerCancelBtn = document.getElementById('rulesComposerCancelBtn');
+  const rulesEnableSelectedBtn = document.getElementById('rulesEnableSelectedBtn');
+  const rulesDisableSelectedBtn = document.getElementById('rulesDisableSelectedBtn');
+  const rulesDeleteSelectedBtn = document.getElementById('rulesDeleteSelectedBtn');
+  const rulesGroupEnableBtn = document.getElementById('rulesGroupEnableBtn');
+  const rulesGroupDisableBtn = document.getElementById('rulesGroupDisableBtn');
+  const rulesRedirectGroupEnableBtn = document.getElementById('rulesRedirectGroupEnableBtn');
+  const rulesRedirectGroupDisableBtn = document.getElementById('rulesRedirectGroupDisableBtn');
+  const rulesBlockGroupEnableBtn = document.getElementById('rulesBlockGroupEnableBtn');
+  const rulesBlockGroupDisableBtn = document.getElementById('rulesBlockGroupDisableBtn');
+  const rulesEditModal = document.getElementById('rulesEditModal');
+  const rulesEditType = document.getElementById('rulesEditType');
+  const rulesEditHeaderOp = document.getElementById('rulesEditHeaderOp');
+  const rulesEditCancelBtn = document.getElementById('rulesEditCancelBtn');
+  const rulesEditSaveBtn = document.getElementById('rulesEditSaveBtn');
+
+  await loadRulesPanelPrefs();
+  updateRulesSelectedCount();
+  setRulesQuickType(rulesQuickType?.value || 'cancel-request');
+  setRulesQuickMatchType('wildcard');
+  setRulesComposerOpen(true);
+
+  if (settingOpenRulesBtn) settingOpenRulesBtn.addEventListener('click', () => switchToTab('rules'));
+  if (rulesRefreshBtn) rulesRefreshBtn.addEventListener('click', refreshUnifiedRulesPanel);
+
+  if (rulesPauseBtn) {
+    rulesPauseBtn.addEventListener('click', async () => {
+      const current = await window.qakitUnifiedRulesApi.list();
+      if (!current?.ok) {
+        showLsToast('Failed to read current state', true);
+        return;
+      }
+      const paused = !!current?.info?.paused;
+      const out = await window.qakitUnifiedRulesApi.setPaused(!paused);
+      if (!out?.ok) {
+        showLsToast('Pause/resume failed: ' + (out?.error || 'unknown'), true);
+        return;
+      }
+      showLsToast(!paused ? 'Unified rules paused' : 'Unified rules resumed');
+      refreshAllUnifiedRulesViews();
+    });
+  }
+
+  if (rulesExportBtn) {
+    rulesExportBtn.addEventListener('click', async () => {
+      const out = await window.qakitUnifiedRulesApi.exportPack();
+      if (!out?.ok || !out.pack) {
+        showLsToast('Export failed: ' + (out?.error || 'unknown'), true);
+        return;
+      }
+      const blob = new Blob([JSON.stringify(out.pack, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'qakit-unified-rules-' + Date.now() + '.json';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      showLsToast('Rules pack exported ✓');
+    });
+  }
+
+  if (rulesImportBtn && rulesImportFile) {
+    rulesImportBtn.addEventListener('click', () => rulesImportFile.click());
+    rulesImportFile.addEventListener('change', () => {
+      const f = rulesImportFile.files && rulesImportFile.files[0];
+      importUnifiedRulesPackFromFile(f);
+      rulesImportFile.value = '';
+    });
+  }
+
+  if (rulesFilterText) {
+    rulesFilterText.addEventListener('input', () => {
+      persistRulesPanelPrefs();
+      refreshUnifiedRulesPanel();
+    });
+  }
+  if (rulesFilterType) {
+    rulesFilterType.addEventListener('change', () => {
+      persistRulesPanelPrefs();
+      refreshUnifiedRulesPanel();
+    });
+  }
+  if (rulesSortBy) {
+    rulesSortBy.addEventListener('change', () => {
+      persistRulesPanelPrefs();
+      refreshUnifiedRulesPanel();
+    });
+  }
+
+  if (rulesQuickCreateBtn) {
+    rulesQuickCreateBtn.addEventListener('click', async () => {
+      const type = rulesQuickType?.value || 'cancel-request';
+      const matchType =
+        type === 'modify-header'
+          ? (rulesHeaderMatchType?.value || 'wildcard')
+          : type === 'redirect-request'
+            ? (rulesRedirectMatchType?.value || 'wildcard')
+            : (rulesBlockMatchType?.value || 'wildcard');
+      const urlPattern =
+        type === 'modify-header'
+          ? (rulesHeaderPattern?.value || '').trim()
+          : type === 'redirect-request'
+            ? (rulesRedirectPattern?.value || '').trim()
+            : (rulesBlockPattern?.value || '').trim();
+      const groupId =
+        type === 'modify-header'
+          ? ((rulesHeaderGroupId?.value || '').trim() || 'default')
+          : type === 'redirect-request'
+            ? ((rulesRedirectGroupId?.value || '').trim() || 'default')
+            : ((rulesBlockGroupId?.value || '').trim() || 'default');
+      const redirectUrl = (rulesQuickRedirectUrl?.value || '').trim();
+      const header = (rulesQuickHeader?.value || '').trim();
+      const op = (rulesQuickHeaderOp?.value || 'set').trim();
+      const target = (rulesQuickTarget?.value || 'request').trim();
+      const value = (rulesQuickHeaderValue?.value || '').trim();
+
+      const valid = validateRulesQuickComposer(true);
+      if (!valid.ok) {
+        return;
+      }
+
+      const out = await createUnifiedQuickRule({
+        type,
+        matchType,
+        urlPattern,
+        groupId,
+        redirectUrl,
+        header,
+        op,
+        target,
+        value,
+      });
+      if (!out?.ok) {
+        showLsToast('Create rule failed: ' + (out?.error || 'unknown'), true);
+        return;
+      }
+
+      showLsToast('Rule created ✓');
+      if (rulesHeaderPattern) rulesHeaderPattern.value = '';
+      if (rulesRedirectPattern) rulesRedirectPattern.value = '';
+      if (rulesBlockPattern) rulesBlockPattern.value = '';
+      if (rulesQuickRedirectUrl) rulesQuickRedirectUrl.value = '';
+      if (rulesQuickHeader) rulesQuickHeader.value = '';
+      if (rulesQuickHeaderValue) rulesQuickHeaderValue.value = '';
+      setRulesComposerOpen(true);
+      refreshAllUnifiedRulesViews();
+    });
+  }
+
+  document.querySelectorAll('#rulesTypeTiles .rules-type-tile').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const type = btn.getAttribute('data-rules-type') || 'cancel-request';
+      setRulesQuickType(type);
+    });
+  });
+
+  if (rulesQuickHeaderOp) {
+    rulesQuickHeaderOp.addEventListener('change', updateRulesQuickComposerUI);
+  }
+
+  [
+    rulesQuickType,
+    rulesHeaderPattern,
+    rulesRedirectPattern,
+    rulesBlockPattern,
+    rulesHeaderMatchType,
+    rulesRedirectMatchType,
+    rulesBlockMatchType,
+    rulesQuickRedirectUrl,
+    rulesQuickHeader,
+    rulesQuickHeaderValue,
+    rulesQuickHeaderOp,
+    rulesQuickTarget,
+  ].forEach((el) => {
+    if (!el) return;
+    const eventName = el.tagName === 'SELECT' ? 'change' : 'input';
+    el.addEventListener(eventName, () => validateRulesQuickComposer(false));
+  });
+
+  document.querySelectorAll('.rules-template-btn').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const templateId = btn.getAttribute('data-rules-template') || '';
+      applyRulesQuickTemplate(templateId);
+    });
+  });
+
+  if (rulesQuickLaunchBlockBtn) {
+    rulesQuickLaunchBlockBtn.addEventListener('click', () => {
+      setRulesComposerOpen(true);
+      setRulesQuickType('cancel-request');
+    });
+  }
+
+  if (rulesQuickLaunchRedirectBtn) {
+    rulesQuickLaunchRedirectBtn.addEventListener('click', () => {
+      setRulesComposerOpen(true);
+      setRulesQuickType('redirect-request');
+    });
+  }
+
+  if (rulesQuickLaunchHeaderBtn) {
+    rulesQuickLaunchHeaderBtn.addEventListener('click', () => {
+      setRulesComposerOpen(true);
+      setRulesQuickType('modify-header');
+    });
+  }
+
+  if (rulesNewBtn) rulesNewBtn.addEventListener('click', () => {
+    const block = document.getElementById('rulesComposerBlock');
+    setRulesComposerOpen(block?.style.display === 'none');
+  });
+  if (rulesComposerCancelBtn) rulesComposerCancelBtn.addEventListener('click', () => setRulesComposerOpen(false));
+  if (rulesEnableSelectedBtn) {
+    rulesEnableSelectedBtn.addEventListener('click', () => {
+      bulkToggleRuleIds((_rulesPanelState.selectedIds || []).slice(), true, 'Updated');
+    });
+  }
+  if (rulesDisableSelectedBtn) {
+    rulesDisableSelectedBtn.addEventListener('click', () => {
+      bulkToggleRuleIds((_rulesPanelState.selectedIds || []).slice(), false, 'Updated');
+    });
+  }
+  if (rulesDeleteSelectedBtn) {
+    rulesDeleteSelectedBtn.addEventListener('click', () => {
+      bulkDeleteRuleIds((_rulesPanelState.selectedIds || []).slice(), 'Deleted');
+    });
+  }
+
+  const bindGroupToggleBtn = (btn, gidInput, enabled) => {
+    if (!btn) return;
+    btn.addEventListener('click', async () => {
+      const gid = (gidInput?.value || '').trim() || 'default';
+      const out = await window.qakitUnifiedRulesApi.setGroupState(gid, !!enabled);
+      if (!out?.ok) {
+        showLsToast((enabled ? 'Enable' : 'Disable') + ' group failed: ' + (out?.error || 'unknown'), true);
+        return;
+      }
+      showLsToast('Group ' + (enabled ? 'enabled: ' : 'disabled: ') + gid);
+      refreshAllUnifiedRulesViews();
+    });
+  };
+
+  bindGroupToggleBtn(rulesGroupEnableBtn, rulesHeaderGroupId, true);
+  bindGroupToggleBtn(rulesGroupDisableBtn, rulesHeaderGroupId, false);
+  bindGroupToggleBtn(rulesRedirectGroupEnableBtn, rulesRedirectGroupId, true);
+  bindGroupToggleBtn(rulesRedirectGroupDisableBtn, rulesRedirectGroupId, false);
+  bindGroupToggleBtn(rulesBlockGroupEnableBtn, rulesBlockGroupId, true);
+  bindGroupToggleBtn(rulesBlockGroupDisableBtn, rulesBlockGroupId, false);
+
+  if (rulesEditType) rulesEditType.addEventListener('change', updateRulesEditTypeUI);
+  if (rulesEditHeaderOp) rulesEditHeaderOp.addEventListener('change', updateRulesEditTypeUI);
+  if (rulesEditCancelBtn) rulesEditCancelBtn.addEventListener('click', closeRulesEditModal);
+  if (rulesEditSaveBtn) rulesEditSaveBtn.addEventListener('click', saveRulesEditModal);
+  if (rulesEditModal) {
+    rulesEditModal.addEventListener('click', (e) => {
+      if (e.target === rulesEditModal) closeRulesEditModal();
+    });
+  }
+
+  setTimeout(refreshAllUnifiedRulesViews, 180);
+});
+
 // Status strip delegated click — items with data-tab navigate
 document.getElementById('homeStatusStrip')?.addEventListener('click', (e) => {
   const item = e.target.closest('.home-status-item');
@@ -1501,18 +2629,6 @@ document.querySelectorAll('#panel-home .home-tile, #panel-home .home-list-tile')
           window.close();
         })();
         break;
-      case 'element-shot':
-        persistActiveTab('home');
-        (async () => {
-          try {
-            const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-            if (tab?.id && tab.url?.startsWith('http')) {
-              chrome.runtime.sendMessage({ action: 'TRIGGER_ELEMENT_CAPTURE', tabId: tab.id }).catch(() => {});
-            }
-          } catch(e) { console.error('[QAKit] element tile error', e); }
-          window.close();
-        })();
-        break;
 
       // Inspect tools — open Page Kit to the inspect sub-tab
       case 'inspect':
@@ -1527,13 +2643,6 @@ document.querySelectorAll('#panel-home .home-tile, #panel-home .home-list-tile')
         setTimeout(() => {
           document.querySelector('.pt-subtab[data-sub="inspect"]')?.click();
           setTimeout(() => document.getElementById('pt-spacingBtn')?.click(), 80);
-        }, 60);
-        break;
-      case 'ruler':
-        switchToTab('pagetools');
-        setTimeout(() => {
-          document.querySelector('.pt-subtab[data-sub="inspect"]')?.click();
-          setTimeout(() => document.getElementById('pt-rulerBtn')?.click(), 80);
         }, 60);
         break;
 
@@ -1941,6 +3050,53 @@ document.getElementById('ddlPlatformFilter')?.addEventListener('change', (e) => 
 });
 
 document.getElementById('lsRefreshBtn').addEventListener('click', fetchAndRenderLS);
+
+// Add new storage key modal
+function openLsAddModal() {
+  const overlay = document.getElementById('lsAddOverlay');
+  if (!overlay) return;
+  const title = document.getElementById('lsAddModalTitle');
+  if (title) title.textContent = 'Add ' + storeLabel() + ' Key';
+  const keyInp = document.getElementById('lsAddKey');
+  const valInp = document.getElementById('lsAddValue');
+  if (keyInp) keyInp.value = '';
+  if (valInp) valInp.value = '';
+  overlay.style.display = 'flex';
+  keyInp?.focus();
+}
+
+function closeLsAddModal() {
+  const overlay = document.getElementById('lsAddOverlay');
+  if (overlay) overlay.style.display = 'none';
+}
+
+document.getElementById('lsAddBtn')?.addEventListener('click', openLsAddModal);
+document.getElementById('lsAddCancel')?.addEventListener('click', closeLsAddModal);
+document.getElementById('lsAddOverlay')?.addEventListener('click', (e) => {
+  if (e.target.id === 'lsAddOverlay') closeLsAddModal();
+});
+document.getElementById('lsAddSave')?.addEventListener('click', async () => {
+  const key = (document.getElementById('lsAddKey')?.value || '').trim();
+  const val = document.getElementById('lsAddValue')?.value ?? '';
+  if (!key) {
+    showLsToast('Key is required', true);
+    return;
+  }
+  const tab = await getActiveTab();
+  if (!tab?.id || !tab.url || tab.url.startsWith('chrome://') || tab.url.startsWith('about:')) {
+    showLsToast('Navigate to a web page first', true);
+    return;
+  }
+  let res = await sendToContentScript(tab.id, { action: 'SET_LS', key, value: val, storageType: _storeType });
+  if (!res) res = await execLS(tab.id, { type: 'SET', key, value: val });
+  if (res && res.ok) {
+    closeLsAddModal();
+    showLsToast('Saved to ' + storeApiName() + ' ✓');
+    fetchAndRenderLS();
+  } else {
+    showLsToast('Error: ' + ((res && res.error) || 'Could not write to ' + storeApiName()), true);
+  }
+});
 
 // Local / Session storage selector — switch the active store then reload.
 function setStoreType(type) {

@@ -19,11 +19,46 @@
 
 const { test: baseTest, expect } = require('@playwright/test');
 const { test } = require('./fixtures');
+const { PopupPage } = require('./pages/popup-page');
 
 // Minimal valid 1×1 PNG data URL — used as a stand-in for real captures.
 const FAKE_PNG =
   'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJ' +
   'AAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==';
+
+test('full-page capture restores scroll position when a strip capture fails', async ({ context, extensionId }) => {
+  const worker = context.serviceWorkers().find(sw => sw.url().includes(extensionId));
+  const result = await worker.evaluate(async () => {
+    const originalGet = chrome.tabs.get;
+    const originalCapture = chrome.tabs.captureVisibleTab;
+    const originalExecute = chrome.scripting.executeScript;
+    const originalEnsure = ensurePageScripts;
+    const calls = [];
+    try {
+      chrome.tabs.get = async () => ({ windowId: 1 });
+      ensurePageScripts = async () => {};
+      chrome.scripting.executeScript = async options => {
+        calls.push({ fn: String(options.func), args: options.args });
+        if (String(options.func).includes('__qkitGetFullPageDimensions')) {
+          return [{ result: { scrollHeight: 1000, viewportHeight: 500, viewportWidth: 800, dpr: 1, originalScrollY: 250 } }];
+        }
+        return [];
+      };
+      chrome.tabs.captureVisibleTab = () => { throw new Error('capture failed'); };
+      let error;
+      try { await captureFullPage(1); } catch (e) { error = e.message; }
+      return { error, calls };
+    } finally {
+      chrome.tabs.get = originalGet;
+      chrome.tabs.captureVisibleTab = originalCapture;
+      chrome.scripting.executeScript = originalExecute;
+      ensurePageScripts = originalEnsure;
+    }
+  });
+  expect(result.error).toBe('capture failed');
+  expect(result.calls.at(-1).args).toEqual([250]);
+  expect(result.calls.at(-1).fn).toContain('window.scrollTo');
+});
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helper: inject the page-toast DOM into a plain Playwright page.
@@ -214,7 +249,7 @@ test.describe('Popup showScreenshotToast (via DELIVER_CROPPED_SCREENSHOT)', () =
       };
     });
     await popupPage.goto(`chrome-extension://${extensionId}/popup.html`);
-    await popupPage.waitForSelector('#panel-home');
+    await new PopupPage(popupPage).panel('home').waitFor();
     return popupPage;
   }
 
@@ -233,50 +268,56 @@ test.describe('Popup showScreenshotToast (via DELIVER_CROPPED_SCREENSHOT)', () =
 
   test('toast appears in popup with correct label', async ({ context, extensionId }) => {
     const popupPage = await openPopupWithInterceptor(context, extensionId);
+    const popup = new PopupPage(popupPage);
     await deliverScreenshot(popupPage, FAKE_PNG, 'Region captured');
-    await expect(popupPage.locator('#ssToast')).toBeVisible({ timeout: 3000 });
-    const text = await popupPage.locator('#ssToast').innerText();
+    await expect(popup.screenshotToast).toBeVisible({ timeout: 3000 });
+    const text = await popup.screenshotToast.innerText();
     expect(text).toContain('Region captured');
     await popupPage.close();
   });
 
   test('popup toast has Download button', async ({ context, extensionId }) => {
     const popupPage = await openPopupWithInterceptor(context, extensionId);
+    const popup = new PopupPage(popupPage);
     await deliverScreenshot(popupPage, FAKE_PNG);
-    await expect(popupPage.locator('#ssDownloadBtn')).toBeVisible({ timeout: 3000 });
+    await expect(popup.screenshotDownload).toBeVisible({ timeout: 3000 });
     await popupPage.close();
   });
 
   test('popup toast has Markup button', async ({ context, extensionId }) => {
     const popupPage = await openPopupWithInterceptor(context, extensionId);
+    const popup = new PopupPage(popupPage);
     await deliverScreenshot(popupPage, FAKE_PNG);
-    await expect(popupPage.locator('#ssEditBtn')).toBeVisible({ timeout: 3000 });
-    expect(await popupPage.locator('#ssEditBtn').textContent()).toContain('Markup');
+    await expect(popup.screenshotEdit).toBeVisible({ timeout: 3000 });
+    expect(await popup.screenshotEdit.textContent()).toContain('Markup');
     await popupPage.close();
   });
 
   test('popup toast has dismiss button', async ({ context, extensionId }) => {
     const popupPage = await openPopupWithInterceptor(context, extensionId);
+    const popup = new PopupPage(popupPage);
     await deliverScreenshot(popupPage, FAKE_PNG);
-    await expect(popupPage.locator('#ssDismissBtn')).toBeVisible({ timeout: 3000 });
+    await expect(popup.screenshotDismiss).toBeVisible({ timeout: 3000 });
     await popupPage.close();
   });
 
   test('popup toast dismiss button removes the toast', async ({ context, extensionId }) => {
     const popupPage = await openPopupWithInterceptor(context, extensionId);
+    const popup = new PopupPage(popupPage);
     await deliverScreenshot(popupPage, FAKE_PNG);
-    await popupPage.waitForSelector('#ssToast', { timeout: 3000 });
-    await popupPage.click('#ssDismissBtn');
-    await expect(popupPage.locator('#ssToast')).toHaveCount(0);
+    await popup.screenshotToast.waitFor({ timeout: 3000 });
+    await popup.screenshotDismiss.click();
+    await expect(popup.screenshotToast).toHaveCount(0);
     await popupPage.close();
   });
 
   test('second DELIVER message replaces the first toast (no duplicate)', async ({ context, extensionId }) => {
     const popupPage = await openPopupWithInterceptor(context, extensionId);
+    const popup = new PopupPage(popupPage);
     await deliverScreenshot(popupPage, FAKE_PNG, 'First');
-    await popupPage.waitForSelector('#ssToast', { timeout: 3000 });
+    await popup.screenshotToast.waitFor({ timeout: 3000 });
     await deliverScreenshot(popupPage, FAKE_PNG, 'Second');
-    await expect(popupPage.locator('#ssToast')).toHaveCount(1);
+    await expect(popup.screenshotToast).toHaveCount(1);
     await popupPage.close();
   });
 });
@@ -290,48 +331,48 @@ test.describe('Screenshots sub-panel UI', () => {
   // so the popup closes on click — we cannot use them for UI panel testing.
   // Instead we call switchToTab('pagetools') (popup.js global) then click
   // the hidden screenshot sub-tab button directly.
-  async function goToScreenshots(popupPage) {
-    await popupPage.evaluate(() => {
+  async function goToScreenshots(popup) {
+    await popup.page.evaluate(() => {
       if (typeof switchToTab === 'function') switchToTab('pagetools');
     });
-    await expect(popupPage.locator('#panel-pagetools')).toHaveClass(/active/, { timeout: 3000 });
-    await popupPage.evaluate(() => {
+    await expect(popup.panel('pagetools')).toHaveClass(/active/, { timeout: 3000 });
+    await popup.page.evaluate(() => {
       document.querySelector('.pt-subtab[data-sub="screenshot"]')?.click();
     });
-    await expect(popupPage.locator('#ptsub-screenshot')).toBeVisible({ timeout: 3000 });
+    await expect(popup.screenshotPanel).toBeVisible({ timeout: 3000 });
   }
 
-  test('pagetools panel becomes active after switchToTab call', async ({ popupPage }) => {
+  test('pagetools panel becomes active after switchToTab call', async ({ popup, popupPage }) => {
     await popupPage.evaluate(() => {
       if (typeof switchToTab === 'function') switchToTab('pagetools');
     });
-    await expect(popupPage.locator('#panel-pagetools')).toHaveClass(/active/, { timeout: 3000 });
+    await expect(popup.panel('pagetools')).toHaveClass(/active/, { timeout: 3000 });
   });
 
-  test('screenshot sub-tab button is present in pagetools panel', async ({ popupPage }) => {
+  test('screenshot sub-tab button is present in pagetools panel', async ({ popup, popupPage }) => {
     await popupPage.evaluate(() => {
       if (typeof switchToTab === 'function') switchToTab('pagetools');
     });
-    await expect(popupPage.locator('.pt-subtab[data-sub="screenshot"]')).toBeAttached();
+    await expect(popup.subtab('pt', 'screenshot')).toBeAttached();
   });
 
-  test('screenshots sub-panel is visible after sub-tab navigation', async ({ popupPage }) => {
-    await goToScreenshots(popupPage);
-    await expect(popupPage.locator('#ptsub-screenshot')).toBeVisible();
+  test('screenshots sub-panel is visible after sub-tab navigation', async ({ popup }) => {
+    await goToScreenshots(popup);
+    await expect(popup.screenshotPanel).toBeVisible();
   });
 
-  test('Full Page capture button is present', async ({ popupPage }) => {
-    await goToScreenshots(popupPage);
-    await expect(popupPage.locator('#ss-fullBtn')).toBeVisible();
+  test('Full Page capture button is present', async ({ popup }) => {
+    await goToScreenshots(popup);
+    await expect(popup.screenshotFull).toBeVisible();
   });
 
-  test('Region capture button is present', async ({ popupPage }) => {
-    await goToScreenshots(popupPage);
-    await expect(popupPage.locator('#ss-regionBtn')).toBeVisible();
+  test('Region capture button is present', async ({ popup }) => {
+    await goToScreenshots(popup);
+    await expect(popup.screenshotRegion).toBeVisible();
   });
 
-  test('Annotate Page button is present', async ({ popupPage }) => {
-    await goToScreenshots(popupPage);
-    await expect(popupPage.locator('#ss-annotatePageBtn')).toBeVisible();
+  test('Annotate Page button is present', async ({ popup }) => {
+    await goToScreenshots(popup);
+    await expect(popup.screenshotAnnotate).toBeVisible();
   });
 });

@@ -14,20 +14,91 @@ const { test, expect } = require('./fixtures');
 
 const AUDIT_HISTORY_KEY = 'qa_audit_history';
 
-async function openAuditPanel(popupPage) {
-  await popupPage.click('.home-tile[data-tab="audit"]');
-  await expect(popupPage.locator('#panel-audit')).toHaveClass(/active/);
+async function openAuditPanel(popup) {
+  await popup.homeTile('audit').click();
+  await expect(popup.panel('audit')).toHaveClass(/active/);
 }
 
 test.describe('Page Audit — execution and display', () => {
-  test('Run button triggers the scan (scan status changes from idle)', async ({ popupPage }) => {
-    await openAuditPanel(popupPage);
-    const initialStatus = await popupPage.locator('#auditScanStatus').textContent();
-    await popupPage.click('#auditRunBtn');
+  test('inconclusive links are separate from broken links in results and exports', async ({ popup, popupPage }) => {
+    const reports = await popupPage.evaluate(async () => {
+      const data = {
+        url: 'https://example.test/', title: 'Test', ts: Date.now(),
+        linkResults: [
+          { href: 'https://example.test/missing', status: 404, ok: false },
+          { href: 'https://example.test/private', status: 403, ok: false, inconclusive: true, reason: 'Auth required' },
+          { href: 'https://example.test/slow', status: 0, ok: false, inconclusive: true, reason: 'No response' },
+        ],
+        images: [], spelling: [], a11y: [], perf: {}, security: { isHTTPS: true },
+      };
+      auditResults = data;
+      auditPageInfo = { url: data.url, title: data.title, ts: data.ts };
+      renderAuditResults(data);
+      const outputs = [];
+      const originalDownload = downloadBlob;
+      const originalToast = showLsToast;
+      try {
+        downloadBlob = blob => { outputs.push(blob); };
+        showLsToast = () => {};
+        exportAuditAsText();
+        exportAuditAsCSV();
+        return {
+          html: document.querySelector('#auditContent').textContent,
+          text: await outputs[0].text(),
+          csv: await outputs[1].text(),
+        };
+      } finally {
+        downloadBlob = originalDownload;
+        showLsToast = originalToast;
+      }
+    });
+    expect(reports.html).toContain('Broken Links (1)');
+    expect(reports.html).toContain('Inconclusive Links (2)');
+    expect(reports.text).toContain('BROKEN LINKS (1');
+    expect(reports.text).toContain('INCONCLUSIVE LINKS (2)');
+    expect(reports.csv).toContain('Inconclusive Link,info,Auth required');
+    expect(reports.csv).not.toContain('Broken Link,error,HTTP 403');
+    await expect(popup.auditA11yContent).toContainText('not a compliance assessment');
+  });
+
+  test('accessibility scan recognizes wrapping labels but not placeholders as labels', async ({ popup, popupPage }) => {
+    const result = await popupPage.evaluate(async () => {
+      document.querySelectorAll('input').forEach(el => el.remove());
+      const fixture = document.createElement('div');
+      fixture.innerHTML = '<label>Wrapped <input></label><input placeholder="Not a label"><label for="labelled">Label</label><input id="labelled">' +
+        '<label for="special:id">Select</label><select id="special:id"></select>';
+      document.body.appendChild(fixture);
+      const originalTab = getAuditTab;
+      const originalExecute = chrome.scripting.executeScript;
+      const originalSend = chrome.runtime.sendMessage;
+      let findings;
+      try {
+        getAuditTab = async () => ({ id: 1, url: 'https://example.test/' });
+        chrome.runtime.sendMessage = async () => ({});
+        chrome.scripting.executeScript = async ({ func, args }) => {
+          findings = func(args[0], 'a11y').a11y;
+          throw new Error('test scan complete');
+        };
+        await runPageAudit();
+        return findings;
+      } finally {
+        getAuditTab = originalTab;
+        chrome.scripting.executeScript = originalExecute;
+        chrome.runtime.sendMessage = originalSend;
+        fixture.remove();
+      }
+    });
+    expect(result).toContainEqual(expect.objectContaining({ msg: '1 input(s) missing label or aria-label' }));
+  });
+
+  test('Run button triggers the scan (scan status changes from idle)', async ({ popup, popupPage }) => {
+    await openAuditPanel(popup);
+    const initialStatus = await popup.auditScanStatus.textContent();
+    await popup.auditRunBtn.click();
     // After clicking Run, the spinner or updated content must appear within 8 s.
     // We don't assert success of the audit itself — just that the mechanism fired.
     await expect(async () => {
-      const current = await popupPage.locator('#auditContent').innerHTML();
+      const current = await popup.auditContent.innerHTML();
       // innerHTML must differ from the initial idle placeholder
       expect(current).not.toEqual(
         await popupPage.evaluate(() => {
@@ -40,33 +111,33 @@ test.describe('Page Audit — execution and display', () => {
     }).toPass({ timeout: 10000, intervals: [500] });
   });
 
-  test('spinner element is present in the DOM', async ({ popupPage }) => {
-    await openAuditPanel(popupPage);
-    await expect(popupPage.locator('#auditSpinner')).toBeAttached();
+  test('spinner element is present in the DOM', async ({ popup, popupPage }) => {
+    await openAuditPanel(popup);
+    await expect(popup.auditSpinner).toBeAttached();
   });
 
-  test('Clear button resets the panel to the idle placeholder', async ({ popupPage }) => {
-    await openAuditPanel(popupPage);
+  test('Clear button resets the panel to the idle placeholder', async ({ popup, popupPage }) => {
+    await openAuditPanel(popup);
     // Trigger a scan first so there is content to clear.
-    await popupPage.click('#auditRunBtn');
+    await popup.auditRunBtn.click();
     await popupPage.waitForTimeout(1500);
-    await popupPage.click('#auditClearBtn');
+    await popup.auditClearBtn.click();
     // After clear the idle placeholder text should be back.
-    await expect(popupPage.locator('#auditScanStatus')).toContainText('Click');
+    await expect(popup.auditScanStatus).toContainText('Click');
   });
 
-  test('Export button is visible and has a dropdown', async ({ popupPage }) => {
-    await openAuditPanel(popupPage);
-    await expect(popupPage.locator('#auditExportBtn')).toBeVisible();
-    await popupPage.click('#auditExportBtn');
-    await expect(popupPage.locator('#auditExportMenu')).toBeVisible();
+  test('Export button is visible and has a dropdown', async ({ popup, popupPage }) => {
+    await openAuditPanel(popup);
+    await expect(popup.auditExportBtn).toBeVisible();
+    await popup.auditExportBtn.click();
+    await expect(popup.auditExportMenu).toBeVisible();
     // Export menu has Text, JSON, CSV options
-    await expect(popupPage.locator('[data-export-format="text"]')).toBeVisible();
-    await expect(popupPage.locator('[data-export-format="json"]')).toBeVisible();
-    await expect(popupPage.locator('[data-export-format="csv"]')).toBeVisible();
+    await expect(popup.auditExportOption('text')).toBeVisible();
+    await expect(popup.auditExportOption('json')).toBeVisible();
+    await expect(popup.auditExportOption('csv')).toBeVisible();
   });
 
-  test('History sub-tab renders stored audit entries', async ({ popupPage }) => {
+  test('History sub-tab renders stored audit entries', async ({ popup, popupPage }) => {
     // Pre-seed a fake audit run in storage so we can test the history renderer
     // without running a real network scan.
     const fakeHistory = {
@@ -84,7 +155,7 @@ test.describe('Page Audit — execution and display', () => {
       [AUDIT_HISTORY_KEY, fakeHistory],
     );
 
-    await openAuditPanel(popupPage);
+    await openAuditPanel(popup);
 
     // Manually expose the sub-tab bar and switch to the History tab so we can
     // test the renderer without needing a live audit run.
@@ -95,7 +166,7 @@ test.describe('Page Audit — execution and display', () => {
       if (histEl) histEl.style.display = '';
     });
 
-    const histTab = popupPage.locator('[data-auditsub="history"]');
+    const histTab = popup.auditSubtab('history');
     if (await histTab.count()) {
       await histTab.click();
     }
@@ -111,25 +182,25 @@ test.describe('Page Audit — execution and display', () => {
     });
 
     // The history content div must be attached and non-empty or contain the run.
-    await expect(popupPage.locator('#auditHistoryContent')).toBeAttached();
+    await expect(popup.auditHistoryContent).toBeAttached();
   });
 
-  test('sub-tab bar contains all expected sub-tabs', async ({ popupPage }) => {
-    await openAuditPanel(popupPage);
+  test('sub-tab bar contains all expected sub-tabs', async ({ popup, popupPage }) => {
+    await openAuditPanel(popup);
     // Show the sub-tab bar for inspection.
     await popupPage.evaluate(() => {
       const bar = document.getElementById('auditSubTabBar');
       if (bar) bar.style.display = 'flex';
     });
     for (const sub of ['overview', 'perf', 'security', 'a11y', 'history']) {
-      await expect(popupPage.locator(`[data-auditsub="${sub}"]`)).toBeAttached();
+      await expect(popup.auditSubtab(sub)).toBeAttached();
     }
   });
 
-  test('all result content panels are attached in the DOM', async ({ popupPage }) => {
-    await openAuditPanel(popupPage);
+  test('all result content panels are attached in the DOM', async ({ popup, popupPage }) => {
+    await openAuditPanel(popup);
     for (const id of ['auditContent', 'auditPerfContent', 'auditSecContent', 'auditA11yContent', 'auditHistoryContent']) {
-      await expect(popupPage.locator(`#${id}`)).toBeAttached();
+      await expect(popup.elementById(id)).toBeAttached();
     }
   });
 });

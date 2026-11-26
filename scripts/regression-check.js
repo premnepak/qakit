@@ -12,8 +12,9 @@ function check(name, ok, detail) {
 const m = JSON.parse(fs.readFileSync('src/manifest.json','utf8'));
 check('manifest_version=3', m.manifest_version === 3);
 check('version present', !!m.version);
-const reqPerm = ['activeTab','scripting','storage','tabs','cookies','debugger','declarativeNetRequest','declarativeNetRequestWithHostAccess','windows','contextMenus','downloads'];
+const reqPerm = ['activeTab','scripting','storage','tabs','cookies','debugger','declarativeNetRequest','declarativeNetRequestWithHostAccess','windows','contextMenus'];
 reqPerm.forEach(p => check('permission: ' + p, m.permissions.includes(p)));
+check('optional permission: downloads', (m.optional_permissions || []).includes('downloads'));
 const cmds = Object.keys(m.commands || {});
 const withKey = cmds.filter(c => m.commands[c].suggested_key).length;
 check('shortcuts <= 4', withKey <= 4, 'got ' + withKey);
@@ -23,7 +24,7 @@ const requiredWar = ['inspector.js','console-shim.js','analytics-interceptor.js'
 requiredWar.forEach(r => check('WAR: ' + r, war.includes(r)));
 
 // 2. Core files exist
-['src/popup.html','src/popup.js','src/background.js','src/spell-bundle.js','src/inspector.js','src/page-audit.js','src/console-shim.js','src/settings.js','src/pagescripts.js'].forEach(f => check('file: ' + f, fs.existsSync(f)));
+['src/popup.html','src/popup.js','src/background.js','src/spell-bundle.js','src/inspector.js','src/page-audit.js','src/console-shim.js','src/settings.js','src/pagescripts.js','src/network-interceptor.js'].forEach(f => check('file: ' + f, fs.existsSync(f)));
 
 // 3. spell-bundle untouched (size sanity)
 const ssize = fs.statSync('src/spell-bundle.js').size;
@@ -66,18 +67,18 @@ if (rulerMatch) check('ruler tile: no window.close (Rule 6)', !rulerMatch[0].inc
 
 // 9. Home tiles structure
 const popup = fs.readFileSync('src/popup.html','utf8');
+const bg = fs.readFileSync('src/background.js','utf8');
 check('Inspect tile present', popup.includes('data-action="inspect"'));
 check('Spacing tile present', popup.includes('data-action="spacing"'));
-check('Ruler tile present', popup.includes('data-action="ruler"'));
+check('Ruler tool present', popup.includes('id="pt-rulerBtn"'));
 check('Region tile present', popup.includes('data-action="region"'));
 check('Full Page tile present', popup.includes('data-action="fullpage"'));
-check('Element tile present', popup.includes('data-action="element-shot"'));
+check('Element screenshot context menu present', bg.includes("id: 'qakit-element-shot'") && bg.includes("case 'qakit-element-shot':"));
 check('Annotate tile present', popup.includes('data-action="annotate"'));
 check('JSON Viewer tile present', popup.includes('data-action="open-jsondiff"'));
 check('Text Compare tile present', popup.includes('data-action="open-textcompare"'));
 
 // 10. Privacy / no telemetry / no remote code (Critical Rules 7-8)
-const bg = fs.readFileSync('src/background.js','utf8');
 check('no eval() in background (Rule 7)', !/[^.\w]eval\s*\(/.test(bg));
 check('no eval() in popup.js (Rule 7)', !/[^.\w]eval\s*\(/.test(popupjs));
 check('no Function() ctor in background (Rule 7)', !/new\s+Function\s*\(/.test(bg));

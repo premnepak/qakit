@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>QAKit v1.0.6 — What's New</title>
+<title>QAKit v1.1.0 — What's New</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 html{scroll-behavior:smooth}
@@ -63,7 +63,30 @@ code{background:#f0f4f8;border-radius:3px;padding:1px 6px;font-family:monospace;
 <div class="content">
 
   <div class="intro">
-    <strong>Welcome to QAKit 1.0.6.</strong> This page lists the user-facing changes in each release. For a full feature walk-through, see the <a href="help.html" style="color:#047857;font-weight:700">Help &amp; User Guide</a>.
+    <strong>Welcome to QAKit 1.1.0.</strong> This page lists the user-facing changes in each release. For a full feature walk-through, see the <a href="help.html" style="color:#047857;font-weight:700">Help &amp; User Guide</a>.
+  </div>
+
+  <!-- ────────────────────────────────────────────────── 1.1.0 -->
+  <div class="release">
+    <div class="release-head">
+      <span class="release-version">1.1.0</span>
+      <span class="release-date">November 2026</span>
+      <span class="release-tag">Released</span>
+    </div>
+
+    <h3><span class="icon">🗄</span>Cookies and Storage</h3>
+    <ul>
+      <li><strong>Add cookies</strong> — create a cookie for the current site from the Cookie Manager.</li>
+      <li><strong>Add storage keys</strong> — create a key and value in Local Storage or Session Storage from the Storage panel.</li>
+    </ul>
+
+    <h3><span class="icon">🔧</span>Stability and Quality Improvements</h3>
+    <ul>
+      <li><strong>Page Audit refinements</strong> — improved link checking, input-label guidance, and contrast detection for more accurate accessibility audits.</li>
+      <li><strong>JSON Viewer — special character handling</strong> — keys containing path punctuation (like `/`, `.`) now navigate correctly in the Tree View.</li>
+      <li><strong>Full-page screenshot — scroll position</strong> — if capture fails, the page scroll position is now correctly restored to its pre-capture location.</li>
+      <li><strong>Network Mock — XHR event consistency</strong> — improved support for common XHR event listeners and response types, both after initial injection and after page reload.</li>
+    </ul>
   </div>
 
   <!-- ────────────────────────────────────────────────── 1.0.6 -->

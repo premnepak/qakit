@@ -17,41 +17,41 @@ const path = require('path');
 // ─── Suite 1: Panel UI (uses full extension via fixtures) ────────────────────
 
 test.describe('Geolocation panel — UI', () => {
-  async function openGeoPanel(popupPage) {
-    await popupPage.click('.home-tile[data-tab="geo"]');
-    await expect(popupPage.locator('#panel-geo')).toHaveClass(/active/);
+  async function openGeoPanel(popup) {
+    await popup.homeTile('geo').click();
+    await expect(popup.panel('geo')).toHaveClass(/active/);
   }
 
-  test('panel renders lat, lng inputs and apply/clear buttons', async ({ popupPage }) => {
-    await openGeoPanel(popupPage);
-    await expect(popupPage.locator('#geoLat')).toBeVisible();
-    await expect(popupPage.locator('#geoLng')).toBeVisible();
-    await expect(popupPage.locator('#geoApplyBtn')).toBeVisible();
-    await expect(popupPage.locator('#geoClearBtn')).toBeVisible();
+  test('panel renders lat, lng inputs and apply/clear buttons', async ({ popup, popupPage }) => {
+    await openGeoPanel(popup);
+    await expect(popup.geoLat).toBeVisible();
+    await expect(popup.geoLng).toBeVisible();
+    await expect(popup.geoApplyBtn).toBeVisible();
+    await expect(popup.geoClearBtn).toBeVisible();
   });
 
-  test('preset dropdown populates lat and lng when a location is selected', async ({ popupPage }) => {
-    await openGeoPanel(popupPage);
-    const opts = await popupPage.locator('#geoPresetSelect option').count();
+  test('preset dropdown populates lat and lng when a location is selected', async ({ popup, popupPage }) => {
+    await openGeoPanel(popup);
+    const opts = await popup.geoPresetSelectOption.count();
     expect(opts).toBeGreaterThan(1);
     // Select the second option (first is the placeholder).
-    const val = await popupPage.locator('#geoPresetSelect option').nth(1).getAttribute('value');
+    const val = await popup.geoPresetSelectOption.nth(1).getAttribute('value');
     if (val) {
-      await popupPage.selectOption('#geoPresetSelect', val);
-      const lat = await popupPage.locator('#geoLat').inputValue();
-      const lng = await popupPage.locator('#geoLng').inputValue();
+      await popup.geoPresetSelect.selectOption( val);
+      const lat = await popup.geoLat.inputValue();
+      const lng = await popup.geoLng.inputValue();
       expect(lat.length).toBeGreaterThan(0);
       expect(lng.length).toBeGreaterThan(0);
     }
   });
 
-  test('preset values are numeric coordinates', async ({ popupPage }) => {
-    await openGeoPanel(popupPage);
-    const val = await popupPage.locator('#geoPresetSelect option').nth(1).getAttribute('value');
+  test('preset values are numeric coordinates', async ({ popup, popupPage }) => {
+    await openGeoPanel(popup);
+    const val = await popup.geoPresetSelectOption.nth(1).getAttribute('value');
     if (val) {
-      await popupPage.selectOption('#geoPresetSelect', val);
-      const lat = parseFloat(await popupPage.locator('#geoLat').inputValue());
-      const lng = parseFloat(await popupPage.locator('#geoLng').inputValue());
+      await popup.geoPresetSelect.selectOption( val);
+      const lat = parseFloat(await popup.geoLat.inputValue());
+      const lng = parseFloat(await popup.geoLng.inputValue());
       expect(isNaN(lat)).toBe(false);
       expect(isNaN(lng)).toBe(false);
       expect(lat).toBeGreaterThanOrEqual(-90);
@@ -61,17 +61,17 @@ test.describe('Geolocation panel — UI', () => {
     }
   });
 
-  test('custom lat/lng can be typed into the inputs', async ({ popupPage }) => {
-    await openGeoPanel(popupPage);
-    await popupPage.fill('#geoLat', '-33.8688');
-    await popupPage.fill('#geoLng', '151.2093');
-    await expect(popupPage.locator('#geoLat')).toHaveValue('-33.8688');
-    await expect(popupPage.locator('#geoLng')).toHaveValue('151.2093');
+  test('custom lat/lng can be typed into the inputs', async ({ popup, popupPage }) => {
+    await openGeoPanel(popup);
+    await popup.geoLat.fill( '-33.8688');
+    await popup.geoLng.fill( '151.2093');
+    await expect(popup.geoLat).toHaveValue('-33.8688');
+    await expect(popup.geoLng).toHaveValue('151.2093');
   });
 
-  test('accuracy input is present', async ({ popupPage }) => {
-    await openGeoPanel(popupPage);
-    await expect(popupPage.locator('#geoAccuracy')).toBeAttached();
+  test('accuracy input is present', async ({ popup, popupPage }) => {
+    await openGeoPanel(popup);
+    await expect(popup.geoAccuracy).toBeAttached();
   });
 });
 

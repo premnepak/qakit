@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>Welcome to QAKit 1.0.6</title>
+<title>Welcome to QAKit 1.1.0</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:-apple-system,'Segoe UI',Roboto,sans-serif;background:#0d1117;color:#e6edf3;min-height:100vh;display:flex;align-items:flex-start;justify-content:center;padding:48px 16px 120px}
@@ -37,45 +37,38 @@ h1{font-size:30px;font-weight:800;color:#e6edf3;margin-bottom:8px;line-height:1.
 </head>
 <body>
 <div class="card">
-  <div class="badge">v1.0.6</div>
+  <div class="badge">v1.1.0</div>
   <h1>Welcome to QAKit</h1>
   <p class="subtitle">Your all-in-one browser toolkit for QA engineers and developers. Here's everything that's new and improved since the last verified release.</p>
 
   <div class="features">
-    <div class="features-heading">What's new in 1.0.6</div>
+    <div class="features-heading">What's new in 1.1.0</div>
     <div class="feature">
-      <span class="feature-icon">📡</span>
+      <span class="feature-icon">🧩</span>
       <div>
-        <strong>Adobe DataLayer capture</strong>
-        <span>The Analytics tool now monitors <strong style="color:#e6edf3">adobeDataLayer</strong> (Adobe Client Data Layer) events under a new <strong style="color:#e6edf3">Adobe DataLayer</strong> category, including events fired during page load. Toggle it under Settings → Analytics Providers.</span>
+        <strong>Net Rules</strong>
+        <span>Manage network rules in one place, organise them into groups, and import or export rule packs.</span>
       </div>
     </div>
     <div class="feature">
       <span class="feature-icon">🗄</span>
       <div>
-        <strong>Session Storage support</strong>
-        <span>The Storage tool now has <strong style="color:#e6edf3">Local Storage / Session Storage</strong> tabs. Browse, search, edit, and delete <code>sessionStorage</code> keys for the current origin — with an optional Session Storage Keys filter in Settings.</span>
+        <strong>Add cookies and storage keys</strong>
+        <span>Create cookies and add keys to Local Storage or Session Storage directly from their panels.</span>
       </div>
     </div>
     <div class="feature">
       <span class="feature-icon">🐞</span>
       <div>
-        <strong>Analytics tab reliability fix</strong>
-        <span>After the browser suspended the extension in the background, the Analytics tab could briefly show 0 events even though events had been captured. The event list now loads reliably every time.</span>
+        <strong>Page Audit improvements</strong>
+        <span>Inconclusive link checks are separated from broken links, with improved accessibility guidance.</span>
       </div>
     </div>
     <div class="feature">
       <span class="feature-icon">🧭</span>
       <div>
-        <strong>JSON Viewer — Tree View scrolling fixed</strong>
-        <span>With large JSON, the Tree View tab clipped its content and showed no scrollbar. Tree View now scrolls smoothly regardless of document size.</span>
-      </div>
-    </div>
-    <div class="feature">
-      <span class="feature-icon">🙏</span>
-      <div>
-        <strong>Thank you</strong>
-        <span>This release was shaped by feedback from QAKit users — thank you to <strong style="color:#e6edf3">Jirong Han, Geoff Fry, Dev Kunwar, Manasa Esrapu, Hayley Schwartz, Yousef Leblanc, Naveen Saha, Ripon Das, Stacy Huerta, Harry Buckley, Bradford Ramos, Herman Chung, and Terry Lee</strong> for reporting issues and suggesting improvements.</span>
+        <strong>JSON Viewer improvements</strong>
+        <span>Navigate keys containing punctuation or special characters correctly in Tree View.</span>
       </div>
     </div>
   </div>

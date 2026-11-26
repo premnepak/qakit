@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>QAKit v1.0.6 — Help &amp; User Guide</title>
+<title>QAKit v1.1.0 — Help &amp; User Guide</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 html{scroll-behavior:smooth}
@@ -97,7 +97,7 @@ tr:nth-child(even) td{background:#fafbfc}
   <div class="hero-inner">
     <h1><span class="hero-badge">QK</span> QAKit User Guide</h1>
     <div class="hero-sub">Your complete QA &amp; developer toolkit for testing web applications</div>
-    <div class="hero-meta">Version 1.0.6 · Built by Prem Nepak · QAKit Extension · <a href="changelog.html" style="color:#00e5a0;font-weight:700;text-decoration:none">What's new →</a></div>
+    <div class="hero-meta">Version 1.1.0 · Built by Prem Nepak · QAKit Extension · <a href="changelog.html" style="color:#00e5a0;font-weight:700;text-decoration:none">What's new →</a></div>
     <div class="hero-chips">
       <span class="chip">Inspect &amp; Measure</span>
       <span class="chip">Screenshots</span>
@@ -117,6 +117,7 @@ tr:nth-child(even) td{background:#fafbfc}
   <a href="#inspect">Inspect &amp; Measure</a>
   <a href="#capture">Capture</a>
   <a href="#analytics">Analytics</a>
+  <a href="#rules">Net Rules</a>
   <a href="#netmock">Network Mock</a>
   <a href="#headers">Headers</a>
   <a href="#audit">Page Audit</a>
@@ -147,7 +148,7 @@ tr:nth-child(even) td{background:#fafbfc}
     <tr><th>Group</th><th>Tools</th></tr>
     <tr><td><strong>Inspect &amp; Measure</strong></td><td>Element Inspector, Spacing Inspector, Ruler, Viewports</td></tr>
     <tr><td><strong>Capture</strong></td><td>Annotate, Region Screenshot, Full Page Screenshot, Element Screenshot</td></tr>
-    <tr><td><strong>Data &amp; Network</strong></td><td>Analytics, Network Mock, Headers Modifier, Page Audit</td></tr>
+    <tr><td><strong>Data &amp; Network</strong></td><td>Analytics, Net Rules, Network Mock, Headers Modifier, Page Audit</td></tr>
     <tr><td><strong>Session &amp; Environment</strong></td><td>Environment Marker, Cookie Manager, Storage (Local &amp; Session), Console Errors</td></tr>
     <tr><td><strong>Utilities</strong></td><td>Time &amp; Epoch, Encode &amp; Decode, Override Geolocation, Page Metadata</td></tr>
     <tr><td><strong>Tools</strong></td><td>JSON Viewer ↗, Text Compare ↗, Help ↗</td></tr>
@@ -399,6 +400,79 @@ tr:nth-child(even) td{background:#fafbfc}
   <div class="tip">Analytics capture starts the moment the page loads, before QAKit is opened. Events are buffered in the background so you never miss a page load event.</div>
 </div>
 
+<!-- ═══════════════════════════════════════════════════════════════════════ NET RULES -->
+<div class="section" id="rules">
+  <h2><span class="h2-icon">🧩</span> Net Rules (Unified Rules System)</h2>
+  <p class="h2-sub">Centralized HTTP rule management with import/export</p>
+
+  <p>Net Rules is a unified management interface for all HTTP interception rules — combining Network Mock, Headers Modifier, and future rule types under one schema. Create, organize, filter, and bulk-manage rules as groups. Import and export entire rule packs for team sharing.</p>
+
+  <h3>Rule types</h3>
+  <ul>
+    <li><strong>Mock response</strong> — intercept a request and return a custom response (status, headers, body)</li>
+    <li><strong>Modify header</strong> — add, override, or remove request or response headers</li>
+    <li><strong>Cancel request</strong> — block a request entirely (Phase 1 foundation — UI coming soon)</li>
+    <li><strong>Redirect</strong> — rewrite the request URL (Phase 1 foundation — UI coming soon)</li>
+  </ul>
+
+  <h3>Creating a rule</h3>
+  <ol class="steps">
+    <li>Open the <strong>Net Rules</strong> panel from Home</li>
+    <li>Click <strong>+ Add Rule</strong> or select a rule type from the builder</li>
+    <li>Fill in the rule details (name, URL pattern, action)</li>
+    <li>Assign the rule to a group for organization</li>
+    <li>Set the priority (higher = executed first)</li>
+    <li>Click <strong>Create</strong> and toggle it on</li>
+  </ol>
+
+  <h3>Rule properties</h3>
+  <table>
+    <tr><th>Property</th><th>Description</th></tr>
+    <tr><td>Name</td><td>Human-readable rule label</td></tr>
+    <tr><td>Type</td><td>Mock response, Modify header, Cancel, or Redirect</td></tr>
+    <tr><td>Enabled</td><td>Toggle individual rules on/off</td></tr>
+    <tr><td>Priority</td><td>Numeric order (higher executes first; default 100)</td></tr>
+    <tr><td>Group ID</td><td>Organize rules by group (e.g., "staging", "testing", "debugging")</td></tr>
+    <tr><td>URL Pattern</td><td>Match string with <code>*</code> wildcards, e.g., <code>*/api/users*</code></td></tr>
+    <tr><td>Match Type</td><td>Wildcard or Regex pattern matching</td></tr>
+    <tr><td>Request Type</td><td>Filter by XHR, fetch, all, etc.</td></tr>
+  </table>
+
+  <h3>Managing rules</h3>
+  <ul>
+    <li><strong>Filter by type</strong> — show only mock-response, modify-header, cancel, or redirect rules</li>
+    <li><strong>Filter by group</strong> — toggle groups on/off; disabled groups don't execute</li>
+    <li><strong>Search</strong> — filter rules by name, URL pattern, header name, or other text</li>
+    <li><strong>Sort</strong> — by priority, name, type, or creation date</li>
+    <li><strong>Bulk select</strong> — checkbox next to each rule; bulk enable/disable, duplicate, or delete selected</li>
+    <li><strong>Duplicate</strong> — clone a rule with a "(copy)" suffix for quick iteration</li>
+    <li><strong>Pause all</strong> — temporarily disable all rules without deleting</li>
+  </ul>
+
+  <h3>Import & Export</h3>
+  <ul>
+    <li><strong>Export pack</strong> — download all rules (or selected rules) as a <code>.json</code> file in the standard <code>qakit-unified-rules</code> format</li>
+    <li><strong>Import pack</strong> — load a rules pack from file; choose a strategy:
+      <ul>
+        <li><strong>Merge</strong> — add imported rules alongside existing rules</li>
+        <li><strong>Replace</strong> — overwrite all existing rules with imported ones</li>
+      </ul>
+    </li>
+    <li><strong>Dry run import</strong> — preview what will be imported without committing</li>
+  </ul>
+
+  <h3>Migration from legacy tools</h3>
+  <ul>
+    <li>Existing Network Mock rules are automatically migrated to unified rules on first load</li>
+    <li>Existing Headers Modifier rules are automatically migrated on first load</li>
+    <li>Legacy rules appear in the "default" group with priority preserved</li>
+    <li>You can re-export and share the migrated rules immediately</li>
+  </ul>
+
+  <div class="tip"><strong>API access:</strong> For advanced users and automation, the unified rules API is exposed at <code>window.qakitUnifiedRulesApi</code>. See the GitHub repository for documentation.</div>
+  <div class="info"><strong>Phase 1 foundation:</strong> This release introduces the unified rules schema and import/export. Additional rule types (cancel, redirect) and advanced features (regex matching, header inspection) are coming soon.</div>
+</div>
+
 <!-- ═══════════════════════════════════════════════════════════════════════ NET MOCK -->
 <div class="section" id="netmock">
   <h2><span class="h2-icon">⟷</span> Network Mock</h2>
@@ -451,12 +525,24 @@ tr:nth-child(even) td{background:#fafbfc}
   <ol class="steps">
     <li>Open the Headers Modifier panel</li>
     <li>Click <strong>+ Add Header</strong></li>
-    <li>Choose direction: <strong>Request</strong> (sent to the server) or <strong>Response</strong> (received from server)</li>
-    <li>Choose operation: <strong>Add/Override</strong> or <strong>Remove</strong></li>
+    <li>Choose target: <strong>Request</strong> (sent to the server), <strong>Response</strong> (received from server), or <strong>Req+Res</strong> (both)</li>
+    <li>Choose operation: <strong>✎ Set/Add</strong>, <strong>+ Add</strong>, or <strong>✕ Remove</strong></li>
     <li>Enter the header name (e.g. <code>Authorization</code>)</li>
-    <li>Enter the value (for Add/Override)</li>
+    <li>Enter the value (for Set/Add operations)</li>
+    <li>Optionally filter by request type (XHR, fetch, all, etc.)</li>
     <li>Toggle the rule active and reload the page</li>
   </ol>
+
+  <h3>Header rule options</h3>
+  <table>
+    <tr><th>Option</th><th>Description</th></tr>
+    <tr><td>Target</td><td><strong>Request</strong> (modify headers sent to server), <strong>Response</strong> (modify headers from server), or <strong>Req+Res</strong> (both)</td></tr>
+    <tr><td>Operation</td><td><strong>Set/Add:</strong> set or add the header; <strong>Remove:</strong> delete the header</td></tr>
+    <tr><td>Header name</td><td>Case-insensitive HTTP header (e.g. Authorization, Custom-Header)</td></tr>
+    <tr><td>Value</td><td>The header value; hidden if operation is Remove</td></tr>
+    <tr><td>URL Filter</td><td>Optional pattern to match request URLs (default: * = all)</td></tr>
+    <tr><td>Request Type</td><td>Filter by request type: XHR, Fetch, Document, Image, etc., or All</td></tr>
+  </table>
 
   <h3>Common use cases</h3>
   <ul>
@@ -501,8 +587,9 @@ tr:nth-child(even) td{background:#fafbfc}
     <tr><td><strong>Overview</strong></td><td>Score dashboard, Core Web Vitals, issue summary</td></tr>
     <tr><td><strong>Perf</strong></td><td>LCP, CLS, FCP, TTFB, page weight, number of requests, render-blocking resources</td></tr>
     <tr><td><strong>Security</strong></td><td>Missing security headers (HSTS, CSP, X-Frame-Options, etc.), mixed content, insecure cookies, weak CORS policy</td></tr>
-    <tr><td><strong>A11y</strong></td><td>WCAG AA contrast failures, missing alt text, unlabelled form fields, missing landmarks, ARIA errors, heading hierarchy</td></tr>
+    <tr><td><strong>A11y</strong></td><td>Estimated contrast issues, missing alt text, unlabelled form fields, missing landmarks, ARIA errors, heading hierarchy</td></tr>
   </table>
+  <p>Accessibility checks are a starting point, not a compliance assessment. Contrast estimates sample up to 100 text elements and may not reflect the actual background. Links blocked by authentication, rate limiting, or network errors are shown as inconclusive rather than broken.</p>
 
   <h3>Grading scale</h3>
   <table>
@@ -544,13 +631,14 @@ tr:nth-child(even) td{background:#fafbfc}
 
   <!-- Cookie Manager -->
   <h3>🍪 Cookie Manager</h3>
-  <p>View, search, edit, and delete cookies for the current domain.</p>
+  <p>View, search, add, edit, and delete cookies for the current domain.</p>
   <ul>
     <li>Lists all cookies for the current URL with name, value, domain, path, expiry, and flags (Secure, HttpOnly, SameSite)</li>
     <li><strong>Filter</strong> — search by cookie name or value</li>
     <li><strong>⊞ Expand / ⊟ Collapse</strong> — toggle all cookie rows expanded or collapsed</li>
     <li>Click any cookie row to expand and see full details</li>
-    <li>Click the <strong>Edit</strong> (✎) button to modify a cookie's value, domain, path, or flags</li>
+    <li>Click <strong>+ Add</strong>, enter a name and value, adjust the domain and path if needed, then click <strong>Save</strong></li>
+    <li>Click the <strong>Edit</strong> (✎) button to modify a cookie's name, value, domain, or path</li>
     <li>Click the <strong>Delete</strong> (🗑) button to remove a cookie</li>
     <li>Click <strong>↻ Refresh</strong> to reload the cookie list</li>
   </ul>
@@ -560,6 +648,7 @@ tr:nth-child(even) td{background:#fafbfc}
   <p>Browse and manage <code>localStorage</code> and <code>sessionStorage</code> keys for the current origin.</p>
   <ul>
     <li><strong>Local Storage / Session Storage</strong> — switch between the two stores with the tabs at the top of the panel</li>
+    <li>Choose a store, click <strong>+ Add</strong>, enter a key and value, then click <strong>Save</strong></li>
     <li>Lists all keys with truncated values — click any row to expand</li>
     <li><strong>⊞ Expand all / ⊟ Collapse all</strong> — single toggle button cycles between expanded and collapsed state</li>
     <li><strong>🔍 Search</strong> — filter by key name or value</li>
@@ -818,7 +907,7 @@ tr:nth-child(even) td{background:#fafbfc}
 
 <!-- ═══════════════════════════════════════════════════════════════════════ FOOTER -->
 <div class="footer">
-  <p><strong>QAKit v1.0.6</strong> · Built with passion for QAs &amp; developers<br>
+  <p><strong>QAKit v1.1.0</strong> · Built with passion for QAs &amp; developers<br>
   By <strong>Prem Nepak</strong> · QAKit Extension<br>
   <span style="font-size:12px"><a href="changelog.html" style="color:#0a6e51;font-weight:600">What's new →</a> · <a href="privacy-policy.html" style="color:#0a6e51;font-weight:600">Privacy Policy</a> · Questions or feedback? <a href="mailto:qakit.extension@gmail.com" style="color:#0a6e51;font-weight:600">qakit.extension@gmail.com</a></span></p>
 </div>

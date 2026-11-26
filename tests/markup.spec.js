@@ -8,6 +8,7 @@
  */
 
 const { test, expect } = require('./fixtures');
+const { MarkupPage } = require('./pages/markup-page');
 
 // Minimal valid 1×1 PNG — same stand-in used across test files.
 const FAKE_PNG =
@@ -38,14 +39,7 @@ async function openMarkupEditor(context, extensionId) {
   // Use any id — the interceptor ignores it.
   await page.goto(`chrome-extension://${extensionId}/markup.html?id=test-mk-000`);
 
-  // Wait for the canvas to be initialised with the loaded image dimensions.
-  await page.waitForFunction(
-    () => {
-      const c = document.getElementById('mkCanvas');
-      return c && c.width > 0 && c.height > 0;
-    },
-    { timeout: 6000 },
-  );
+  await new MarkupPage(page).waitForImage();
 
   return page;
 }
@@ -53,6 +47,7 @@ async function openMarkupEditor(context, extensionId) {
 test.describe('Markup Editor — UI and tool controls', () => {
   test('canvas is initialised after the fake image loads', async ({ context, extensionId }) => {
     const page = await openMarkupEditor(context, extensionId);
+    const markup = new MarkupPage(page);
     const dims = await page.evaluate(() => {
       const c = document.getElementById('mkCanvas');
       return { w: c.width, h: c.height };
@@ -64,65 +59,72 @@ test.describe('Markup Editor — UI and tool controls', () => {
 
   test('all annotation tool buttons are present', async ({ context, extensionId }) => {
     const page = await openMarkupEditor(context, extensionId);
+    const markup = new MarkupPage(page);
     for (const tool of TOOLS) {
-      await expect(page.locator(`.mk-tool[data-tool="${tool}"]`)).toBeAttached();
+      await expect(markup.tool(tool)).toBeAttached();
     }
     await page.close();
   });
 
   test('clicking a tool button marks it active', async ({ context, extensionId }) => {
     const page = await openMarkupEditor(context, extensionId);
+    const markup = new MarkupPage(page);
     for (const tool of ['pen', 'rect', 'arrow', 'highlight', 'blur', 'number', 'text', 'select']) {
-      await page.click(`.mk-tool[data-tool="${tool}"]`);
-      await expect(page.locator(`.mk-tool[data-tool="${tool}"]`)).toHaveClass(/active/);
+      await markup.tool(tool).click();
+      await expect(markup.tool(tool)).toHaveClass(/active/);
     }
     await page.close();
   });
 
   test('switching tools deactivates the previous tool', async ({ context, extensionId }) => {
     const page = await openMarkupEditor(context, extensionId);
-    await page.click('.mk-tool[data-tool="pen"]');
-    await expect(page.locator('.mk-tool[data-tool="pen"]')).toHaveClass(/active/);
-    await page.click('.mk-tool[data-tool="rect"]');
-    await expect(page.locator('.mk-tool[data-tool="rect"]')).toHaveClass(/active/);
-    await expect(page.locator('.mk-tool[data-tool="pen"]')).not.toHaveClass(/active/);
+    const markup = new MarkupPage(page);
+    await markup.tool('pen').click();
+    await expect(markup.tool('pen')).toHaveClass(/active/);
+    await markup.tool('rect').click();
+    await expect(markup.tool('rect')).toHaveClass(/active/);
+    await expect(markup.tool('pen')).not.toHaveClass(/active/);
     await page.close();
   });
 
   test('color picker is present and accepts a value change', async ({ context, extensionId }) => {
     const page = await openMarkupEditor(context, extensionId);
-    await expect(page.locator('#mkColor')).toBeVisible();
+    const markup = new MarkupPage(page);
+    await expect(markup.color).toBeVisible();
     await page.evaluate(() => {
       const el = document.getElementById('mkColor');
       el.value = '#ff0000';
       el.dispatchEvent(new Event('input'));
     });
-    const val = await page.locator('#mkColor').inputValue();
+    const val = await markup.color.inputValue();
     expect(val).toBe('#ff0000');
     await page.close();
   });
 
   test('size slider is present and accepts a value change', async ({ context, extensionId }) => {
     const page = await openMarkupEditor(context, extensionId);
-    await expect(page.locator('#mkSize')).toBeVisible();
-    await expect(page.locator('#mkSizeVal')).toBeVisible();
-    await page.fill('#mkSize', '8');
-    await page.dispatchEvent('#mkSize', 'input');
-    const label = await page.locator('#mkSizeVal').textContent();
+    const markup = new MarkupPage(page);
+    await expect(markup.size).toBeVisible();
+    await expect(markup.sizeValue).toBeVisible();
+    await markup.size.fill( '8');
+    await markup.size.dispatchEvent( 'input');
+    const label = await markup.sizeValue.textContent();
     expect(label).toBe('8');
     await page.close();
   });
 
   test('undo, redo, copy, save, and done buttons are all present', async ({ context, extensionId }) => {
     const page = await openMarkupEditor(context, extensionId);
+    const markup = new MarkupPage(page);
     for (const id of ['mkUndo', 'mkRedo', 'mkCopy', 'mkSave', 'mkDone']) {
-      await expect(page.locator(`#${id}`)).toBeAttached();
+      await expect(markup.control(id)).toBeAttached();
     }
     await page.close();
   });
 
   test('page title includes the image dimensions', async ({ context, extensionId }) => {
     const page = await openMarkupEditor(context, extensionId);
+    const markup = new MarkupPage(page);
     const title = await page.title();
     // Title format: "QAKit Markup — WxH"
     expect(title).toMatch(/QAKit Markup/);
@@ -132,21 +134,23 @@ test.describe('Markup Editor — UI and tool controls', () => {
 
   test('undo button is disabled when history is empty', async ({ context, extensionId }) => {
     const page = await openMarkupEditor(context, extensionId);
+    const markup = new MarkupPage(page);
     // No shapes drawn — undo should be disabled, not clickable.
-    await expect(page.locator('#mkUndo')).toBeDisabled();
+    await expect(markup.control('mkUndo')).toBeDisabled();
     // Canvas should still be present and functional.
-    await expect(page.locator('#mkCanvas')).toBeVisible();
+    await expect(markup.canvas).toBeVisible();
     await page.close();
   });
 
   test('keyboard shortcut selects tools', async ({ context, extensionId }) => {
     const page = await openMarkupEditor(context, extensionId);
+    const markup = new MarkupPage(page);
     // Focus the page body so key events are received.
-    await page.click('body');
+    await markup.body.click();
     const keyToolMap = { p: 'pen', r: 'rect', a: 'arrow', h: 'highlight', b: 'blur', n: 'number', t: 'text', v: 'select' };
     for (const [key, tool] of Object.entries(keyToolMap)) {
       await page.keyboard.press(key);
-      await expect(page.locator(`.mk-tool[data-tool="${tool}"]`)).toHaveClass(/active/);
+      await expect(markup.tool(tool)).toHaveClass(/active/);
     }
     await page.close();
   });
