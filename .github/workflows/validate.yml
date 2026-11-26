@@ -57,6 +57,7 @@ jobs:
         run: xvfb-run --auto-servernum npx playwright test
 
       - name: Upload test report artifact
+        id: upload_report
         if: always()
         uses: actions/upload-artifact@v4
         with:
@@ -65,9 +66,33 @@ jobs:
           retention-days: 7
 
       - name: Deploy report to GitHub Pages
+        id: deploy_report
         if: always()
         uses: peaceiris/actions-gh-pages@v3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./playwright-report
           destination_dir: playwright-report
+
+      - name: Add report links to workflow summary
+        if: always()
+        env:
+          DEPLOY_OUTCOME: ${{ steps.deploy_report.outcome }}
+          ARTIFACT_URL: ${{ steps.upload_report.outputs.artifact-url }}
+        shell: bash
+        run: |
+          repo_owner="${GITHUB_REPOSITORY%%/*}"
+          repo_name="${GITHUB_REPOSITORY#*/}"
+          report_url="https://${repo_owner}.github.io/${repo_name}/playwright-report/"
+          pages_settings_url="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/settings/pages"
+
+          {
+            echo "### Playwright test report"
+            echo "- GitHub Pages report: [${report_url}](${report_url})"
+            echo "- Pages deployment: \`${DEPLOY_OUTCOME}\`"
+            echo "- Publish target: \`gh-pages\` branch, \`playwright-report/\` directory"
+            echo "- GitHub Pages settings: [${pages_settings_url}](${pages_settings_url})"
+            if [[ -n "$ARTIFACT_URL" ]]; then
+              echo "- Downloadable report artifact: [playwright-report](${ARTIFACT_URL})"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
