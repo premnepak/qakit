@@ -1,9 +1,15 @@
 // @ts-check
+const { BasePage } = require('./base-page');
 
-class MarkupPage {
+/**
+ * Page object for the Markup/Annotation tool (markup.html).
+ * Handles canvas drawing, tool selection, and annotation control.
+ * Extends BasePage for common functionality.
+ */
+class MarkupPage extends BasePage {
   /** @param {import('@playwright/test').Page} page */
   constructor(page) {
-    this.page = page;
+    super(page);
     this.canvas = page.locator('#mkCanvas');
     this.color = page.locator('#mkColor');
     this.size = page.locator('#mkSize');

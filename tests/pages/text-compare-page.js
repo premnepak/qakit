@@ -1,10 +1,16 @@
 // @ts-check
 const { expect } = require('@playwright/test');
+const { BasePage } = require('./base-page');
 
-class TextComparePage {
+/**
+ * Page object for the Text Compare standalone tool (text-compare.html).
+ * Handles text comparison operations and UI interactions.
+ * Extends BasePage for common functionality.
+ */
+class TextComparePage extends BasePage {
   /** @param {import('@playwright/test').Page} page */
   constructor(page) {
-    this.page = page;
+    super(page);
     this.left = page.locator('#tcLeft');
     this.right = page.locator('#tcRight');
     this.compareButton = page.locator('#tcCompare');
