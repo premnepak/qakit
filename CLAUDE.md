@@ -8,7 +8,7 @@
 
 - **Source code:** `src/`
 - **Manifest:** `src/manifest.json`
-- **Current version:** 1.0.6 (in development — 1.0.2 was reverted on CWS, resubmitted as 1.0.3)
+- **Current version:** 1.1.0 (in development — 1.0.2 was reverted on CWS, resubmitted as 1.0.3)
 - **Documentation:** `docs/`
 - **Tech stack:** Vanilla JavaScript (no framework), Chrome Extension APIs (v3), HTML, CSS
 
@@ -58,8 +58,6 @@ QAKit collects nothing. No fetch calls to first- or third-party servers other th
 
 Do not add any "ping home", "usage analytics", or "crash reporting" code. The privacy policy guarantees this.
 
-### 9. KahuLogic / Qantas references must stay scrubbed
-Earlier versions of QAKit started life as an internal Qantas QA tool, then moved to KahuLogic infrastructure. Those references have been fully removed. Do not re-introduce them in any user-facing strings, comments, code, or documentation. The brand is **QAKit Extension** standalone.
 
 ## ✅ Validation — run before every commit
 

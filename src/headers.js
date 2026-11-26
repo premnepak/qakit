@@ -6,7 +6,47 @@ const HDR_STORAGE_KEY = 'qa_header_rules';
 
 let headerRules = [];
 
+function unifiedToLegacyHeader(rule) {
+  if (!rule || rule.type !== 'modify-header') return null;
+  return {
+    urlFilter: rule.source?.urlPattern || '*',
+    header: rule.action?.header || '',
+    value: rule.action?.value || '',
+    op: rule.action?.op || 'set',
+    target: rule.action?.target || 'request',
+    requestType: rule.source?.requestType || 'all',
+    enabled: rule.enabled !== false,
+  };
+}
+
+function isUnifiedRuleEffectivelyEnabled(rule, info) {
+  if (!rule || rule.enabled === false) return false;
+  if (info?.paused) return false;
+  const gid = String(rule.groupId || 'default');
+  return info?.groupStates?.[gid] !== false;
+}
+
 async function loadHeaderRules() {
+  // Prefer unified store when present; fallback to legacy storage for compatibility.
+  try {
+    const res = await chrome.runtime.sendMessage({ action: 'GET_UNIFIED_RULES' });
+    if (res?.ok && Array.isArray(res.rules)) {
+      const mapped = res.rules
+        .filter(r => r.type === 'modify-header')
+        .map(r => {
+          const legacy = unifiedToLegacyHeader(r);
+          if (legacy) legacy.enabled = isUnifiedRuleEffectivelyEnabled(r, res.info || {});
+          return legacy;
+        })
+        .filter(Boolean)
+        .filter(r => r.header);
+      if (mapped.length > 0) {
+        headerRules = mapped;
+        return;
+      }
+    }
+  } catch (_) {}
+
   const s = await chrome.storage.local.get(HDR_STORAGE_KEY);
   headerRules = s[HDR_STORAGE_KEY] || [];
 }
@@ -38,6 +78,11 @@ function renderHeaderRules() {
 
     const opColor = { add: 'var(--accent)', set: '#0ea5e9', remove: 'var(--warn)' }[rule.op] || '#888';
     const opLabel = { add: '+ Add', set: '✎ Set', remove: '✕ Remove' }[rule.op] || rule.op;
+    const targetLabel = rule.target === 'response'
+      ? 'Response'
+      : rule.target === 'both'
+        ? 'Req+Res'
+        : 'Request';
 
     card.innerHTML =
       '<div class="net-rule-header" style="display:flex;align-items:center;gap:8px;padding:7px 10px">' +
@@ -55,6 +100,7 @@ function renderHeaderRules() {
         '<span style="font-family:monospace;color:var(--text)">' + (rule.value || '(removed)') + '</span>' +
         '&nbsp;&nbsp;·&nbsp;&nbsp;URL: <span style="font-family:monospace">' + rule.urlFilter + '</span>' +
         (rule.requestType !== 'all' ? '&nbsp;·&nbsp;' + rule.requestType : '') +
+        '&nbsp;·&nbsp;' + targetLabel +
       '</div>';
 
     // Toggle enable/disable
@@ -92,6 +138,7 @@ function openHdrModal(idx) {
   document.getElementById('hdrHeaderValue').value= rule?.value      || '';
   document.getElementById('hdrOp').value         = rule?.op         || 'set';
   document.getElementById('hdrReqType').value    = rule?.requestType || 'all';
+  document.getElementById('hdrTarget').value     = rule?.target || 'request';
 
   // Show/hide value field based on op
   toggleValueField();
@@ -119,12 +166,13 @@ document.getElementById('hdrModalSave')?.addEventListener('click', async () => {
   const value       = document.getElementById('hdrHeaderValue')?.value.trim();
   const op          = document.getElementById('hdrOp')?.value;
   const requestType = document.getElementById('hdrReqType')?.value;
+  const target      = document.getElementById('hdrTarget')?.value || 'request';
 
   if (!urlFilter || !header) {
     showLsToast('URL filter and header name are required', true); return;
   }
 
-  const rule = { urlFilter, header, value: op === 'remove' ? '' : value, op, requestType, enabled: true };
+  const rule = { urlFilter, header, value: op === 'remove' ? '' : value, op, target, requestType, enabled: true };
 
   if (editingIdx >= 0) headerRules[editingIdx] = rule;
   else headerRules.push(rule);

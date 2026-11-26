@@ -8,10 +8,13 @@
  * Provides:
  *   - context  : PersistentBrowserContext with QAKit loaded
  *   - extensionId : the Chrome extension ID (for chrome-extension:// URLs)
+ *   - popupPage : the underlying Playwright Page for low-level operations
+ *   - popup : PopupPage object for popup locators and actions
  */
 
 const { test: base, chromium } = require('@playwright/test');
 const path = require('path');
+const { PopupPage } = require('./pages/popup-page');
 
 const extensionPath = path.resolve(__dirname, '..', 'src');
 
@@ -46,6 +49,10 @@ exports.test = base.extend({
     // Wait for the popup JS to finish initialising
     await page.waitForSelector('#panel-home');
     await use(page);
+  }, { scope: 'test' }],
+
+  popup: [async ({ popupPage }, use) => {
+    await use(new PopupPage(popupPage));
   }, { scope: 'test' }],
 });
 

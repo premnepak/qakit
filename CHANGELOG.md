@@ -9,6 +9,29 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+(No unreleased changes at this time.)
+
+---
+
+
+## [1.1.0] — 2026-11-26
+
+### Added
+- **Cookie Manager** — add a cookie for the current site by entering its name, value, domain, and path.
+- **Local and Session Storage** — add a key and value to the currently selected storage type directly from the Storage panel.
+- **Unified Rules System (Phase 1 foundation)** — a new centralized **Net Rules** panel consolidates HTTP rule management. Rules have a unified schema with id, priority, groupId, source patterns, and actions. Types include `mock-response`, `modify-header`, `cancel-request`, and `redirect`. Rules can be organized into groups, toggled individually or in bulk, filtered by type/pattern, and imported/exported in a standard pack format (`qakit-unified-rules`). Legacy Network Mock and Headers rules automatically migrate. The API is exposed at `window.qakitUnifiedRulesApi` for scripting and future UI integrations.
+- **Headers Modifier — Request/Response targeting** — the Headers Modifier now supports targeting response headers (or both request+response) in addition to request headers, with a new **Target** dropdown (`Request` / `Response` / `Req+Res`). Integrated with the unified rules system.
+- **Network Mock — unified rules integration** — legacy mock rules are automatically migrated to the unified system, with consistent priority/grouping and import/export.
+
+### Fixed
+- Page Audit separates inconclusive link checks from broken links and improves input-label and contrast guidance.
+- JSON Viewer correctly navigates keys containing path punctuation or special characters.
+- Full-page capture restores the original scroll position when capture fails.
+- Network Mock supports common XHR event listeners and response types consistently after injection and page reload.
+
+### Quality
+- **Rules panel test coverage** — a comprehensive new Playwright test suite (`rules-panel.spec.js`) covers rule creation, duplication, selection, bulk operations, filtering, sorting, group management, import/export, and filter persistence.
+
 ---
 
 
@@ -160,6 +183,7 @@ Internal pre-release versions (0.0.x) are kept here for historical traceability,
 - **MINOR** — new feature added
 - **PATCH** — bug fix or doc update
 
+[1.1.0]: https://github.com/premnepak/qakit/releases/tag/v1.1.0
 [1.0.6]: https://github.com/premnepak/qakit/releases/tag/v1.0.6
 [1.0.5]: https://github.com/premnepak/qakit/releases/tag/v1.0.5
 [1.0.4]: https://github.com/premnepak/qakit/releases/tag/v1.0.4

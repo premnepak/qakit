@@ -17,7 +17,7 @@ const DEFAULT_SETTINGS = {
   // Default visible 6 = Home + Page Kit + Page Audit + Analytics + Net Mock + Tools.
   // Order in this array determines primary/overflow: first 6 visible items
   // (after Home) become the tab strip, rest go to ⋯ overflow.
-  visibleTabs:        ['home','pagetools','audit','ddl','net','tools','headers','utils','ls','time','cookies','console','geo','envmarker'],
+  visibleTabs:        ['home','pagetools','audit','ddl','net','rules','tools','headers','utils','ls','time','cookies','console','geo','envmarker'],
   // Analytics providers — which third-party platforms to intercept.
   // NOTE: WAE attribute capture is DOM-based (click handler in content.js) and
   // always active. It's not a toggleable interceptor provider.
@@ -31,6 +31,7 @@ const ALL_TABS = [
   { id: 'audit',     label: 'Page Audit'    },
   { id: 'ddl',       label: 'Analytics'     },
   { id: 'net',       label: 'Network Mock'  },
+  { id: 'rules',     label: 'Rules'         },
   { id: 'tools',     label: 'Tools'         },
   { id: 'headers',   label: 'Headers'       },
   { id: 'ls',        label: 'Local Storage' },

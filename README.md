@@ -2,7 +2,7 @@
 
 > All-in-one browser toolkit for QA engineers and web developers.
 
-**Status:** v1.0.6 — in development (queued fixes for next Chrome Web Store update)
+**Status:** v1.1.0 — in development (released with unified rules system)
 
 QAKit puts the tools QA engineers and developers reach for every day into a single fast popup — element inspection, screenshot capture, analytics monitoring, network mocking, page audits, cookie management, and more — replacing half a dozen single-purpose extensions and the constant juggling of DevTools tabs.
 
@@ -12,7 +12,7 @@ QAKit puts the tools QA engineers and developers reach for every day into a sing
 |---|---|
 | **Inspect & Measure** | Element Inspector · Spacing Inspector · Pixel Ruler · Responsive Preview |
 | **Capture** | Region Screenshot · Element Screenshot · Full Page Screenshot · Annotate |
-| **Data & Network** | Live Analytics (GTM, GA4, Adobe, Adobe DataLayer, Tealium, Meta Pixel, Segment) · Network Mock · Headers Modifier · Page Audit |
+| **Data & Network** | Live Analytics (GTM, GA4, Adobe, Adobe DataLayer, Tealium, Meta Pixel, Segment) · Net Rules · Network Mock · Headers Modifier · Page Audit |
 | **Session & Environment** | Cookie Manager · Local Storage · Console Errors · Environment Marker |
 | **Utilities** | JWT Decoder · Base64 / URL Encode/Decode · Time & Timezone · Geolocation Override · Page Metadata Scanner |
 | **Tools** | JSON Viewer with Tree Explorer · Text Compare with Diff |
@@ -34,7 +34,7 @@ See [`src/privacy-policy.html`](src/privacy-policy.html) for the full policy.
 *(Coming soon — pending review)*
 
 ### Manual install (developer mode)
-1. Download the latest release zip from [Releases](../../releases) (or `releases/qakit-v1.0.6.zip`)
+1. Download the latest release zip from [Releases](../../releases) (or `releases/qakit-v1.1.0.zip`)
 2. Extract the zip
 3. Open `chrome://extensions/`
 4. Enable **Developer mode** (top right)
@@ -84,6 +84,20 @@ cd qakit
 3. Click **Load unpacked** → select the `src/` folder
 4. After source changes, click the extension's reload icon
 
+### Playwright tests
+
+Install the project's npm dependencies and Playwright's Chromium browser, then
+run `npm test`. The suite launches the unpacked extension in a headed persistent
+browser context for each test, so a graphical desktop is required.
+
+Shared fixtures live in `tests/fixtures.js`. UI tests use the `popup` fixture
+and page objects in `tests/pages/` for popup, JSON Viewer, Text Compare, and
+Markup interactions. Use `popupPage` or the underlying page exposed by a page
+object for browser APIs, script injection, and other low-level checks. When a
+test opens another popup or standalone page, wrap that page in its corresponding
+page object. Keep assertions in tests and reusable selectors and actions in
+page objects.
+
 ### Testing the build
 After running `./scripts/package.sh`, the resulting `releases/qakit-vX.Y.Z.zip` should be:
 1. Extracted to a fresh folder
@@ -109,7 +123,7 @@ After running `./scripts/package.sh`, the resulting `releases/qakit-vX.Y.Z.zip` 
 
 ## Version
 
-**1.0.6** — see [`CHANGELOG.md`](CHANGELOG.md) for full version history.
+**1.1.0** — see [`CHANGELOG.md`](CHANGELOG.md) for full version history.
 
 ## License
 

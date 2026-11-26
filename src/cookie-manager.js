@@ -118,10 +118,31 @@ function renderCookies(cookies, errorMsg) {
   });
 }
 
+async function openCookieAdd() {
+  const overlay = document.getElementById('cookieEditOverlay');
+  if (!overlay) return;
+  cookieEditingName = null;
+  const title = document.getElementById('ckModalTitle');
+  if (title) title.textContent = 'Add Cookie';
+  document.getElementById('ckEditName').value  = '';
+  document.getElementById('ckEditValue').value = '';
+  let defaultDomain = '';
+  try {
+    const tab = await getCookieTab();
+    if (tab?.url && tab.url.startsWith('http')) defaultDomain = new URL(tab.url).hostname;
+  } catch (_) {}
+  document.getElementById('ckEditDomain').value = defaultDomain;
+  document.getElementById('ckEditPath').value   = '/';
+  overlay.style.display = 'flex';
+  document.getElementById('ckEditName')?.focus();
+}
+
 function openCookieEdit(cookie) {
   const overlay = document.getElementById('cookieEditOverlay');
   if (!overlay) return;
   cookieEditingName = cookie.name;
+  const title = document.getElementById('ckModalTitle');
+  if (title) title.textContent = 'Edit Cookie';
   document.getElementById('ckEditName').value  = cookie.name;
   document.getElementById('ckEditValue').value = cookie.value;
   document.getElementById('ckEditDomain').value = cookie.domain;
@@ -137,22 +158,29 @@ function closeCookieEdit() {
 
 async function saveCookieEdit() {
   const tab = await getCookieTab();
-  if (!tab) return;
+  if (!tab?.url || !tab.url.startsWith('http')) {
+    showLsToast('Navigate to a web page first', true);
+    return;
+  }
   const url    = new URL(tab.url);
   const name   = document.getElementById('ckEditName').value.trim();
   const value  = document.getElementById('ckEditValue').value;
   const domain = document.getElementById('ckEditDomain').value.trim();
   const path   = document.getElementById('ckEditPath').value.trim() || '/';
 
-  if (!name) return;
+  if (!name) {
+    showLsToast('Cookie name is required', true);
+    return;
+  }
   try {
-    await chrome.cookies.set({
-      url:    url.origin + path,
+    const details = {
+      url: url.origin + path,
       name,
       value,
-      domain,
       path,
-    });
+    };
+    if (domain) details.domain = domain;
+    await chrome.cookies.set(details);
     showLsToast('Cookie saved ✓');
     closeCookieEdit();
     loadCookies();
@@ -162,6 +190,9 @@ async function saveCookieEdit() {
 }
 
 window.initCookieManager = function() {
+  const addBtn = document.getElementById('cookieAddBtn');
+  if (addBtn) addBtn.addEventListener('click', openCookieAdd);
+
   const refreshBtn = document.getElementById('cookieRefreshBtn');
   if (refreshBtn) refreshBtn.addEventListener('click', loadCookies);
 

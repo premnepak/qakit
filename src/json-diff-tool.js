@@ -94,6 +94,23 @@ const treeExpanded = new Set(['$']); // expanded paths
 let treeMatches  = [];       // array of paths matching current search
 let treeSearchIdx = 0;       // current match index for Next/Prev
 
+function childPath(path, key) {
+  return path + '/' + JSON.stringify(String(key)).replace(/~/g, '~0').replace(/\//g, '~1');
+}
+
+function pathSegments(path) {
+  return path === '$' ? [] : path.slice(2).split('/').map(s => JSON.parse(s.replace(/~1/g, '/').replace(/~0/g, '~')));
+}
+
+function expandPath(path) {
+  let current = '$';
+  treeExpanded.add(current);
+  pathSegments(path).forEach(segment => {
+    current = childPath(current, segment);
+    treeExpanded.add(current);
+  });
+}
+
 // Walk tree once to collect every path that matches the search query.
 // Auto-adds ancestor paths to treeExpanded so matches render visible.
 function collectMatches(query) {
@@ -112,18 +129,12 @@ function collectMatches(query) {
     if (isMatch) {
       treeMatches.push(path);
       // Auto-expand ancestors so this match is visible in the tree
-      let p = '$';
-      treeExpanded.add(p);
-      const segs = path.replace(/^\$\.?/, '').split(/[.\[]/).filter(Boolean).map(s => s.replace(/\]$/, ''));
-      segs.forEach(seg => {
-        if (/^\d+$/.test(seg)) p += '[' + seg + ']'; else p += '.' + seg;
-        treeExpanded.add(p);
-      });
+      expandPath(path);
     }
     if (Array.isArray(v)) {
-      v.forEach((c, i) => walk(c, path + '[' + i + ']', i));
+      v.forEach((c, i) => walk(c, childPath(path, i), i));
     } else if (v && typeof v === 'object') {
-      Object.entries(v).forEach(([k, c]) => walk(c, path + '.' + k, k));
+      Object.entries(v).forEach(([k, c]) => walk(c, childPath(path, k), k));
     }
   }
   walk(treeData, '$', 'JSON');
@@ -146,7 +157,7 @@ function gotoPrevMatch() {
 function scrollToActiveMatch() {
   if (!treeMatches.length) return;
   const path = treeMatches[treeSearchIdx];
-  const row = document.querySelector('.qd-tree-row[data-path="' + (path || '').replace(/"/g, '\\"') + '"]');
+  const row = [...document.querySelectorAll('.qd-tree-row')].find(el => el.dataset.path === path);
   if (row) row.scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
 
@@ -213,7 +224,7 @@ function renderTree() {
 
 function getValueAtPath(data, path) {
   if (path === '$') return data;
-  const segs = path.replace(/^\$\.?/, '').split(/[.\[]/).filter(Boolean).map(s => s.replace(/\]$/, ''));
+  const segs = pathSegments(path);
   let cur = data;
   for (const seg of segs) {
     if (cur == null) return undefined;
@@ -222,7 +233,7 @@ function getValueAtPath(data, path) {
   return cur;
 }
 
-function walkTree(value, path, key, depth, label, out, filter) {
+function walkTree(value, path, key, depth, label, out, filter, isIndex) {
   const isObj   = value && typeof value === 'object' && !Array.isArray(value);
   const isArr   = Array.isArray(value);
   const isLeaf  = !isObj && !isArr;
@@ -265,9 +276,8 @@ function walkTree(value, path, key, depth, label, out, filter) {
   // Key / index label
   if (depth === 0) {
     line += '<span class="' + (isSelected ? 'qd-key-selected' : 'qd-key') + '">' + label + '</span>';
-  } else if (key !== '') {
-    const isIdx = /^\d+$/.test(String(key));
-    if (isIdx) {
+  } else {
+    if (isIndex) {
       line += '<span class="qd-meta">[' + key + ']</span>';
     } else {
       line += '<span class="' + (isSelected ? 'qd-key-selected' : 'qd-key') + '">' + escapeHtml(key) + '</span>';
@@ -289,11 +299,11 @@ function walkTree(value, path, key, depth, label, out, filter) {
   if (!isLeaf && expanded) {
     if (isArr) {
       value.forEach((item, i) => {
-        walkTree(item, path + '[' + i + ']', String(i), depth + 1, '', out, filter);
+        walkTree(item, childPath(path, i), String(i), depth + 1, '', out, filter, true);
       });
     } else {
       Object.entries(value).forEach(([k, v]) => {
-        walkTree(v, path + '.' + k, k, depth + 1, '', out, filter);
+        walkTree(v, childPath(path, k), k, depth + 1, '', out, filter, false);
       });
     }
   }
@@ -313,7 +323,7 @@ function renderDetail() {
   if (treeData == null) return;
 
   // Build crumb
-  const crumbParts = treeSelected.split(/[.\[]/).map(s => s.replace(/\]$/, '')).filter(Boolean);
+  const crumbParts = ['$', ...pathSegments(treeSelected)];
   let crumbHtml = '';
   for (let i = 0; i < crumbParts.length; i++) {
     if (i > 0) crumbHtml += ' › ';
@@ -350,11 +360,11 @@ function renderDetail() {
     if (v === null) valHtml = '<span class="qd-null">null</span>';
     else if (Array.isArray(v)) {
       valHtml = '<span class="qd-drill" data-drill="1">[ ] ' + v.length + ' items ›</span>';
-      drillPath = treeSelected + (isArr ? '[' + k + ']' : '.' + k);
+      drillPath = childPath(treeSelected, k);
     }
     else if (typeof v === 'object') {
       valHtml = '<span class="qd-drill" data-drill="1">{ } ' + Object.keys(v).length + ' keys ›</span>';
-      drillPath = treeSelected + (isArr ? '[' + k + ']' : '.' + k);
+      drillPath = childPath(treeSelected, k);
     }
     else valHtml = renderLeafValue(v);
 
@@ -371,13 +381,7 @@ function renderDetail() {
     row.addEventListener('click', () => {
       treeSelected = row.dataset.drillPath;
       // Auto-expand path
-      let p = '$';
-      treeExpanded.add(p);
-      const segs = treeSelected.replace(/^\$\.?/, '').split(/[.\[]/).filter(Boolean).map(s => s.replace(/\]$/, ''));
-      segs.forEach(s => {
-        if (/^\d+$/.test(s)) p += '[' + s + ']'; else p += '.' + s;
-        treeExpanded.add(p);
-      });
+      expandPath(treeSelected);
       renderTree();
     });
   });
@@ -407,9 +411,9 @@ function loadTreeFrom(text) {
   // Auto-expand top level
   if (treeData && typeof treeData === 'object') {
     if (Array.isArray(treeData)) {
-      treeData.forEach((_, i) => treeExpanded.add('$[' + i + ']'));
+      treeData.forEach((_, i) => treeExpanded.add(childPath('$', i)));
     } else {
-      Object.keys(treeData).forEach(k => treeExpanded.add('$.' + k));
+      Object.keys(treeData).forEach(k => treeExpanded.add(childPath('$', k)));
     }
   }
   renderTree();
@@ -587,9 +591,9 @@ document.addEventListener('DOMContentLoaded', async () => {
       count++;
       if (count > 5000) return;
       if (Array.isArray(value)) {
-        value.forEach((v, i) => walk(v, path + '[' + i + ']'));
+        value.forEach((v, i) => walk(v, childPath(path, i)));
       } else if (value && typeof value === 'object') {
-        Object.entries(value).forEach(([k, v]) => walk(v, path + '.' + k));
+        Object.entries(value).forEach(([k, v]) => walk(v, childPath(path, k)));
       }
     })(treeData, '$');
     if (count > 5000 && !confirm('JSON has ' + count + '+ nodes. Expand-all may be slow. Continue?')) {

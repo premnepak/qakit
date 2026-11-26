@@ -20,75 +20,75 @@ const path = require('path');
 
 const ENV_MARKER_JS = path.resolve(__dirname, '..', 'src', 'env-marker.js');
 
-async function openEnvMarkerPanel(popupPage) {
-  await popupPage.click('.home-tile[data-tab="envmarker"]');
-  await expect(popupPage.locator('#panel-envmarker')).toHaveClass(/active/);
+async function openEnvMarkerPanel(popup) {
+  await popup.homeTile('envmarker').click();
+  await expect(popup.panel('envmarker')).toHaveClass(/active/);
 }
 
 // ─── Suite 1: Popup panel UI ─────────────────────────────────────────────────
 
 test.describe('Env Marker — popup panel', () => {
-  test('panel opens from the home tile', async ({ popupPage }) => {
-    await openEnvMarkerPanel(popupPage);
-    await expect(popupPage.locator('#panel-envmarker')).toBeVisible();
+  test('panel opens from the home tile', async ({ popup, popupPage }) => {
+    await openEnvMarkerPanel(popup);
+    await expect(popup.panel('envmarker')).toBeVisible();
   });
 
-  test('Add and Reset buttons are visible', async ({ popupPage }) => {
-    await openEnvMarkerPanel(popupPage);
-    await expect(popupPage.locator('#envmarkerAddBtn')).toBeVisible();
-    await expect(popupPage.locator('#envmarkerResetBtn')).toBeVisible();
+  test('Add and Reset buttons are visible', async ({ popup, popupPage }) => {
+    await openEnvMarkerPanel(popup);
+    await expect(popup.envmarkerAddBtn).toBeVisible();
+    await expect(popup.envmarkerResetBtn).toBeVisible();
   });
 
-  test('default environments are loaded into the list', async ({ popupPage }) => {
-    await openEnvMarkerPanel(popupPage);
+  test('default environments are loaded into the list', async ({ popup, popupPage }) => {
+    await openEnvMarkerPanel(popup);
     // Wait for async loadEnvs() to render rows
-    await expect(popupPage.locator('#envmarkerList .env-row')).toHaveCount(4);
+    await expect(popup.envmarkerListEnvRow).toHaveCount(4);
   });
 
-  test('each default environment row has an enable checkbox', async ({ popupPage }) => {
-    await openEnvMarkerPanel(popupPage);
-    await expect(popupPage.locator('#envmarkerList .env-enabled')).toHaveCount(4);
+  test('each default environment row has an enable checkbox', async ({ popup, popupPage }) => {
+    await openEnvMarkerPanel(popup);
+    await expect(popup.envmarkerListEnvEnabled).toHaveCount(4);
   });
 
-  test('each default environment row has a delete button', async ({ popupPage }) => {
-    await openEnvMarkerPanel(popupPage);
-    await expect(popupPage.locator('#envmarkerList .env-delete')).toHaveCount(4);
+  test('each default environment row has a delete button', async ({ popup, popupPage }) => {
+    await openEnvMarkerPanel(popup);
+    await expect(popup.envmarkerListEnvDelete).toHaveCount(4);
   });
 
-  test('default rows include STAGING, UAT, DEV environments', async ({ popupPage }) => {
-    await openEnvMarkerPanel(popupPage);
-    const listText = await popupPage.locator('#envmarkerList').innerText();
+  test('default rows include STAGING, UAT, DEV environments', async ({ popup, popupPage }) => {
+    await openEnvMarkerPanel(popup);
+    const listText = await popup.envmarkerList.innerText();
     expect(listText).toContain('STAGING');
     expect(listText).toContain('UAT');
     expect(listText).toContain('DEV');
   });
 
-  test('clicking a row header expands its detail section', async ({ popupPage }) => {
-    await openEnvMarkerPanel(popupPage);
-    const firstHeader = popupPage.locator('#envmarkerList .env-row-header').first();
+  test('clicking a row header expands its detail section', async ({ popup, popupPage }) => {
+    await openEnvMarkerPanel(popup);
+    const firstHeader = popup.envmarkerListEnvRowHeader.first();
     await firstHeader.click();
-    await expect(popupPage.locator('#envmarkerList .env-row').first()).toHaveClass(/expanded/);
+    await expect(popup.envmarkerListEnvRow.first()).toHaveClass(/expanded/);
   });
 
-  test('deleting a row removes it from the list', async ({ popupPage }) => {
-    await openEnvMarkerPanel(popupPage);
-    await expect(popupPage.locator('#envmarkerList .env-row')).toHaveCount(4);
+  test('deleting a row removes it from the list', async ({ popup, popupPage }) => {
+    await openEnvMarkerPanel(popup);
+    await expect(popup.envmarkerListEnvRow).toHaveCount(4);
     // Delete requires a confirm() — accept it before clicking
     popupPage.once('dialog', dialog => dialog.accept());
-    await popupPage.locator('#envmarkerList .env-delete').first().click();
-    await expect(popupPage.locator('#envmarkerList .env-row')).toHaveCount(3);
+    await popup.envmarkerListEnvDelete.first().click();
+    await expect(popup.envmarkerListEnvRow).toHaveCount(3);
   });
 
-  test('Reset button restores all 4 default rows', async ({ popupPage }) => {
-    await openEnvMarkerPanel(popupPage);
+  test('Reset button restores all 4 default rows', async ({ popup, popupPage }) => {
+    await openEnvMarkerPanel(popup);
     // Delete one row first (accept its confirm)
     popupPage.once('dialog', dialog => dialog.accept());
-    await popupPage.locator('#envmarkerList .env-delete').first().click();
-    await expect(popupPage.locator('#envmarkerList .env-row')).toHaveCount(3);
+    await popup.envmarkerListEnvDelete.first().click();
+    await expect(popup.envmarkerListEnvRow).toHaveCount(3);
     // Reset also requires a confirm
     popupPage.once('dialog', dialog => dialog.accept());
-    await popupPage.click('#envmarkerResetBtn');
-    await expect(popupPage.locator('#envmarkerList .env-row')).toHaveCount(4);
+    await popup.envmarkerResetBtn.click();
+    await expect(popup.envmarkerListEnvRow).toHaveCount(4);
   });
 });
 

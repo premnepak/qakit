@@ -11,6 +11,389 @@ const state = {
   _lastViewportOpen: 0,
 };
 
+// ── Unified HTTP rules (Phase 1 foundation) ───────────────────────────────
+const UNIFIED_RULES_KEY = 'qakit_unified_rules_v1';
+const UNIFIED_RULES_INFO_KEY = 'qakit_unified_rules_info_v1';
+const UNIFIED_RULES_SCHEMA_VERSION = 1;
+
+const DEFAULT_UNIFIED_RULES_INFO = {
+  schemaVersion: UNIFIED_RULES_SCHEMA_VERSION,
+  paused: false,
+  groupStates: { default: true },
+};
+
+function nowIso() {
+  return new Date().toISOString();
+}
+
+function makeRuleId(prefix) {
+  return (prefix || 'rule') + '_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
+}
+
+function normalizeUnifiedRule(rule, defaults) {
+  const base = defaults || {};
+  const createdAt = rule.createdAt || base.createdAt || nowIso();
+  return {
+    id: rule.id || base.id || makeRuleId('rule'),
+    type: String(rule.type || base.type || 'custom'),
+    name: String(rule.name || base.name || 'Untitled Rule'),
+    enabled: rule.enabled !== false,
+    priority: Number.isFinite(rule.priority) ? rule.priority : (Number.isFinite(base.priority) ? base.priority : 100),
+    groupId: String(rule.groupId || base.groupId || 'default'),
+    source: {
+      urlPattern: String(rule.source?.urlPattern || base.source?.urlPattern || '*'),
+      matchType: String(rule.source?.matchType || base.source?.matchType || 'wildcard'),
+      requestType: String(rule.source?.requestType || base.source?.requestType || 'all'),
+    },
+    action: {
+      ...(base.action || {}),
+      ...(rule.action || {}),
+    },
+    metadata: {
+      ...(base.metadata || {}),
+      ...(rule.metadata || {}),
+    },
+    createdAt,
+    updatedAt: nowIso(),
+  };
+}
+
+function validateRulesPack(pack) {
+  if (!pack || typeof pack !== 'object') return { ok: false, error: 'pack must be an object' };
+  if (pack.schema !== 'qakit-unified-rules') return { ok: false, error: 'invalid schema id' };
+  if (!Array.isArray(pack.rules)) return { ok: false, error: 'rules must be an array' };
+
+  const invalid = [];
+  const seenIds = new Set();
+  pack.rules.forEach((r, idx) => {
+    if (!r || typeof r !== 'object') {
+      invalid.push({ index: idx, reason: 'rule must be an object' });
+      return;
+    }
+    if (!r.type || typeof r.type !== 'string') invalid.push({ index: idx, reason: 'missing rule type' });
+    if (!r.name || typeof r.name !== 'string') invalid.push({ index: idx, reason: 'missing rule name' });
+    if (r.id && seenIds.has(r.id)) invalid.push({ index: idx, reason: 'duplicate rule id in pack' });
+    if (r.id) seenIds.add(r.id);
+  });
+
+  if (invalid.length) {
+    return {
+      ok: false,
+      error: 'invalid rules in pack',
+      invalid,
+    };
+  }
+  return { ok: true };
+}
+
+function buildImportSummary(currentRules, incomingRules) {
+  const byId = new Map((currentRules || []).map(r => [r.id, r]));
+  let newCount = 0;
+  let updateCount = 0;
+  (incomingRules || []).forEach(r => {
+    if (r.id && byId.has(r.id)) updateCount++;
+    else newCount++;
+  });
+  return {
+    currentCount: (currentRules || []).length,
+    incomingCount: (incomingRules || []).length,
+    newCount,
+    updateCount,
+  };
+}
+
+function migrateNetworkMockRulesToUnified(netRules) {
+  if (!Array.isArray(netRules)) return [];
+  return netRules.map((r, idx) => normalizeUnifiedRule({
+    id: makeRuleId('mock'),
+    type: 'mock-response',
+    name: r.name || ('Mock ' + (idx + 1)),
+    enabled: r.active !== false,
+    priority: 300 + idx,
+    groupId: 'legacy-network-mock',
+    source: {
+      urlPattern: r.pattern || '*',
+      matchType: r.matchType || 'contains',
+      requestType: 'xhr',
+    },
+    action: {
+      responseStatus: Number.isFinite(r.responseStatus) ? r.responseStatus : 200,
+      responseBody: r.responseBody ?? '{}',
+    },
+    metadata: {
+      source: 'legacy-network-mock',
+      legacyId: String(r.id || ''),
+    },
+  }));
+}
+
+function migrateHeaderRulesToUnified(headerRules) {
+  if (!Array.isArray(headerRules)) return [];
+  return headerRules.map((r, idx) => normalizeUnifiedRule({
+    id: makeRuleId('header'),
+    type: 'modify-header',
+    name: (r.header ? 'Header: ' + r.header : 'Header Rule ' + (idx + 1)),
+    enabled: r.enabled !== false,
+    priority: 100 + idx,
+    groupId: 'legacy-headers',
+    source: {
+      urlPattern: r.urlFilter || '*',
+      matchType: 'wildcard',
+      requestType: r.requestType || 'all',
+    },
+    action: {
+      target: r.target || 'request',
+      header: String(r.header || '').toLowerCase(),
+      op: r.op || 'set',
+      value: r.value || '',
+    },
+    metadata: {
+      source: 'legacy-headers',
+    },
+  }));
+}
+
+async function getUnifiedRules() {
+  const s = await chrome.storage.local.get(UNIFIED_RULES_KEY);
+  return Array.isArray(s[UNIFIED_RULES_KEY]) ? s[UNIFIED_RULES_KEY] : [];
+}
+
+async function saveUnifiedRules(rules, infoPatch) {
+  const infoStored = await chrome.storage.local.get(UNIFIED_RULES_INFO_KEY);
+  const prevInfo = infoStored[UNIFIED_RULES_INFO_KEY] || {};
+  const info = {
+    ...DEFAULT_UNIFIED_RULES_INFO,
+    ...prevInfo,
+    ...(infoPatch || {}),
+    schemaVersion: UNIFIED_RULES_SCHEMA_VERSION,
+    lastUpdatedAt: nowIso(),
+  };
+  await chrome.storage.local.set({
+    [UNIFIED_RULES_KEY]: rules,
+    [UNIFIED_RULES_INFO_KEY]: info,
+  });
+  return info;
+}
+
+async function getUnifiedRulesInfo() {
+  const s = await chrome.storage.local.get(UNIFIED_RULES_INFO_KEY);
+  return {
+    ...DEFAULT_UNIFIED_RULES_INFO,
+    ...(s[UNIFIED_RULES_INFO_KEY] || {}),
+    schemaVersion: UNIFIED_RULES_SCHEMA_VERSION,
+  };
+}
+
+function isRuleEffectivelyEnabled(rule, info) {
+  if (!rule || rule.enabled === false) return false;
+  if (info?.paused) return false;
+  const gid = String(rule.groupId || 'default');
+  const gState = info?.groupStates?.[gid];
+  return gState !== false;
+}
+
+function unifiedToHeaderRule(rule) {
+  if (!rule || rule.type !== 'modify-header') return null;
+  const action = rule.action || {};
+  if (!action.header) return null;
+  return {
+    urlFilter: rule.source?.urlPattern || '*',
+    header: action.header,
+    value: action.value || '',
+    op: action.op || 'set',
+    target: action.target || 'request',
+    requestType: rule.source?.requestType || 'all',
+    enabled: rule.enabled !== false,
+  };
+}
+
+function getHeaderRulesFromUnified(rules) {
+  return (rules || [])
+    .filter(r => r.type === 'modify-header')
+    .map(unifiedToHeaderRule)
+    .filter(Boolean);
+}
+
+async function syncUnifiedHeadersFromLegacy(headerRules) {
+  const current = await getUnifiedRules();
+  const keep = current.filter(r => !(r.type === 'modify-header' && r.metadata?.source === 'legacy-headers'));
+  const migrated = migrateHeaderRulesToUnified(headerRules || []);
+  const next = keep.concat(migrated);
+  await saveUnifiedRules(next, { adaptedFromLegacyHeadersAt: nowIso() });
+  return next;
+}
+
+async function syncUnifiedNetworkMockFromLegacy(netRules) {
+  const current = await getUnifiedRules();
+  const keep = current.filter(r => !(r.type === 'mock-response' && r.metadata?.source === 'legacy-network-mock'));
+  const migrated = migrateNetworkMockRulesToUnified(netRules || []);
+  const next = keep.concat(migrated);
+  await saveUnifiedRules(next, { adaptedFromLegacyNetworkMockAt: nowIso() });
+  return next;
+}
+
+async function ensureUnifiedRulesMigrated() {
+  const stored = await chrome.storage.local.get([UNIFIED_RULES_KEY, UNIFIED_RULES_INFO_KEY]);
+  const existing = stored[UNIFIED_RULES_KEY];
+  if (Array.isArray(existing)) {
+    // Ensure basic normalisation if older data exists.
+    const normalized = existing.map(r => normalizeUnifiedRule(r));
+    await saveUnifiedRules(normalized, {
+      schemaVersion: UNIFIED_RULES_SCHEMA_VERSION,
+      initializedAt: stored[UNIFIED_RULES_INFO_KEY]?.initializedAt || nowIso(),
+      migratedFromLegacy: stored[UNIFIED_RULES_INFO_KEY]?.migratedFromLegacy || false,
+    });
+    return normalized;
+  }
+
+  const legacy = await chrome.storage.local.get(['qnet_rules', 'qa_header_rules']);
+  const netRules = migrateNetworkMockRulesToUnified(legacy.qnet_rules || []);
+  const headerRules = migrateHeaderRulesToUnified(legacy.qa_header_rules || []);
+  const migrated = netRules.concat(headerRules);
+  await saveUnifiedRules(migrated, {
+    schemaVersion: UNIFIED_RULES_SCHEMA_VERSION,
+    initializedAt: nowIso(),
+    migratedFromLegacy: true,
+    legacyCounts: {
+      networkMock: netRules.length,
+      headers: headerRules.length,
+    },
+  });
+  return migrated;
+}
+
+async function applyHeaderRulesFromUnified() {
+  const rules = await getUnifiedRules();
+  const info = await getUnifiedRulesInfo();
+  const effective = rules.filter(r => isRuleEffectivelyEnabled(r, info));
+  const headerRules = getHeaderRulesFromUnified(effective);
+  await applyHeaderRules(headerRules);
+}
+
+function resourceTypesFor(requestType) {
+  const allTypes = ['main_frame','sub_frame','stylesheet','script','image',
+                    'font','object','xmlhttprequest','ping','csp_report',
+                    'media','websocket','other'];
+  const typeMap = {
+    all: allTypes,
+    xhr: ['xmlhttprequest'],
+    doc: ['main_frame','sub_frame'],
+    script: ['script'],
+    image: ['image'],
+  };
+  return typeMap[requestType] || allTypes;
+}
+
+function conditionFromSource(source) {
+  const src = source || {};
+  const condition = {
+    resourceTypes: resourceTypesFor(src.requestType || 'all'),
+  };
+  if (src.matchType === 'regex') {
+    condition.regexFilter = String(src.urlPattern || '.*');
+  } else {
+    condition.urlFilter = String(src.urlPattern || '*');
+  }
+  return condition;
+}
+
+function dnrRuleFromUnified(rule, id) {
+  const action = rule.action || {};
+  const type = rule.type;
+
+  if (type === 'modify-header') {
+    if (!action.header) return null;
+    const headerOp = action.op === 'remove' ? 'remove' : action.op === 'add' ? 'append' : 'set';
+    const target = action.target || 'request';
+    const headerPayload = {
+      header: String(action.header).toLowerCase(),
+      operation: headerOp,
+      ...(headerOp !== 'remove' && action.value ? { value: String(action.value) } : {}),
+    };
+    const dnr = {
+      id,
+      priority: Number.isFinite(rule.priority) ? rule.priority : 1,
+      action: { type: 'modifyHeaders' },
+      condition: conditionFromSource(rule.source),
+    };
+    if (target === 'request' || target === 'both') dnr.action.requestHeaders = [headerPayload];
+    if (target === 'response' || target === 'both') dnr.action.responseHeaders = [headerPayload];
+    return dnr;
+  }
+
+  if (type === 'cancel-request') {
+    return {
+      id,
+      priority: Number.isFinite(rule.priority) ? rule.priority : 1,
+      action: { type: 'block' },
+      condition: conditionFromSource(rule.source),
+    };
+  }
+
+  if (type === 'redirect-request') {
+    const redirectUrl = action.redirectUrl || action.to || '';
+    if (!redirectUrl) return null;
+    return {
+      id,
+      priority: Number.isFinite(rule.priority) ? rule.priority : 1,
+      action: { type: 'redirect', redirect: { url: String(redirectUrl) } },
+      condition: conditionFromSource(rule.source),
+    };
+  }
+
+  return null;
+}
+
+async function applyDnrRules(addRules) {
+  if (!chrome.declarativeNetRequest?.updateDynamicRules) return;
+  try {
+    const existing = await chrome.declarativeNetRequest.getDynamicRules();
+    const removeIds = existing.map(r => r.id);
+    await chrome.declarativeNetRequest.updateDynamicRules({ removeRuleIds: removeIds, addRules: addRules || [] });
+    console.log('[QAKit] DNR dynamic rules applied:', (addRules || []).length);
+  } catch (e) {
+    console.warn('[QAKit] Could not apply DNR rules:', e.message);
+  }
+}
+
+async function applyDnrRulesFromUnified() {
+  const rules = await getUnifiedRules();
+  const info = await getUnifiedRulesInfo();
+  const effective = rules.filter(r => isRuleEffectivelyEnabled(r, info));
+  const addRules = [];
+  let id = 1000;
+  effective.forEach(rule => {
+    const dnr = dnrRuleFromUnified(rule, ++id);
+    if (dnr) addRules.push(dnr);
+  });
+  await applyDnrRules(addRules);
+}
+
+async function recordUnifiedRuleHit(ruleType, ruleName, url) {
+  if (!ruleType || !ruleName) return;
+  try {
+    const rules = await getUnifiedRules();
+    const idx = rules.findIndex(r => r.type === ruleType && r.name === ruleName);
+    if (idx < 0) return;
+    const prevMeta = rules[idx].metadata || {};
+    const prevDiag = prevMeta.diagnostics || {};
+    const nextDiag = {
+      ...prevDiag,
+      hitCount: (prevDiag.hitCount || 0) + 1,
+      lastMatchedAt: nowIso(),
+      lastMatchedUrl: String(url || ''),
+    };
+    rules[idx] = normalizeUnifiedRule({
+      ...rules[idx],
+      metadata: {
+        ...prevMeta,
+        diagnostics: nextDiag,
+      },
+    }, rules[idx]);
+    await saveUnifiedRules(rules, { diagnosticsUpdatedAt: nowIso() });
+  } catch (_) {}
+}
+
 // In-memory markup image store — no quota limits unlike chrome.storage.session.
 // Keyed by id; entries auto-delete after 5 min. Survives only while the SW is alive,
 // but that's fine: markup.html opens immediately after OPEN_IN_EDITOR fires.
@@ -94,6 +477,7 @@ function initBackground() {
   if (!_initPromise) {
     _initPromise = (async () => {
       await restoreFromStorage();
+      await ensureUnifiedRulesMigrated();
       await restoreHeaderRules();
       setupContextMenus();
     })();
@@ -105,7 +489,7 @@ function initBackground() {
 chrome.runtime.onInstalled.addListener((details) => {
   initBackground();
   const version = chrome.runtime.getManifest().version;
-  if (details.reason === 'install' || (details.reason === 'update' && version === '1.0.6')) {
+  if (details.reason === 'install' || (details.reason === 'update' && version === '1.1.0')) {
     // Open in background so the user's active tab never loses focus — screenshots
     // keep working immediately. User can switch to the welcome tab when ready.
     chrome.tabs.create({ url: chrome.runtime.getURL('welcome.html'), active: false });
@@ -704,7 +1088,189 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
 
   // Header modifier rules — apply via declarativeNetRequest dynamic rules
   if (msg.action === 'APPLY_HEADER_RULES') {
-    applyHeaderRules(msg.rules || []).then(() => sendResponse({ ok: true }));
+    (async () => {
+      await syncUnifiedHeadersFromLegacy(msg.rules || []);
+      await applyDnrRulesFromUnified();
+      sendResponse({ ok: true });
+    })().catch(e => sendResponse({ ok: false, error: e.message }));
+    return true;
+  }
+
+  if (msg.action === 'SYNC_NETWORK_MOCK_RULES') {
+    (async () => {
+      await syncUnifiedNetworkMockFromLegacy(msg.rules || []);
+      sendResponse({ ok: true });
+    })().catch(e => sendResponse({ ok: false, error: e.message }));
+    return true;
+  }
+
+  // Unified rule engine API (Phase 1 foundation)
+  if (msg.action === 'GET_UNIFIED_RULES') {
+    (async () => {
+      await ensureUnifiedRulesMigrated();
+      const data = await chrome.storage.local.get([UNIFIED_RULES_KEY, UNIFIED_RULES_INFO_KEY]);
+      sendResponse({
+        ok: true,
+        rules: data[UNIFIED_RULES_KEY] || [],
+        info: {
+          ...DEFAULT_UNIFIED_RULES_INFO,
+          ...(data[UNIFIED_RULES_INFO_KEY] || {}),
+          schemaVersion: UNIFIED_RULES_SCHEMA_VERSION,
+        },
+      });
+    })().catch(e => sendResponse({ ok: false, error: e.message }));
+    return true;
+  }
+
+  if (msg.action === 'SET_UNIFIED_RULES_PAUSED') {
+    (async () => {
+      await ensureUnifiedRulesMigrated();
+      const currentRules = await getUnifiedRules();
+      const info = await getUnifiedRulesInfo();
+      info.paused = !!msg.paused;
+      await saveUnifiedRules(currentRules, info);
+      await applyDnrRulesFromUnified();
+      sendResponse({ ok: true, paused: info.paused });
+    })().catch(e => sendResponse({ ok: false, error: e.message }));
+    return true;
+  }
+
+  if (msg.action === 'SET_UNIFIED_GROUP_STATE') {
+    (async () => {
+      await ensureUnifiedRulesMigrated();
+      const groupId = String(msg.groupId || 'default');
+      const enabled = msg.enabled !== false;
+      const currentRules = await getUnifiedRules();
+      const info = await getUnifiedRulesInfo();
+      info.groupStates = { ...(info.groupStates || {}), [groupId]: enabled };
+      await saveUnifiedRules(currentRules, info);
+      await applyDnrRulesFromUnified();
+      sendResponse({ ok: true, groupId, enabled });
+    })().catch(e => sendResponse({ ok: false, error: e.message }));
+    return true;
+  }
+
+  if (msg.action === 'UPSERT_UNIFIED_RULE') {
+    (async () => {
+      await ensureUnifiedRulesMigrated();
+      const current = await getUnifiedRules();
+      const incoming = msg.rule || {};
+      const idx = current.findIndex(r => r.id === incoming.id);
+      if (idx >= 0) {
+        current[idx] = normalizeUnifiedRule(incoming, current[idx]);
+      } else {
+        current.push(normalizeUnifiedRule(incoming));
+      }
+      await saveUnifiedRules(current);
+      await applyDnrRulesFromUnified();
+      sendResponse({ ok: true, rules: current });
+    })().catch(e => sendResponse({ ok: false, error: e.message }));
+    return true;
+  }
+
+  if (msg.action === 'DELETE_UNIFIED_RULE') {
+    (async () => {
+      await ensureUnifiedRulesMigrated();
+      const current = await getUnifiedRules();
+      const next = current.filter(r => r.id !== msg.id);
+      await saveUnifiedRules(next);
+      await applyDnrRulesFromUnified();
+      sendResponse({ ok: true, rules: next });
+    })().catch(e => sendResponse({ ok: false, error: e.message }));
+    return true;
+  }
+
+  if (msg.action === 'TOGGLE_UNIFIED_RULE') {
+    (async () => {
+      await ensureUnifiedRulesMigrated();
+      const current = await getUnifiedRules();
+      const idx = current.findIndex(r => r.id === msg.id);
+      if (idx < 0) {
+        sendResponse({ ok: false, error: 'rule not found' });
+        return;
+      }
+      current[idx] = normalizeUnifiedRule({
+        ...current[idx],
+        enabled: msg.enabled !== undefined ? !!msg.enabled : !current[idx].enabled,
+      }, current[idx]);
+      await saveUnifiedRules(current);
+      await applyDnrRulesFromUnified();
+      sendResponse({ ok: true, rules: current });
+    })().catch(e => sendResponse({ ok: false, error: e.message }));
+    return true;
+  }
+
+  if (msg.action === 'EXPORT_UNIFIED_RULES') {
+    (async () => {
+      await ensureUnifiedRulesMigrated();
+      const data = await chrome.storage.local.get([UNIFIED_RULES_KEY, UNIFIED_RULES_INFO_KEY]);
+      const pack = {
+        schema: 'qakit-unified-rules',
+        schemaVersion: UNIFIED_RULES_SCHEMA_VERSION,
+        exportedAt: nowIso(),
+        info: data[UNIFIED_RULES_INFO_KEY] || {},
+        rules: data[UNIFIED_RULES_KEY] || [],
+      };
+      sendResponse({ ok: true, pack });
+    })().catch(e => sendResponse({ ok: false, error: e.message }));
+    return true;
+  }
+
+  if (msg.action === 'IMPORT_UNIFIED_RULES') {
+    (async () => {
+      await ensureUnifiedRulesMigrated();
+      const strategy = msg.strategy === 'replace' ? 'replace' : 'merge';
+      const pack = msg.pack || {};
+      const validation = validateRulesPack(pack);
+      if (!validation.ok) {
+        sendResponse({ ok: false, error: validation.error, invalid: validation.invalid || [] });
+        return;
+      }
+      const imported = pack.rules.map(r => normalizeUnifiedRule(r));
+      let next = imported;
+      if (strategy === 'merge') {
+        const current = await getUnifiedRules();
+        const byId = new Map(current.map(r => [r.id, r]));
+        imported.forEach(r => byId.set(r.id, r));
+        next = Array.from(byId.values());
+      }
+      await saveUnifiedRules(next, {
+        importedAt: nowIso(),
+        importStrategy: strategy,
+      });
+      await applyDnrRulesFromUnified();
+      sendResponse({ ok: true, rules: next });
+    })().catch(e => sendResponse({ ok: false, error: e.message }));
+    return true;
+  }
+
+  if (msg.action === 'DRY_RUN_IMPORT_UNIFIED_RULES') {
+    (async () => {
+      await ensureUnifiedRulesMigrated();
+      const strategy = msg.strategy === 'replace' ? 'replace' : 'merge';
+      const pack = msg.pack || {};
+      const validation = validateRulesPack(pack);
+      if (!validation.ok) {
+        sendResponse({ ok: false, error: validation.error, invalid: validation.invalid || [] });
+        return;
+      }
+
+      const current = await getUnifiedRules();
+      const imported = pack.rules.map(r => normalizeUnifiedRule(r));
+      const summary = buildImportSummary(current, imported);
+      const nextCount = strategy === 'replace'
+        ? imported.length
+        : new Set(current.map(r => r.id).concat(imported.map(r => r.id))).size;
+
+      sendResponse({
+        ok: true,
+        strategy,
+        summary: {
+          ...summary,
+          nextCount,
+        },
+      });
+    })().catch(e => sendResponse({ ok: false, error: e.message }));
     return true;
   }
 
@@ -942,6 +1508,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
 
   // Network mock intercept — relay to popup (replaces 2s polling from popup).
   if (msg.action === 'NET_INTERCEPTED') {
+    recordUnifiedRuleHit('mock-response', msg.entry?.ruleName, msg.entry?.url);
     chrome.runtime.sendMessage({ action: 'NET_INTERCEPTED', entry: msg.entry }).catch(() => {});
     return;
   }
@@ -1384,13 +1951,6 @@ async function captureFullPage(tabId) {
   const strips = [];
   let scrollY = 0;
 
-  // Scroll to top first and wait for any lazy-load reflows
-  await chrome.scripting.executeScript({
-    target: { tabId }, world: 'MAIN',
-    func: y => window.__qkitScrollTo?.(y), args: [0],
-  });
-  await new Promise(r => setTimeout(r, 300));
-
   // Chrome allows ~2 captureVisibleTab calls/sec (MAX_CAPTURE_VISIBLE_TAB_CALLS_PER_SECOND).
   // We wait 600ms between captures to stay well within the limit.
   const CAPTURE_DELAY = 620;
@@ -1417,7 +1977,14 @@ async function captureFullPage(tabId) {
     },
   }).catch(() => {});
 
+  let captureError = null;
   try {
+    // Scroll to top first and wait for any lazy-load reflows.
+    await chrome.scripting.executeScript({
+      target: { tabId }, world: 'MAIN',
+      func: y => window.__qkitScrollTo?.(y), args: [0],
+    });
+    await new Promise(r => setTimeout(r, 300));
     while (scrollY < scrollHeight) {
       await chrome.scripting.executeScript({
         target: { tabId }, world: 'MAIN',
@@ -1437,6 +2004,9 @@ async function captureFullPage(tabId) {
       strips.push({ dataUrl, scrollY, height: viewportHeight });
       scrollY += viewportHeight;
     }
+  } catch (e) {
+    captureError = e;
+    throw e;
   } finally {
     // Always restore hidden elements even if the capture loop threw
     await chrome.scripting.executeScript({
@@ -1448,14 +2018,17 @@ async function captureFullPage(tabId) {
         });
         window.__qkitHiddenElements = null;
       },
-    }).catch(() => {});
+    }).catch(e => console.warn('[QAKit] Could not restore screenshot overlays:', e.message));
+    try {
+      await chrome.scripting.executeScript({
+        target: { tabId }, world: 'MAIN',
+        func: y => window.scrollTo(0, y), args: [originalScrollY],
+      });
+    } catch (e) {
+      if (!captureError) throw e;
+      console.warn('[QAKit] Could not restore scroll position:', e.message);
+    }
   }
-
-  // Restore original scroll
-  await chrome.scripting.executeScript({
-    target: { tabId }, world: 'MAIN',
-    func: y => window.scrollTo(0, y), args: [originalScrollY],
-  });
 
   return { strips, totalHeight: scrollHeight, viewportWidth: dim.viewportWidth, viewportHeight, dpr };
 }
@@ -1478,6 +2051,7 @@ async function applyHeaderRules(rules) {
       ruleId++;
       const headerOp = rule.op === 'remove' ? 'remove' :
                        rule.op === 'add'    ? 'append'  : 'set';
+      const target = rule.target || 'request';
 
       // Determine resource types
       const allTypes = ['main_frame','sub_frame','stylesheet','script','image',
@@ -1497,17 +2071,23 @@ async function applyHeaderRules(rules) {
         priority: 1,
         action: {
           type: 'modifyHeaders',
-          requestHeaders: [{
-            header: rule.header.toLowerCase(),
-            operation: headerOp,
-            ...(headerOp !== 'remove' && rule.value ? { value: rule.value } : {}),
-          }],
         },
         condition: {
           urlFilter: rule.urlFilter,
           resourceTypes,
         },
       };
+      const headerPayload = {
+        header: rule.header.toLowerCase(),
+        operation: headerOp,
+        ...(headerOp !== 'remove' && rule.value ? { value: rule.value } : {}),
+      };
+      if (target === 'response' || target === 'both') {
+        dnrRule.action.responseHeaders = [headerPayload];
+      }
+      if (target === 'request' || target === 'both') {
+        dnrRule.action.requestHeaders = [headerPayload];
+      }
       addRules.push(dnrRule);
     });
 
@@ -1523,7 +2103,11 @@ async function restoreHeaderRules() {
   try {
     const s = await chrome.storage.local.get('qa_header_rules');
     const rules = s.qa_header_rules || [];
-    if (rules.length > 0) await applyHeaderRules(rules);
+    if (rules.length > 0) {
+      await syncUnifiedHeadersFromLegacy(rules);
+    }
+    // Apply from unified store so all unified DNR-capable rule types coexist.
+    await applyDnrRulesFromUnified();
   } catch {}
 }
 
@@ -1755,90 +2339,13 @@ async function reInjectNetworkMock(tabId) {
     await chrome.scripting.executeScript({
       target: { tabId },
       world:  'MAIN',
-      func:   (activeRules) => {
-        // Guard: re-set rules if already installed (e.g. soft navigation)
-        window.__qNetRules = activeRules;
-        if (window.__qNetInterceptorInstalled) return;
-        window.__qNetInterceptorInstalled = true;
-        window.__qNetLog = [];
-
-        function matchRule(url, rule) {
-          try {
-            switch (rule.matchType) {
-              case 'contains': return url.includes(rule.pattern);
-              case 'exact':    return url === rule.pattern;
-              case 'regex':    return new RegExp(rule.pattern).test(url);
-              case 'path': {
-                const up = new URL(url).pathname;
-                const pp = rule.pattern.startsWith('http') ? new URL(rule.pattern).pathname : rule.pattern;
-                return up === pp;
-              }
-              default: return url.includes(rule.pattern);
-            }
-          } catch { return false; }
-        }
-
-        function findMatch(url) {
-          return (window.__qNetRules || []).find(r => r.active && matchRule(url, r)) || null;
-        }
-
-        function logIt(url, rule, status) {
-          const e = { url, ruleName: rule.name, status, timestamp: new Date().toISOString() };
-          window.__qNetLog.unshift(e);
-          if (window.__qNetLog.length > 100) window.__qNetLog.pop();
-          window.dispatchEvent(new CustomEvent('__qNetIntercepted', { detail: e }));
-        }
-
-        // Wrap fetch
-        const origFetch = window.fetch;
-        window.fetch = async function(input, init) {
-          const url = typeof input === 'string' ? input : (input?.url || String(input));
-          const rule = findMatch(url);
-          if (rule) {
-            logIt(url, rule, rule.responseStatus || 200);
-            return new Response(
-              typeof rule.responseBody === 'string' ? rule.responseBody : JSON.stringify(rule.responseBody),
-              { status: rule.responseStatus || 200, headers: { 'Content-Type': 'application/json', 'X-Mocked-By': 'QA-Tools' } }
-            );
-          }
-          return origFetch.apply(this, arguments);
-        };
-
-        // Wrap XHR
-        const OrigXHR = window.XMLHttpRequest;
-        function MockXHR() {
-          const xhr = new OrigXHR();
-          let _url = '';
-          const origOpen = xhr.open.bind(xhr);
-          const origSend = xhr.send.bind(xhr);
-          xhr.open = function(m, url, ...r) { _url = url; return origOpen(m, url, ...r); };
-          xhr.send = function(body) {
-            const rule = findMatch(_url);
-            if (rule) {
-              setTimeout(() => {
-                const mb = typeof rule.responseBody === 'string' ? rule.responseBody : JSON.stringify(rule.responseBody);
-                Object.defineProperties(xhr, {
-                  readyState:  { get: () => 4, configurable: true },
-                  status:      { get: () => rule.responseStatus || 200, configurable: true },
-                  statusText:  { get: () => 'OK', configurable: true },
-                  responseText:{ get: () => mb, configurable: true },
-                  response:    { get: () => mb, configurable: true },
-                });
-                logIt(_url, rule, rule.responseStatus || 200);
-                xhr.onreadystatechange && xhr.onreadystatechange();
-                xhr.onload && xhr.onload();
-              }, 0);
-              return;
-            }
-            return origSend(body);
-          };
-          return xhr;
-        }
-        Object.setPrototypeOf(MockXHR.prototype, OrigXHR.prototype);
-        window.XMLHttpRequest = MockXHR;
-        console.log('%c[QAKit] Network interceptor active (' + activeRules.length + ' rule' + (activeRules.length > 1 ? 's' : '') + ')', 'color:#00e5a0;font-weight:bold');
-      },
+      func:   activeRules => { window.__qNetRules = activeRules; },
       args: [rules],
+    });
+    await chrome.scripting.executeScript({
+      target: { tabId },
+      world: 'MAIN',
+      files: ['network-interceptor.js'],
     });
   } catch(e) {
     console.warn('[QAKit] Could not inject network mock:', e.message);

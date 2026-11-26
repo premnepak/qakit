@@ -8,14 +8,55 @@ let fileBodyContent = null; // content from uploaded file
 
 const RULES_KEY = 'qnet_rules';
 
+function unifiedToLegacyMock(rule) {
+  if (!rule || rule.type !== 'mock-response') return null;
+  return {
+    id: String(rule.metadata?.legacyId || rule.id || Date.now()),
+    name: rule.name || 'Mock Rule',
+    pattern: rule.source?.urlPattern || '*',
+    matchType: rule.source?.matchType || 'contains',
+    responseStatus: Number.isFinite(rule.action?.responseStatus) ? rule.action.responseStatus : 200,
+    responseBody: rule.action?.responseBody ?? '{}',
+    active: rule.enabled !== false,
+  };
+}
+
+function isUnifiedRuleEffectivelyEnabled(rule, info) {
+  if (!rule || rule.enabled === false) return false;
+  if (info?.paused) return false;
+  const gid = String(rule.groupId || 'default');
+  return info?.groupStates?.[gid] !== false;
+}
+
 // ── Persistence ───────────────────────────────────────────────────────────────
 async function loadRules() {
+  // Prefer unified store when available; fall back to legacy key for compatibility.
+  try {
+    const res = await chrome.runtime.sendMessage({ action: 'GET_UNIFIED_RULES' });
+    if (res?.ok && Array.isArray(res.rules)) {
+      const mapped = res.rules
+        .filter(r => r.type === 'mock-response')
+        .map(r => {
+          const legacy = unifiedToLegacyMock(r);
+          if (legacy) legacy.active = isUnifiedRuleEffectivelyEnabled(r, res.info || {});
+          return legacy;
+        })
+        .filter(Boolean);
+      if (mapped.length > 0) {
+        netRules = mapped;
+        return;
+      }
+    }
+  } catch (_) {}
+
   const stored = await chrome.storage.local.get(RULES_KEY);
   netRules = stored[RULES_KEY] || [];
 }
 
 async function saveRules() {
   await chrome.storage.local.set({ [RULES_KEY]: netRules });
+  // Keep Phase 1 unified rules store in sync while legacy UI is still active.
+  chrome.runtime.sendMessage({ action: 'SYNC_NETWORK_MOCK_RULES', rules: netRules }).catch(() => {});
 }
 
 // ── Interceptor injection ─────────────────────────────────────────────────────
@@ -25,87 +66,14 @@ async function injectInterceptor(tabId) {
   try {
     await chrome.scripting.executeScript({
       target: { tabId },
-      world: 'MAIN',          // must run in page context, not isolated world
-      func: (rules) => {
-        window.__qNetRules = rules;
-        if (window.__qNetInterceptorInstalled) return;
-        window.__qNetInterceptorInstalled = true;
-        window.__qNetLog = window.__qNetLog || [];
-
-        function matchRule(url, rule) {
-          try {
-            switch (rule.matchType) {
-              case 'contains': return url.includes(rule.pattern);
-              case 'exact':    return url === rule.pattern;
-              case 'regex':    return new RegExp(rule.pattern).test(url);
-              case 'path': {
-                const up = new URL(url).pathname;
-                const pp = rule.pattern.startsWith('http') ? new URL(rule.pattern).pathname : rule.pattern;
-                return up === pp;
-              }
-              default: return url.includes(rule.pattern);
-            }
-          } catch { return false; }
-        }
-
-        function findMatch(url) {
-          return (window.__qNetRules || []).find(r => r.active && matchRule(url, r)) || null;
-        }
-
-        function logIt(url, rule, status) {
-          const e = { url, ruleName: rule.name, status, timestamp: new Date().toISOString() };
-          window.__qNetLog.unshift(e);
-          if (window.__qNetLog.length > 100) window.__qNetLog.pop();
-          window.dispatchEvent(new CustomEvent('__qNetIntercepted', { detail: e }));
-        }
-
-        // Wrap fetch
-        const origFetch = window.fetch;
-        window.fetch = async function(input, init) {
-          const url = typeof input === 'string' ? input : (input?.url || String(input));
-          const rule = findMatch(url);
-          if (rule) {
-            logIt(url, rule, rule.responseStatus || 200);
-            return new Response(
-              typeof rule.responseBody === 'string' ? rule.responseBody : JSON.stringify(rule.responseBody),
-              { status: rule.responseStatus || 200, headers: { 'Content-Type': 'application/json', 'X-Mocked-By': 'QA-Tools' } }
-            );
-          }
-          return origFetch.apply(this, arguments);
-        };
-
-        // Wrap XHR
-        const OrigXHR = window.XMLHttpRequest;
-        function MockXHR() {
-          const xhr = new OrigXHR();
-          let _url = '';
-          const origOpen = xhr.open.bind(xhr);
-          const origSend = xhr.send.bind(xhr);
-          xhr.open = function(m, url, ...r) { _url = url; return origOpen(m, url, ...r); };
-          xhr.send = function(body) {
-            const rule = findMatch(_url);
-            if (rule) {
-              setTimeout(() => {
-                const mb = typeof rule.responseBody === 'string' ? rule.responseBody : JSON.stringify(rule.responseBody);
-                Object.defineProperties(xhr, {
-                  readyState: {get:()=>4,configurable:true}, status:{get:()=>rule.responseStatus||200,configurable:true},
-                  statusText:{get:()=>'OK',configurable:true}, responseText:{get:()=>mb,configurable:true}, response:{get:()=>mb,configurable:true}
-                });
-                logIt(_url, rule, rule.responseStatus || 200);
-                xhr.onreadystatechange && xhr.onreadystatechange();
-                xhr.onload && xhr.onload();
-              }, 0);
-              return;
-            }
-            return origSend(body);
-          };
-          return xhr;
-        }
-        Object.setPrototypeOf(MockXHR.prototype, OrigXHR.prototype);
-        window.XMLHttpRequest = MockXHR;
-        console.log('%c[QAKit] Network interceptor installed', 'color:#00e5a0;font-weight:bold');
-      },
+      world: 'MAIN',
+      func: rules => { window.__qNetRules = rules; },
       args: [activeRules],
+    });
+    await chrome.scripting.executeScript({
+      target: { tabId },
+      world: 'MAIN',
+      files: ['network-interceptor.js'],
     });
     updateNetStatus(true);
   } catch(e) {

@@ -588,9 +588,8 @@ async function runPageAudit(scope) {
           // Inputs missing label
           let unlabelledCount = 0;
           document.querySelectorAll('input:not([type="hidden"]):not([type="submit"]):not([type="button"]):not([type="reset"]):not([type="image"])').forEach(inp => {
-            const id = inp.id;
-            const hasLabel = id ? !!document.querySelector('label[for="' + id + '"]') : false;
-            const hasAria  = inp.getAttribute('aria-label') || inp.getAttribute('aria-labelledby') || inp.getAttribute('title') || inp.getAttribute('placeholder');
+            const hasLabel = inp.labels && inp.labels.length > 0;
+            const hasAria  = inp.getAttribute('aria-label') || inp.getAttribute('aria-labelledby') || inp.getAttribute('title');
             if (!hasLabel && !hasAria) unlabelledCount++;
           });
           if (unlabelledCount) a11y.push({ type: 'error', msg: unlabelledCount + ' input(s) missing label or aria-label', detail: '' });
@@ -599,8 +598,8 @@ async function runPageAudit(scope) {
           const emptyBtnDetails = [];
           document.querySelectorAll('button, [role="button"]').forEach(btn => {
             const txt = (btn.textContent || '').trim();
-            const ariaLabel = btn.getAttribute('aria-label') || btn.getAttribute('title') || '';
-            if (!txt && !ariaLabel) {
+            const ariaLabel = btn.getAttribute('aria-label') || btn.getAttribute('aria-labelledby') || btn.getAttribute('title') || '';
+            if (!txt && !ariaLabel && !btn.querySelector('img[alt]:not([alt=""])')) {
               const ctx = btn.id ? '#' + btn.id : btn.className ? '.' + btn.className.trim().split(' ')[0] : btn.outerHTML.slice(0, 60).replace(/</g,'&lt;');
               emptyBtnDetails.push(ctx);
             }
@@ -786,7 +785,7 @@ async function runPageAudit(scope) {
                 .join('; ');
               a11y.push({
                 type: 'warn',
-                msg: contrastFails.length + ' of ' + sampled + ' text element(s) fail WCAG AA contrast',
+                msg: contrastFails.length + ' of ' + sampled + ' text element(s) may fail WCAG AA contrast',
                 detail: sampleStr,
               });
             }
@@ -796,8 +795,8 @@ async function runPageAudit(scope) {
           const emptyLinkDetails = [];
           document.querySelectorAll('a[href]').forEach(a => {
             const txt = (a.textContent || '').trim();
-            const ariaLabel = a.getAttribute('aria-label') || a.getAttribute('title') || '';
-            if (!txt && !ariaLabel) {
+            const ariaLabel = a.getAttribute('aria-label') || a.getAttribute('aria-labelledby') || a.getAttribute('title') || '';
+            if (!txt && !ariaLabel && !a.querySelector('img[alt]:not([alt=""])')) {
               let ctx = '';
               try { ctx = new URL(a.href).pathname.slice(-40) || a.href.slice(-40); } catch { ctx = a.href.slice(-40); }
               emptyLinkDetails.push(ctx || a.outerHTML.slice(0, 50).replace(/</g,'&lt;'));
@@ -853,9 +852,8 @@ async function runPageAudit(scope) {
           // Form labels quality — selects/textareas without proper labels
           let unlabelledControls = 0;
           document.querySelectorAll('select, textarea').forEach(el => {
-            if (el.id && document.querySelector('label[for="' + el.id + '"]')) return;
-            if (el.getAttribute('aria-label') || el.getAttribute('aria-labelledby')) return;
-            if (el.closest('label')) return;
+            if (el.labels && el.labels.length) return;
+            if (el.getAttribute('aria-label') || el.getAttribute('aria-labelledby') || el.getAttribute('title')) return;
             unlabelledControls++;
           });
           if (unlabelledControls) a11y.push({
@@ -1023,7 +1021,7 @@ async function runPageAudit(scope) {
           }
 
           if (!res) {
-            return { ...link, status: 0, ok: false, error: 'Network error', method };
+            return { ...link, status: 0, ok: false, inconclusive: true, reason: 'No response', error: 'Network error', method };
           }
 
           // Opaque-redirect (cross-origin with redirect:manual) — treat as redirect
@@ -1056,12 +1054,13 @@ async function runPageAudit(scope) {
             redirected:     isRedirect,
             finalUrl,
             method,
-            inconclusive:   isRateLimited || isAuthGated,
+            inconclusive:   isRateLimited || isAuthGated || finalStatus === 0,
             reason:         isRateLimited ? 'Rate-limited — try again' :
-                            isAuthGated ? 'Auth required' : undefined,
+                            isAuthGated ? 'Auth required' :
+                            finalStatus === 0 ? 'No response' : undefined,
           };
         } catch (e) {
-          return { ...link, status: 0, ok: false, error: e.message };
+          return { ...link, status: 0, ok: false, inconclusive: true, reason: 'No response', error: e.message };
         }
       }));
       checked.forEach((r, bi) => results[i + bi] = r);
@@ -1139,7 +1138,7 @@ async function runPageAudit(scope) {
         url:        data.url,
         title:      data.title,
         // Lightweight summary for quick diff/list — not the full payload
-        broken:     results.filter(l => !l.ok).length,
+        broken:     results.filter(l => !l.ok && !l.inconclusive).length,
         redirected: results.filter(l => l.redirected).length,
         images:     (data.images || []).length,
         spelling:   (data.spelling || []).length,
@@ -1325,8 +1324,9 @@ function renderAuditResults(data) {
   const el = document.getElementById('auditContent');
   if (!el) return;
 
-  const brokenLinks  = (data.linkResults || []).filter(l => !l.ok);
+  const brokenLinks  = (data.linkResults || []).filter(l => !l.ok && !l.inconclusive);
   const allLinks     = data.linkResults || [];
+  const inconclusiveLinks = allLinks.filter(l => l.inconclusive);
   const broken       = data.images   || [];
   const spelling     = data.spelling || [];
 
@@ -1357,7 +1357,7 @@ function renderAuditResults(data) {
   // A-18 Diff against previous results (if available)
   let diffBanner = '';
   if (auditPreviousResults) {
-    const prevBroken = (auditPreviousResults.linkResults || []).filter(l => !l.ok).length;
+    const prevBroken = (auditPreviousResults.linkResults || []).filter(l => !l.ok && !l.inconclusive).length;
     const prevImages = (auditPreviousResults.images || []).length;
     const prevSpell  = (auditPreviousResults.spelling || []).length;
     const prevA11y   = (auditPreviousResults.a11y || []).length;
@@ -1532,7 +1532,16 @@ function renderAuditResults(data) {
         '</div>';
     });
   } else {
-    html += '<div class="audit-ok-row">✓ No broken links (' + allLinks.length + ' checked)</div>';
+    html += '<div class="audit-ok-row">✓ No broken links detected (' + allLinks.length + ' checked)</div>';
+  }
+  if (inconclusiveLinks.length > 0) {
+    html += '<div class="audit-section-title">⚠ Inconclusive Links (' + inconclusiveLinks.length + ')</div>';
+    inconclusiveLinks.forEach(l => {
+      html += '<div class="audit-item info">' +
+        '<div class="audit-item-label">' + (l.reason || 'Could not verify') + ' — HTTP ' + (l.status || 'ERR') + ' — ' + (l.text || '') + '</div>' +
+        '<div class="audit-item-url">' + l.href + '</div>' +
+        '</div>';
+    });
   }
   if (redirectedLinks.length > 0) {
     html += '<div class="audit-section-title">↪ Redirected Links (' + redirectedLinks.length + ')</div>';
@@ -1973,15 +1982,16 @@ function renderA11ySection(a11y, targetEl) {
     el.appendChild(b);
     return b;
   })();
+  const caveat = '<div class="audit-item info">Automated checks are not a compliance assessment. Contrast is estimated from up to 100 text elements and may not reflect the actual background.</div>';
   if (!a11y || !a11y.length) {
-    body.innerHTML = '<div class="audit-ok-row">✓ No accessibility issues detected</div>';
+    body.innerHTML = caveat + '<div class="audit-ok-row">✓ No accessibility issues detected</div>';
     return;
   }
   const errors = a11y.filter(i => i.type === 'error');
   const warns  = a11y.filter(i => i.type === 'warn');
   const infos  = a11y.filter(i => i.type === 'info');
   const total  = errors.length + warns.length + infos.length;
-  let h = '<div class="audit-section-title">♿ Accessibility (' + total + ' issue' + (total === 1 ? '' : 's') + ')</div>';
+  let h = caveat + '<div class="audit-section-title">♿ Accessibility (' + total + ' issue' + (total === 1 ? '' : 's') + ')</div>';
   [...errors, ...warns, ...infos].forEach(item => {
     const c    = item.type === 'error' ? 'var(--warn)' : item.type === 'warn' ? '#b45309' : 'var(--muted)';
     const icon = item.type === 'error' ? '✗' : item.type === 'warn' ? '⚠' : 'ℹ';
@@ -2028,8 +2038,11 @@ function exportAuditAsCSV() {
   const rows = [];
   rows.push(['Section','Type','Message','Detail','URL']);
   // Broken links
-  (data.linkResults || []).filter(l => !l.ok).forEach(l => {
+  (data.linkResults || []).filter(l => !l.ok && !l.inconclusive).forEach(l => {
     rows.push(['Broken Link', 'error', 'HTTP ' + (l.status || 'ERR'), l.text || '', l.href]);
+  });
+  (data.linkResults || []).filter(l => l.inconclusive).forEach(l => {
+    rows.push(['Inconclusive Link', 'info', l.reason || 'Could not verify', l.text || '', l.href]);
   });
   // Redirected links
   (data.linkResults || []).filter(l => l.ok && l.redirected).forEach(l => {
@@ -2089,7 +2102,8 @@ function downloadBlob(blob, filename) {
 function exportAuditAsText() {
   const data     = auditResults;
   const pi       = auditPageInfo || {};
-  const broken   = (data.linkResults || []).filter(l => !l.ok);
+  const broken   = (data.linkResults || []).filter(l => !l.ok && !l.inconclusive);
+  const inconclusive = (data.linkResults || []).filter(l => l.inconclusive);
   const images   = data.images   || [];
   const spelling = data.spelling || [];
 
@@ -2104,6 +2118,9 @@ function exportAuditAsText() {
   txt += '\n── BROKEN LINKS (' + broken.length + ' of ' + (data.totalLinks || 0) + ' checked) ──\n';
   if (broken.length === 0) txt += '  ✓ None found.\n';
   broken.forEach(l => { txt += '  [' + (l.status || 'ERR') + '] ' + l.href + '\n       "' + l.text + '"\n'; });
+  txt += '\n── INCONCLUSIVE LINKS (' + inconclusive.length + ') ──\n';
+  if (inconclusive.length === 0) txt += '  ✓ None found.\n';
+  inconclusive.forEach(l => { txt += '  [' + (l.status || 'ERR') + '] ' + (l.reason || 'Could not verify') + ' — ' + l.href + '\n'; });
   txt += '\n── REDIRECTED LINKS (' + redirected.length + ') ──\n';
   if (redirected.length === 0) txt += '  ✓ None found.\n';
   redirected.forEach(l => {

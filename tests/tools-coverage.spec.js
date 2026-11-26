@@ -10,133 +10,152 @@
  */
 
 const { test, expect } = require('./fixtures');
+const { JsonViewerPage } = require('./pages/json-viewer-page');
+const { TextComparePage } = require('./pages/text-compare-page');
 
 // ─── In-popup tool panels ───────────────────────────────────────────────────
 
 test.describe('Tool panel smoke', () => {
-  test('Cookies panel renders with search + content', async ({ popupPage }) => {
-    await popupPage.click('.home-tile[data-tab="cookies"]');
-    await expect(popupPage.locator('#panel-cookies')).toHaveClass(/active/);
-    await expect(popupPage.locator('#cookieSearch')).toBeVisible();
+  test('Cookies panel renders with search + content', async ({ popup, popupPage }) => {
+    await popup.homeTile('cookies').click();
+    await expect(popup.panel('cookies')).toHaveClass(/active/);
+    await expect(popup.cookieSearch).toBeVisible();
   });
 
-  test('Storage (LS) panel renders with search + refresh', async ({ popupPage }) => {
-    await popupPage.click('.home-tile[data-tab="ls"]');
-    await expect(popupPage.locator('#panel-ls')).toHaveClass(/active/);
-    await expect(popupPage.locator('#lsSearch')).toBeVisible();
-    await expect(popupPage.locator('#lsRefreshBtn')).toBeVisible();
+  test('Storage (LS) panel renders with search + refresh', async ({ popup, popupPage }) => {
+    await popup.homeTile('ls').click();
+    await expect(popup.panel('ls')).toHaveClass(/active/);
+    await expect(popup.lsSearch).toBeVisible();
+    await expect(popup.lsAddBtn).toBeVisible();
+    await expect(popup.lsRefreshBtn).toBeVisible();
   });
 
-  test('Console panel renders with refresh + clear buttons', async ({ popupPage }) => {
-    await popupPage.click('.home-tile[data-tab="console"]');
-    await expect(popupPage.locator('#panel-console')).toHaveClass(/active/);
-    await expect(popupPage.locator('#consoleRefreshBtn')).toBeVisible();
-    await expect(popupPage.locator('#consoleClearBtn')).toBeVisible();
+  test('Storage — + Add opens modal for Local and Session storage', async ({ popup, popupPage }) => {
+    await popup.homeTile('ls').click();
+    await popup.lsAddBtn.click();
+    await expect(popup.lsAddOverlay).toBeVisible();
+    await expect(popup.lsAddModalTitle).toHaveText('Add Local Storage Key');
+    await popup.lsAddCancel.click();
+    await expect(popup.lsAddOverlay).toBeHidden();
+
+    await popup.lsTypeSession.click();
+    await popup.lsAddBtn.click();
+    await expect(popup.lsAddOverlay).toBeVisible();
+    await expect(popup.lsAddModalTitle).toHaveText('Add Session Storage Key');
+    await popup.lsAddCancel.click();
+    await expect(popup.lsAddOverlay).toBeHidden();
   });
 
-  test('Net Mock panel renders with Add Rule button + status pill', async ({ popupPage }) => {
-    await popupPage.click('.home-tile[data-tab="net"]');
-    await expect(popupPage.locator('#panel-net')).toHaveClass(/active/);
-    await expect(popupPage.locator('#netAddBtn')).toBeVisible();
-    await expect(popupPage.locator('#netStatusLabel')).toBeVisible();
+  test('Console panel renders with refresh + clear buttons', async ({ popup, popupPage }) => {
+    await popup.homeTile('console').click();
+    await expect(popup.panel('console')).toHaveClass(/active/);
+    await expect(popup.consoleRefreshBtn).toBeVisible();
+    await expect(popup.consoleClearBtn).toBeVisible();
   });
 
-  test('Net Mock — Add Rule opens the rule modal', async ({ popupPage }) => {
-    await popupPage.click('.home-tile[data-tab="net"]');
-    await popupPage.click('#netAddBtn');
-    await expect(popupPage.locator('#netModalOverlay')).toBeVisible();
-    await expect(popupPage.locator('#netRuleName')).toBeVisible();
-    await expect(popupPage.locator('#netPattern')).toBeVisible();
+  test('Net Mock panel renders with Add Rule button + status pill', async ({ popup, popupPage }) => {
+    await popup.homeTile('net').click();
+    await expect(popup.panel('net')).toHaveClass(/active/);
+    await expect(popup.netAddBtn).toBeVisible();
+    await expect(popup.netStatusLabel).toBeVisible();
+  });
+
+  test('Net Mock — Add Rule opens the rule modal', async ({ popup, popupPage }) => {
+    await popup.homeTile('net').click();
+    await popup.netAddBtn.click();
+    await expect(popup.netModalOverlay).toBeVisible();
+    await expect(popup.netRuleName).toBeVisible();
+    await expect(popup.netPattern).toBeVisible();
     // Cancel restores the empty modal state
-    await popupPage.click('#netModalCancel');
-    await expect(popupPage.locator('#netModalOverlay')).toBeHidden();
+    await popup.netModalCancel.click();
+    await expect(popup.netModalOverlay).toBeHidden();
   });
 
-  test('Headers panel renders with Add Rule button', async ({ popupPage }) => {
-    await popupPage.click('.home-tile[data-tab="headers"]');
-    await expect(popupPage.locator('#panel-headers')).toHaveClass(/active/);
-    await expect(popupPage.locator('#hdrAddBtn')).toBeVisible();
+  test('Headers panel renders with Add Rule button', async ({ popup, popupPage }) => {
+    await popup.homeTile('headers').click();
+    await expect(popup.panel('headers')).toHaveClass(/active/);
+    await expect(popup.hdrAddBtn).toBeVisible();
   });
 
-  test('Headers — Add Rule opens modal with URL/header inputs', async ({ popupPage }) => {
-    await popupPage.click('.home-tile[data-tab="headers"]');
-    await popupPage.click('#hdrAddBtn');
-    await expect(popupPage.locator('#hdrModal')).toBeVisible();
-    await expect(popupPage.locator('#hdrUrlFilter')).toBeVisible();
-    await expect(popupPage.locator('#hdrHeaderName')).toBeVisible();
-    await popupPage.click('#hdrModalCancel');
-    await expect(popupPage.locator('#hdrModal')).toBeHidden();
+  test('Headers — Add Rule opens modal with URL/header inputs', async ({ popup, popupPage }) => {
+    await popup.homeTile('headers').click();
+    await popup.hdrAddBtn.click();
+    await expect(popup.hdrModal).toBeVisible();
+    await expect(popup.hdrUrlFilter).toBeVisible();
+    await expect(popup.hdrHeaderName).toBeVisible();
+    await popup.hdrModalCancel.click();
+    await expect(popup.hdrModal).toBeHidden();
   });
 
-  test('Geolocation panel renders with apply/clear + lat/lng inputs', async ({ popupPage }) => {
-    await popupPage.click('.home-tile[data-tab="geo"]');
-    await expect(popupPage.locator('#panel-geo')).toHaveClass(/active/);
-    await expect(popupPage.locator('#geoLat')).toBeVisible();
-    await expect(popupPage.locator('#geoLng')).toBeVisible();
-    await expect(popupPage.locator('#geoApplyBtn')).toBeVisible();
-    await expect(popupPage.locator('#geoClearBtn')).toBeVisible();
+  test('Geolocation panel renders with apply/clear + lat/lng inputs', async ({ popup, popupPage }) => {
+    await popup.homeTile('geo').click();
+    await expect(popup.panel('geo')).toHaveClass(/active/);
+    await expect(popup.geoLat).toBeVisible();
+    await expect(popup.geoLng).toBeVisible();
+    await expect(popup.geoApplyBtn).toBeVisible();
+    await expect(popup.geoClearBtn).toBeVisible();
   });
 
-  test('Geolocation — preset selection populates lat/lng', async ({ popupPage }) => {
-    await popupPage.click('.home-tile[data-tab="geo"]');
+  test('Geolocation — preset selection populates lat/lng', async ({ popup, popupPage }) => {
+    await popup.homeTile('geo').click();
     // Pick the second option (first is usually placeholder)
-    const opts = await popupPage.locator('#geoPresetSelect option').count();
+    const opts = await popup.geoPresetSelectOption.count();
     if (opts >= 2) {
-      const value = await popupPage.locator('#geoPresetSelect option').nth(1).getAttribute('value');
+      const value = await popup.geoPresetSelectOption.nth(1).getAttribute('value');
       if (value) {
-        await popupPage.selectOption('#geoPresetSelect', value);
+        await popup.geoPresetSelect.selectOption( value);
         // After preset selection, lat input should have a non-empty value
-        const lat = await popupPage.locator('#geoLat').inputValue();
+        const lat = await popup.geoLat.inputValue();
         expect(lat.length).toBeGreaterThan(0);
       }
     }
   });
 
-  test('Time panel renders World Clock by default', async ({ popupPage }) => {
-    await popupPage.click('.home-tile[data-tab="time"]');
-    await expect(popupPage.locator('#panel-time')).toHaveClass(/active/);
-    await expect(popupPage.locator('#worldClockGrid')).toBeVisible();
+  test('Time panel renders World Clock by default', async ({ popup, popupPage }) => {
+    await popup.homeTile('time').click();
+    await expect(popup.panel('time')).toHaveClass(/active/);
+    await expect(popup.worldClockGrid).toBeVisible();
   });
 
-  test('Time panel exposes timezone converter sub-tab', async ({ popupPage }) => {
-    await popupPage.click('.home-tile[data-tab="time"]');
+  test('Time panel exposes timezone converter sub-tab', async ({ popup, popupPage }) => {
+    await popup.homeTile('time').click();
     // Switch to timestamp/converter sub-tab if a sub-tab bar exists
-    const tab = popupPage.locator('[data-sub="timestamp"]').first();
+    const tab = popup.dataSubTimestamp.first();
     if (await tab.count()) {
       await tab.click();
-      await expect(popupPage.locator('#tzConvertBtn')).toBeVisible();
-      await expect(popupPage.locator('#tzFrom')).toBeVisible();
-      await expect(popupPage.locator('#tzTo')).toBeVisible();
+      await expect(popup.tzConvertBtn).toBeVisible();
+      await expect(popup.tzFrom).toBeVisible();
+      await expect(popup.tzTo).toBeVisible();
     }
   });
 
-  test('Env Marker panel renders with Add button', async ({ popupPage }) => {
-    await popupPage.click('.home-tile[data-tab="envmarker"]');
-    await expect(popupPage.locator('#panel-envmarker')).toHaveClass(/active/);
-    await expect(popupPage.locator('#envmarkerAddBtn')).toBeVisible();
-    await expect(popupPage.locator('#envmarkerList')).toBeAttached();
+  test('Env Marker panel renders with Add button', async ({ popup, popupPage }) => {
+    await popup.homeTile('envmarker').click();
+    await expect(popup.panel('envmarker')).toHaveClass(/active/);
+    await expect(popup.envmarkerAddBtn).toBeVisible();
+    await expect(popup.envmarkerList).toBeAttached();
   });
 });
 
 // ─── Encode panel — additional flows ────────────────────────────────────────
 
 test.describe('Encode utilities — extra coverage', () => {
-  test('URL decode round-trip', async ({ popupPage }) => {
-    await popupPage.click('.home-tile[data-tab="utils"]');
-    await popupPage.click('.util-subtab[data-sub="url"]');
-    await popupPage.fill('#urlInput', 'hello%20world%21');
-    await popupPage.click('#urlDecodeBtn');
-    const out = await popupPage.locator('#urlOutput').inputValue();
+  test('URL decode round-trip', async ({ popup, popupPage }) => {
+    await popup.homeTile('utils').click();
+    await popup.subtab('util', 'url').click();
+    await popup.urlInput.fill( 'hello%20world%21');
+    await popup.urlDecodeBtn.click();
+    const out = await popup.urlOutput.inputValue();
     expect(out).toBe('hello world!');
   });
 
-  test('Base64 decode round-trip', async ({ popupPage }) => {
-    await popupPage.click('.home-tile[data-tab="utils"]');
-    await popupPage.click('.util-subtab[data-sub="base64"]');
+  test('Base64 decode round-trip', async ({ popup, popupPage }) => {
+    await popup.homeTile('utils').click();
+    await popup.subtab('util', 'base64').click();
     const encoded = Buffer.from('qakit decode test').toString('base64');
-    await popupPage.fill('#b64Input', encoded);
-    await popupPage.click('#b64DecodeBtn');
-    const out = await popupPage.locator('#b64Output').inputValue();
+    await popup.b64Input.fill( encoded);
+    await popup.b64DecodeBtn.click();
+    const out = await popup.b64Output.inputValue();
     expect(out).toBe('qakit decode test');
   });
 });
@@ -144,31 +163,25 @@ test.describe('Encode utilities — extra coverage', () => {
 // ─── JSON Viewer (standalone page) ──────────────────────────────────────────
 
 test.describe('JSON Viewer standalone tab', () => {
-  test('JSON Viewer page mounts with mode tabs + text pane', async ({ popupPage, context }) => {
-    const [page] = await Promise.all([
-      context.waitForEvent('page'),
-      popupPage.click('.home-tile[data-action="open-jsondiff"]'),
-    ]);
-    await page.waitForLoadState('domcontentloaded');
+  test('JSON Viewer page mounts with mode tabs + text pane', async ({ popup, popupPage, context }) => {
+    const viewer = new JsonViewerPage(await popup.openStandalone('open-jsondiff'));
+    const page = viewer.page;
     // Default mode is "Data" (text input). Tree pane is hidden until user switches.
-    await expect(page.locator('.qd-mode[data-mode="text"]')).toBeVisible();
-    await expect(page.locator('.qd-mode[data-mode="tree"]')).toBeVisible();
-    await expect(page.locator('[data-mode-pane="text"]')).toBeVisible();
+    await expect(viewer.mode('text')).toBeVisible();
+    await expect(viewer.mode('tree')).toBeVisible();
+    await expect(viewer.textPane).toBeVisible();
     await page.close();
   });
 
-  test('JSON Viewer Tree mode reveals expand-all + copy buttons', async ({ popupPage, context }) => {
-    const [page] = await Promise.all([
-      context.waitForEvent('page'),
-      popupPage.click('.home-tile[data-action="open-jsondiff"]'),
-    ]);
-    await page.waitForLoadState('domcontentloaded');
+  test('JSON Viewer Tree mode reveals expand-all + copy buttons', async ({ popup, popupPage, context }) => {
+    const viewer = new JsonViewerPage(await popup.openStandalone('open-jsondiff'));
+    const page = viewer.page;
     // Switch to Tree mode
-    await page.click('.qd-mode[data-mode="tree"]');
-    await expect(page.locator('#qdTreeExpandAll')).toBeVisible();
-    await expect(page.locator('#qdTreeCollapseAll')).toBeVisible();
-    await expect(page.locator('#qdTreeCopy')).toBeVisible();
-    await expect(page.locator('#qdTreeFilter')).toBeVisible();
+    await viewer.mode('tree').click();
+    await expect(viewer.expandAll).toBeVisible();
+    await expect(viewer.collapseAll).toBeVisible();
+    await expect(viewer.treeCopy).toBeVisible();
+    await expect(viewer.treeFilter).toBeVisible();
     await page.close();
   });
 });
@@ -176,31 +189,25 @@ test.describe('JSON Viewer standalone tab', () => {
 // ─── Text Compare (standalone page) ─────────────────────────────────────────
 
 test.describe('Text Compare standalone tab', () => {
-  test('Text Compare page mounts with two textareas', async ({ popupPage, context }) => {
-    const [page] = await Promise.all([
-      context.waitForEvent('page'),
-      popupPage.click('.home-tile[data-action="open-textcompare"]'),
-    ]);
-    await page.waitForLoadState('domcontentloaded');
-    await expect(page.locator('#tcLeft')).toBeVisible();
-    await expect(page.locator('#tcRight')).toBeVisible();
+  test('Text Compare page mounts with two textareas', async ({ popup, popupPage, context }) => {
+    const compare = new TextComparePage(await popup.openStandalone('open-textcompare'));
+    const page = compare.page;
+    await expect(compare.left).toBeVisible();
+    await expect(compare.right).toBeVisible();
     await page.close();
   });
 
-  test('Text Compare diff stats update when content differs', async ({ popupPage, context }) => {
-    const [page] = await Promise.all([
-      context.waitForEvent('page'),
-      popupPage.click('.home-tile[data-action="open-textcompare"]'),
-    ]);
-    await page.waitForLoadState('domcontentloaded');
-    await page.fill('#tcLeft', 'line one\nline two');
-    await page.fill('#tcRight', 'line one\nline TWO');
+  test('Text Compare diff stats update when content differs', async ({ popup, popupPage, context }) => {
+    const compare = new TextComparePage(await popup.openStandalone('open-textcompare'));
+    const page = compare.page;
+    await compare.left.fill( 'line one\nline two');
+    await compare.right.fill( 'line one\nline TWO');
     // Trigger a compare button if present, else rely on auto-compare on input
-    const compareBtn = page.locator('#tcCompare, [data-action="compare"]').first();
+    const compareBtn = compare.compareAction;
     if (await compareBtn.count()) await compareBtn.click();
     // Stats element should populate eventually
     await expect(async () => {
-      const stats = await page.locator('#tcStats').textContent();
+      const stats = await compare.stats.textContent();
       expect((stats || '').length).toBeGreaterThan(0);
     }).toPass({ timeout: 3000 });
     await page.close();

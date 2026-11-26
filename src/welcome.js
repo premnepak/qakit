@@ -1,4 +1,4 @@
-// welcome.js — QAKit v1.0.6 welcome / permission-request page
+// welcome.js — QAKit v1.1.0 welcome / permission-request page
 
 const enableBtn = document.getElementById('enableBtn');
 const skipBtn   = document.getElementById('skipBtn');
