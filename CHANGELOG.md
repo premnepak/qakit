@@ -12,6 +12,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 ### Fixed
 - **Net Rules** — the creation form and existing-rule controls/list now share a scrollable area, so rule details and actions remain reachable in the fixed-height popup, including with advanced options expanded.
 
+### Quality
+- **Playwright test architecture** — added reusable page objects for popup panels and standalone tools, a shared base page and page-object fixture factory, plus example tests and migration documentation.
+
 ---
 
 
