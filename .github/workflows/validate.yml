@@ -36,8 +36,8 @@ jobs:
     runs-on: ubuntu-24.04
     name: Playwright tests
     needs: validate
-    permissions:
-      contents: write
+    outputs:
+      report_ready: ${{ steps.report_status.outputs.ready }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -56,18 +56,88 @@ jobs:
       - name: Run Playwright tests
         run: xvfb-run --auto-servernum npx playwright test
 
-      - name: Upload test report artifact
+      - name: Check for generated HTML report
+        id: report_status
         if: always()
+        shell: bash
+        run: |
+          if [[ -f playwright-report/index.html ]]; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Upload test report artifact
+        id: upload_report
+        if: always() && steps.report_status.outputs.ready == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: playwright-report
           path: playwright-report/
           retention-days: 7
 
-      - name: Deploy report to GitHub Pages
-        if: always()
-        uses: peaceiris/actions-gh-pages@v3
+      - name: Upload report for GitHub Pages
+        if: always() && steps.report_status.outputs.ready == 'true' && github.event_name != 'pull_request'
+        uses: actions/upload-pages-artifact@v4
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./playwright-report
-          destination_dir: playwright-report
+          path: playwright-report/
+
+      - name: Add test artifact link to workflow summary
+        if: always()
+        env:
+          ARTIFACT_URL: ${{ steps.upload_report.outputs.artifact-url }}
+          REPORT_READY: ${{ steps.report_status.outputs.ready }}
+        shell: bash
+        run: |
+          {
+            if [[ -n "$ARTIFACT_URL" ]]; then
+              echo "### Playwright test report"
+              echo "- This run's report artifact: [Download or view report](${ARTIFACT_URL})"
+            elif [[ "$REPORT_READY" != "true" ]]; then
+              echo "### Playwright test report"
+              echo "- No HTML report was generated in this run."
+            fi
+            if [[ "$GITHUB_EVENT_NAME" == "pull_request" ]]; then
+              echo "- GitHub Pages is updated on push and manual runs; this pull request report is available from the artifact above."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  deploy-report:
+    name: Publish Playwright report
+    runs-on: ubuntu-24.04
+    needs: playwright
+    if: ${{ always() && needs.playwright.outputs.report_ready == 'true' && github.event_name != 'pull_request' }}
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v5
+
+      - name: Deploy report to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+
+      - name: Add Pages URL to workflow summary and runner log
+        if: always()
+        env:
+          PAGE_URL: ${{ steps.deployment.outputs.page_url }}
+        shell: bash
+        run: |
+          if [[ -n "$PAGE_URL" ]]; then
+            echo "::notice title=Playwright test report::${PAGE_URL}"
+          fi
+
+          {
+            echo "### Playwright report on GitHub Pages"
+            if [[ -n "$PAGE_URL" ]]; then
+              echo "- [Open the latest Playwright test report](${PAGE_URL})"
+            else
+              echo "- Deployment did not return a Pages URL. Check the deployment step and ensure repository Pages are enabled with **GitHub Actions** as the source."
+            fi
+            echo "- The report is published at the root of the Pages site."
+          } >> "$GITHUB_STEP_SUMMARY"

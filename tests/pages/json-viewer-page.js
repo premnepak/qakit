@@ -1,9 +1,15 @@
 // @ts-check
+const { BasePage } = require('./base-page');
 
-class JsonViewerPage {
+/**
+ * Page object for the JSON Viewer standalone tool (json-diff-tool.html).
+ * Handles JSON validation, tree rendering, search, and formatting.
+ * Extends BasePage for common functionality.
+ */
+class JsonViewerPage extends BasePage {
   /** @param {import('@playwright/test').Page} page */
   constructor(page) {
-    this.page = page;
+    super(page);
     this.textArea = page.locator('#qdTextArea');
     this.textStatus = page.locator('#qdTextStatus');
     this.textPane = page.locator('[data-mode-pane="text"]');

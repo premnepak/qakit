@@ -10,11 +10,27 @@
  *   - extensionId : the Chrome extension ID (for chrome-extension:// URLs)
  *   - popupPage : the underlying Playwright Page for low-level operations
  *   - popup : PopupPage object for popup locators and actions
+ *   - pageObjects : utility to create page objects from popup or context pages
  */
 
 const { test: base, chromium } = require('@playwright/test');
 const path = require('path');
 const { PopupPage } = require('./pages/popup-page');
+const {
+  NetworkMockPage,
+  CookieManagerPage,
+  PageAuditPage,
+  HeadersPage,
+  ConsolePage,
+  ToolsPage,
+  UtilityPage,
+  LocalStoragePage,
+  GeolocationPage,
+  EnvironmentMarkerPage,
+  TextComparePage,
+  JsonViewerPage,
+  MarkupPage,
+} = require('./pages');
 
 const extensionPath = path.resolve(__dirname, '..', 'src');
 
@@ -54,6 +70,34 @@ exports.test = base.extend({
   popup: [async ({ popupPage }, use) => {
     await use(new PopupPage(popupPage));
   }, { scope: 'test' }],
+
+  /**
+   * Utility fixture to create page objects for different panels.
+   * This allows tests to easily instantiate and use specific page objects.
+   * 
+   * Usage:
+   *   const networkMock = pageObjects.createNetworkMockPage(popupPage);
+   *   await networkMock.createRule({ name: 'test', pattern: '/api' });
+   */
+  pageObjects: [async ({}, use) => {
+    const factory = {
+      createNetworkMockPage: (page) => new NetworkMockPage(page),
+      createCookieManagerPage: (page) => new CookieManagerPage(page),
+      createPageAuditPage: (page) => new PageAuditPage(page),
+      createHeadersPage: (page) => new HeadersPage(page),
+      createConsolePage: (page) => new ConsolePage(page),
+      createToolsPage: (page) => new ToolsPage(page),
+      createUtilityPage: (page) => new UtilityPage(page),
+      createLocalStoragePage: (page) => new LocalStoragePage(page),
+      createGeolocationPage: (page) => new GeolocationPage(page),
+      createEnvironmentMarkerPage: (page) => new EnvironmentMarkerPage(page),
+      createTextComparePage: (page) => new TextComparePage(page),
+      createJsonViewerPage: (page) => new JsonViewerPage(page),
+      createMarkupPage: (page) => new MarkupPage(page),
+    };
+    await use(factory);
+  }, { scope: 'test' }],
 });
 
 exports.expect = require('@playwright/test').expect;
+

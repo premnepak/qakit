@@ -1,10 +1,16 @@
 // @ts-check
 const { expect } = require('@playwright/test');
+const { BasePage } = require('./base-page');
 
-class PopupPage {
+/**
+ * Page object for the QAKit popup.
+ * Provides access to all popup UI elements, panels, and navigation.
+ * Extends BasePage for common functionality.
+ */
+class PopupPage extends BasePage {
   /** @param {import('@playwright/test').Page} page */
   constructor(page) {
-    this.page = page;
+    super(page);
     this.auditA11yContent = page.locator("#auditA11yContent");
     this.auditClearBtn = page.locator("#auditClearBtn");
     this.auditContent = page.locator("#auditContent");

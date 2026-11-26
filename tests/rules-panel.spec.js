@@ -22,6 +22,68 @@ async function createBlockRule(popup, pattern, group) {
   await expect(popup.rulesBlockPattern).toHaveValue('');
 }
 
+for (const ruleCount of [2, 20]) {
+  test(`Rules panel scrolls to all details with ${ruleCount} existing rules`, async ({ popup, popupPage }) => {
+    await popupPage.setViewportSize({ width: 420, height: 600 });
+    await popupPage.evaluate(async (count) => {
+      for (let i = 0; i < count; i++) {
+        const result = await chrome.runtime.sendMessage({
+          action: 'UPSERT_UNIFIED_RULE',
+          rule: {
+            id: `scroll-rule-${i}`,
+            name: `Scroll rule ${i}`,
+            type: 'cancel-request',
+            enabled: false,
+            priority: i + 1,
+            groupId: 'scroll-test',
+            source: { urlPattern: `*://example.com/scroll-${i}/*`, matchType: 'wildcard' },
+            action: {},
+          },
+        });
+        if (!result?.ok) throw new Error(result?.error || 'Failed to seed rules');
+      }
+    }, ruleCount);
+    await openRulesPanel(popup);
+    await expect(popup.rulesList.locator(':scope > div')).toHaveCount(ruleCount);
+
+    // Expanded creation controls must not trap the rules below the footer.
+    await popup.ruleType('modify-header').click();
+    await popupPage.locator('#rulesBuilderHeaders summary').click();
+    const scrollArea = popupPage.locator('#panel-rules > .net-panel');
+    await scrollArea.evaluate(el => { el.scrollTop = 0; });
+    const bounds = await scrollArea.boundingBox();
+    if (!bounds) throw new Error('Rules panel has no visible scroll area');
+    await popupPage.mouse.move(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2);
+    await popupPage.mouse.wheel(0, 5000);
+    await expect.poll(() => scrollArea.evaluate(el => el.scrollTop)).toBeGreaterThan(0);
+
+    const lastRule = popup.rulesList.locator(':scope > div').last();
+    const lastRuleFullyVisible = () => lastRule.evaluate(el => {
+      const area = el.closest('.net-panel');
+      if (!area) throw new Error('Rule has no scroll container');
+      const viewport = area.getBoundingClientRect();
+      const rule = el.getBoundingClientRect();
+      return rule.top >= viewport.top && rule.bottom <= viewport.bottom;
+    });
+    await expect.poll(lastRuleFullyVisible).toBe(true);
+    await expect(lastRule).toContainText(`name=Scroll rule ${ruleCount - 1}`);
+    await lastRule.locator('.rules-select').check();
+    await expect(popup.rulesSelectedCount).toHaveText(/selected=1/);
+    await popup.rulesDisableSelected.scrollIntoViewIfNeeded();
+    await expect(popup.rulesDisableSelected).toBeInViewport();
+    await lastRule.locator('.rules-edit').click();
+    await expect(popupPage.locator('#rulesEditModal')).toBeVisible();
+    await expect(popupPage.locator('#rulesEditPattern')).toHaveValue(`*://example.com/scroll-${ruleCount - 1}/*`);
+    await popupPage.locator('#rulesEditCancelBtn').click();
+
+    await popup.rulesManageSummary.click();
+    await expect(popup.rulesList).toBeHidden();
+    await popup.rulesManageSummary.click();
+    await lastRule.scrollIntoViewIfNeeded();
+    await expect.poll(lastRuleFullyVisible).toBe(true);
+  });
+}
+
 test('Rules panel smoke: create, duplicate, select, bulk toggle', async ({ popup }) => {
   await openRulesPanel(popup);
 

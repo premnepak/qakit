@@ -912,6 +912,11 @@
     overflow: hidden;
   }
 
+  #panel-rules > .net-panel {
+    display: block;
+    overflow-y: auto;
+  }
+
   .net-toolbar {
     display: flex; align-items: center; gap: 8px;
     padding: 8px 12px; background: var(--surface);
@@ -2075,25 +2080,25 @@
     </div>
 
     <details id="rulesManageSection" style="border-bottom:1px solid var(--border)">
-      <summary style="padding:8px 10px;font-size:9px;color:var(--muted);cursor:pointer;user-select:none">Manage Existing Rules</summary>
+      <summary style="padding:8px 10px;font-size:9px;color:var(--muted);cursor:pointer;user-select:none;flex-shrink:0">Manage Existing Rules</summary>
 
-      <div class="net-toolbar" style="gap:6px;flex-wrap:wrap">
-        <button class="btn-ghost" id="rulesRefreshBtn" style="padding:4px 8px;font-size:9px">↻ Refresh</button>
-        <button class="btn-ghost" id="rulesPauseBtn" style="padding:4px 8px;font-size:9px">⏸ Pause All</button>
-        <button class="btn-ghost" id="rulesExportBtn" style="padding:4px 8px;font-size:9px">⬇ Export</button>
-        <button class="btn-ghost" id="rulesImportBtn" style="padding:4px 8px;font-size:9px">⬆ Import</button>
+      <div class="net-toolbar" style="gap:6px;flex-wrap:nowrap;padding:6px 8px;overflow-x:auto;flex-shrink:0">
+        <button class="btn-ghost" id="rulesRefreshBtn" style="padding:3px 7px;font-size:8.5px;white-space:nowrap">↻ Refresh</button>
+        <button class="btn-ghost" id="rulesPauseBtn" style="padding:3px 7px;font-size:8.5px;white-space:nowrap">⏸ Pause</button>
+        <button class="btn-ghost" id="rulesExportBtn" style="padding:3px 7px;font-size:8.5px;white-space:nowrap">⬇ Export</button>
+        <button class="btn-ghost" id="rulesImportBtn" style="padding:3px 7px;font-size:8.5px;white-space:nowrap">⬆ Import</button>
         <input type="file" id="rulesImportFile" accept="application/json,.json" style="display:none">
       </div>
 
-      <div style="padding:8px 10px;border-top:1px solid var(--border);display:flex;gap:6px;align-items:center;flex-wrap:wrap">
-        <input class="net-input" id="rulesFilterText" placeholder="Search by name, group, pattern" style="flex:1;min-width:150px" />
-        <select class="net-select" id="rulesFilterType" style="width:140px">
+      <div style="padding:5px 8px;border-top:1px solid var(--border);display:grid;grid-template-columns:minmax(0,1fr) 110px 100px;gap:4px;flex-shrink:0;align-items:center">
+        <input class="net-input" id="rulesFilterText" placeholder="Search by name, group, pattern" style="font-size:8px;padding:3px 6px" />
+        <select class="net-select" id="rulesFilterType" style="width:100%;font-size:8px;padding:3px 4px">
           <option value="all">All Types</option>
           <option value="modify-header">modify-header</option>
           <option value="cancel-request">cancel-request</option>
           <option value="redirect-request">redirect-request</option>
         </select>
-        <select class="net-select" id="rulesSortBy" style="width:120px">
+        <select class="net-select" id="rulesSortBy" style="width:100%;font-size:8px;padding:3px 4px">
           <option value="priority-asc">Priority ↑</option>
           <option value="priority-desc">Priority ↓</option>
           <option value="name-asc">Name A-Z</option>
@@ -2101,19 +2106,18 @@
         </select>
       </div>
 
-      <div id="rulesBulkBar" style="display:none;padding:7px 10px;border-top:1px solid var(--border);gap:6px;align-items:center;flex-wrap:wrap;background:var(--surface)">
-        <button class="btn-ghost" id="rulesEnableSelectedBtn" style="padding:3px 8px;font-size:8.5px">Enable Selected</button>
-        <button class="btn-ghost" id="rulesDisableSelectedBtn" style="padding:3px 8px;font-size:8.5px">Disable Selected</button>
-        <button class="btn-ghost" id="rulesDeleteSelectedBtn" style="padding:3px 8px;font-size:8.5px;color:var(--warn)">Delete Selected</button>
-        <span style="font-size:8.5px;color:var(--muted)">Actions apply to selected rules.</span>
-        <span id="rulesSelectedCount" style="font-size:8.5px;color:var(--muted);font-family:monospace">selected=0</span>
+      <div id="rulesBulkBar" style="display:none;padding:5px 8px;border-top:1px solid var(--border);gap:4px;align-items:center;flex-wrap:wrap;background:var(--surface);font-size:8px;flex-shrink:0">
+        <button class="btn-ghost" id="rulesEnableSelectedBtn" style="padding:2px 6px;font-size:8px">Enable</button>
+        <button class="btn-ghost" id="rulesDisableSelectedBtn" style="padding:2px 6px;font-size:8px">Disable</button>
+        <button class="btn-ghost" id="rulesDeleteSelectedBtn" style="padding:2px 6px;font-size:8px;color:var(--warn)">Delete</button>
+        <span id="rulesSelectedCount" style="font-size:8px;color:var(--muted);font-family:monospace">selected=0</span>
       </div>
 
-      <div id="rulesGroupChips" style="padding:6px 10px;border-top:1px solid var(--border);display:flex;gap:5px;flex-wrap:wrap;background:var(--bg)"></div>
+      <div id="rulesGroupChips" style="padding:4px 8px;border-top:1px solid var(--border);display:flex;gap:4px;flex-wrap:wrap;background:var(--bg);max-height:28px;overflow-y:auto;font-size:8px;flex-shrink:0"></div>
 
-      <div id="rulesStatus" style="padding:7px 10px;font-size:8.5px;color:var(--muted);font-family:monospace;border-top:1px solid var(--border)">Loading unified rules…</div>
+      <div id="rulesStatus" style="padding:4px 8px;font-size:8px;color:var(--muted);font-family:monospace;border-top:1px solid var(--border);flex-shrink:0">Loading unified rules…</div>
 
-      <div id="rulesList" style="max-height:220px;overflow:auto;background:var(--bg);border-top:1px solid var(--border)">
+      <div id="rulesList" style="background:var(--bg);border-top:1px solid var(--border)">
         <div style="padding:8px 10px;font-size:9px;color:var(--muted)">No unified rules loaded</div>
       </div>
     </details>
