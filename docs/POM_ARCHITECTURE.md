@@ -1,5 +1,42 @@
 # Page Object Model (POM) Architecture for QAKit Tests
 
+## Start Here
+
+1. Run the complete Playwright suite with `npm test`.
+2. Run the POM examples with `npm test -- tests/example-pom-tests.spec.js`.
+3. Use the `popup` fixture to navigate and `pageObjects` to create a
+   feature-specific page object.
+4. See the page-object inventory below for methods and examples.
+
+```javascript
+const { test, expect } = require('./fixtures');
+
+test('creates a network mock rule', async ({ popup, popupPage, pageObjects }) => {
+  await popup.openPanel('net');
+  const networkMock = pageObjects.createNetworkMockPage(popupPage);
+  await networkMock.createRule({ name: 'API mock', pattern: '/api' });
+  expect(await networkMock.getRuleCount()).toBe(1);
+});
+```
+
+## Quick Reference
+
+| Need | Page object | Common actions |
+| --- | --- | --- |
+| Popup navigation | `PopupPage` | `openPanel()`, `openStandalone()` |
+| Network request mocks | `NetworkMockPage` | `createRule()`, `editRule()`, `deleteRule()`, `toggleRule()` |
+| Cookie manager | `CookieManagerPage` | `refresh()`, `getCookieCount()`, `editCookie()` |
+| Page audit | `PageAuditPage` | `runAudit()`, `waitForAuditComplete()`, `exportAs()` |
+| Header rules | `HeadersPage` | `createRule()`, `editRule()`, `deleteRule()` |
+| Utility tools | `UtilityPage` | Base64, URL, JWT, date/time, timezone methods |
+| Geolocation | `GeolocationPage` | `setLocation()`, `selectPreset()`, `apply()` |
+| JSON viewer | `JsonViewerPage` | `pasteJson()`, `mode()` |
+| Text comparison | `TextComparePage` | `compare()` |
+| Markup/annotation | `MarkupPage` | `tool()`, `waitForImage()` |
+
+For the full API, fixture details, examples, conventions, and guidance on
+adding page objects, continue with **Architecture** and **Page Objects**.
+
 ## Overview
 
 The QAKit test suite uses a **Page Object Model (POM)** architecture to improve test maintainability, readability, and reusability. Each major UI component or standalone page is represented by a page object class that encapsulates locators and business logic.
