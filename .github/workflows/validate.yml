@@ -32,7 +32,8 @@ jobs:
         run: ./scripts/validate.sh
 
   playwright:
-    runs-on: ubuntu-latest
+    # Playwright 1.60.0 supports Ubuntu 24.04, not the 26.04 ubuntu-latest image.
+    runs-on: ubuntu-24.04
     name: Playwright tests
     needs: validate
     permissions:
