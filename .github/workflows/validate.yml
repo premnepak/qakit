@@ -115,11 +115,6 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
-      - name: Configure GitHub Pages
-        uses: actions/configure-pages@v5
-        with:
-          enablement: true
-
       - name: Deploy report to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
@@ -139,7 +134,8 @@ jobs:
             if [[ -n "$PAGE_URL" ]]; then
               echo "- [Open the latest Playwright test report](${PAGE_URL})"
             else
-              echo "- Deployment did not return a Pages URL. Check the deployment step and ensure repository Pages are enabled with **GitHub Actions** as the source."
+              echo "- Deployment did not return a Pages URL."
+              echo "- **Action required:** Enable GitHub Pages in [repository settings](https://github.com/premnepak/qakit/settings/pages) → Source: **GitHub Actions**"
             fi
             echo "- The report is published at the root of the Pages site."
           } >> "$GITHUB_STEP_SUMMARY"
