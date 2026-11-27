@@ -232,34 +232,50 @@ async function syncUnifiedNetworkMockFromLegacy(netRules) {
   return next;
 }
 
+let unifiedRulesInitializationPromise = null;
+
 async function ensureUnifiedRulesMigrated() {
-  const stored = await chrome.storage.local.get([UNIFIED_RULES_KEY, UNIFIED_RULES_INFO_KEY]);
-  const existing = stored[UNIFIED_RULES_KEY];
-  if (Array.isArray(existing)) {
-    // Ensure basic normalisation if older data exists.
-    const normalized = existing.map(r => normalizeUnifiedRule(r));
-    await saveUnifiedRules(normalized, {
-      schemaVersion: UNIFIED_RULES_SCHEMA_VERSION,
-      initializedAt: stored[UNIFIED_RULES_INFO_KEY]?.initializedAt || nowIso(),
-      migratedFromLegacy: stored[UNIFIED_RULES_INFO_KEY]?.migratedFromLegacy || false,
-    });
-    return normalized;
+  if (!unifiedRulesInitializationPromise) {
+    unifiedRulesInitializationPromise = (async () => {
+      const stored = await chrome.storage.local.get([UNIFIED_RULES_KEY, UNIFIED_RULES_INFO_KEY]);
+      const existing = stored[UNIFIED_RULES_KEY];
+      if (Array.isArray(existing)) {
+        // Ensure basic normalisation if older data exists.
+        const normalized = existing.map(r => normalizeUnifiedRule(r));
+        await saveUnifiedRules(normalized, {
+          schemaVersion: UNIFIED_RULES_SCHEMA_VERSION,
+          initializedAt: stored[UNIFIED_RULES_INFO_KEY]?.initializedAt || nowIso(),
+          migratedFromLegacy: stored[UNIFIED_RULES_INFO_KEY]?.migratedFromLegacy || false,
+        });
+        return normalized;
+      }
+
+      const legacy = await chrome.storage.local.get(['qnet_rules', 'qa_header_rules']);
+      const netRules = migrateNetworkMockRulesToUnified(legacy.qnet_rules || []);
+      const headerRules = migrateHeaderRulesToUnified(legacy.qa_header_rules || []);
+      const migrated = netRules.concat(headerRules);
+      await saveUnifiedRules(migrated, {
+        schemaVersion: UNIFIED_RULES_SCHEMA_VERSION,
+        initializedAt: nowIso(),
+        migratedFromLegacy: true,
+        legacyCounts: {
+          networkMock: netRules.length,
+          headers: headerRules.length,
+        },
+      });
+      return migrated;
+    })();
   }
 
-  const legacy = await chrome.storage.local.get(['qnet_rules', 'qa_header_rules']);
-  const netRules = migrateNetworkMockRulesToUnified(legacy.qnet_rules || []);
-  const headerRules = migrateHeaderRulesToUnified(legacy.qa_header_rules || []);
-  const migrated = netRules.concat(headerRules);
-  await saveUnifiedRules(migrated, {
-    schemaVersion: UNIFIED_RULES_SCHEMA_VERSION,
-    initializedAt: nowIso(),
-    migratedFromLegacy: true,
-    legacyCounts: {
-      networkMock: netRules.length,
-      headers: headerRules.length,
-    },
-  });
-  return migrated;
+  const initialization = unifiedRulesInitializationPromise;
+  try {
+    return await initialization;
+  } catch (error) {
+    if (unifiedRulesInitializationPromise === initialization) {
+      unifiedRulesInitializationPromise = null;
+    }
+    throw error;
+  }
 }
 
 async function applyHeaderRulesFromUnified() {

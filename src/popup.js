@@ -986,7 +986,7 @@ const PANEL_LABELS = {
   audit:      'Page Audit',
   ddl:        'Analytics',
   net:        'Network Mock',
-  rules:      'Unified Rules',
+  rules:      'Network Rules',
   headers:    'Headers Modifier',
   ls:         'Local Storage',
   time:       'Time & Epoch',
@@ -1475,7 +1475,7 @@ document.querySelectorAll('#panel-home .home-metric.clickable').forEach(tile => 
   });
 });
 
-// ── Unified Rules API bridge (Phase 1 foundation) ─────────────────────────
+// ── Network Rules API bridge (Phase 1 foundation) ─────────────────────────
 // Exposed on window for upcoming Rules workspace UI and interim manual testing.
 window.qakitUnifiedRulesApi = {
   list: async () => chrome.runtime.sendMessage({ action: 'GET_UNIFIED_RULES' }),
