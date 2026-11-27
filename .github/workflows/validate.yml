@@ -36,8 +36,6 @@ jobs:
     runs-on: ubuntu-24.04
     name: Playwright tests
     needs: validate
-    outputs:
-      report_ready: ${{ steps.report_status.outputs.ready }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4.2.0
@@ -76,12 +74,6 @@ jobs:
           path: playwright-report/
           retention-days: 7
 
-      - name: Upload report for GitHub Pages
-        if: always() && steps.report_status.outputs.ready == 'true'
-        uses: actions/upload-pages-artifact@v4
-        with:
-          path: playwright-report/
-
       - name: Add test artifact link to workflow summary
         if: always()
         env:
@@ -92,50 +84,9 @@ jobs:
           {
             if [[ -n "$ARTIFACT_URL" ]]; then
               echo "### Playwright test report"
-              echo "- This run's report artifact: [Download or view report](${ARTIFACT_URL})"
+              echo "- This run's report artifact: [Download report](${ARTIFACT_URL})"
             elif [[ "$REPORT_READY" != "true" ]]; then
               echo "### Playwright test report"
               echo "- No HTML report was generated in this run."
             fi
-            if [[ "$GITHUB_EVENT_NAME" == "pull_request" ]]; then
-              echo "- GitHub Pages is updated on push and manual runs; this pull request report is available from the artifact above."
-            fi
-          } >> "$GITHUB_STEP_SUMMARY"
-
-  deploy-report:
-    name: Publish Playwright report
-    runs-on: ubuntu-24.04
-    needs: playwright
-    if: ${{ always() && needs.playwright.outputs.report_ready == 'true' }}
-    permissions:
-      contents: read
-      pages: write
-      id-token: write
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    steps:
-      - name: Deploy report to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
-
-      - name: Add Pages URL to workflow summary and runner log
-        if: always()
-        env:
-          PAGE_URL: ${{ steps.deployment.outputs.page_url }}
-        shell: bash
-        run: |
-          if [[ -n "$PAGE_URL" ]]; then
-            echo "::notice title=Playwright test report::${PAGE_URL}"
-          fi
-
-          {
-            echo "### Playwright report on GitHub Pages"
-            if [[ -n "$PAGE_URL" ]]; then
-              echo "- [Open the latest Playwright test report](${PAGE_URL})"
-            else
-              echo "- Deployment did not return a Pages URL."
-              echo "- **Action required:** Enable GitHub Pages in [repository settings](https://github.com/premnepak/qakit/settings/pages) → Source: **GitHub Actions**"
-            fi
-            echo "- The report is published at the root of the Pages site."
           } >> "$GITHUB_STEP_SUMMARY"
