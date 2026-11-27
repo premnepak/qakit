@@ -77,7 +77,7 @@ jobs:
           retention-days: 7
 
       - name: Upload report for GitHub Pages
-        if: always() && steps.report_status.outputs.ready == 'true' && github.event_name != 'pull_request'
+        if: always() && steps.report_status.outputs.ready == 'true'
         uses: actions/upload-pages-artifact@v4
         with:
           path: playwright-report/
@@ -106,7 +106,7 @@ jobs:
     name: Publish Playwright report
     runs-on: ubuntu-24.04
     needs: playwright
-    if: ${{ always() && needs.playwright.outputs.report_ready == 'true' && github.event_name != 'pull_request' }}
+    if: ${{ always() && needs.playwright.outputs.report_ready == 'true' }}
     permissions:
       contents: read
       pages: write
