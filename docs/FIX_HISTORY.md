@@ -6,6 +6,18 @@ The numbering (Issue 64, Issue 65, etc.) reflects the chronological tracking fro
 
 ---
 
+## CI regression — Rules lost during first-time initialization
+
+**Symptom:** The Playwright rules-panel test seeded 20 rules but intermittently found only 19 in the panel.
+
+**Root cause:** The popup's initial rules read and a concurrent rule write could both enter first-time migration. Each migration read the empty storage state, and the later migration write could overwrite the newly saved rule.
+
+**Fix:** Share one in-flight initialization promise across callers. Concurrent reads and writes now wait for the same migration; a failed initialization clears the promise so a later call can retry.
+
+**Files touched:** `background.js`
+
+---
+
 ## Issue 82 — Markup Annotation Editor
 
 **Feature addition (not a bug fix)**
